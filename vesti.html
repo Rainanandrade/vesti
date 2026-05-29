@@ -1,0 +1,1538 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<!--
+  ╔═══════════════════════════════════════════════════════╗
+  ║  VESTI — App de Acompanhamento de Carteira            ║
+  ║  Versão 1.0                                           ║
+  ║  HTML + CSS + JS puro. Funciona no iPhone via Safari. ║
+  ╚═══════════════════════════════════════════════════════╝
+-->
+<meta charset="UTF-8">
+<!-- viewport-fit=cover: ocupa toda a tela incluindo o notch do iPhone -->
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Vesti">
+<meta name="theme-color" content="#0A0A0F">
+<title>Vesti</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* ══════════════════════════════════════════════════
+   VARIÁVEIS GLOBAIS — mudar aqui afecta todo o app
+   ══════════════════════════════════════════════════ */
+:root {
+  --black:#0A0A0F; --s1:#13131A; --s2:#1C1C26; --s3:#242430;
+  --b1:#2A2A38; --b2:#353545;
+  --green:#00E896; --gd:#00E89618; --green2:#00B872;
+  --purple:#A855F7; --pd:#A855F718;
+  --amber:#F59E0B; --ad:#F59E0B18;
+  --red:#FF4757; --rd:#FF475718;
+  --blue:#3B82F6; --bd:#3B82F618;
+  --t1:#F0F0F8; --t2:#8888A8; --t3:#4A4A6A;
+  --st:env(safe-area-inset-top,44px);
+  --sb:env(safe-area-inset-bottom,20px);
+  --r:16px; --rs:10px; --rl:24px;
+}
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+html,body{height:100%;overflow:hidden;}
+body{font-family:'DM Sans',sans-serif;background:var(--black);color:var(--t1);-webkit-font-smoothing:antialiased;}
+
+/* ══════════════════════════════════════════════════
+   SISTEMA DE ECRÃS
+   Cada ecrã ocupa a tela completa em posição fixa.
+   Só o .active é visível — os outros ficam ocultos
+   fora do viewport, sem ocupar espaço no fluxo.
+   ══════════════════════════════════════════════════ */
+.screen{
+  position:fixed;inset:0;
+  overflow-y:auto;overflow-x:hidden;
+  -webkit-overflow-scrolling:touch;
+  min-height:100dvh;
+  padding-bottom:calc(72px + var(--sb));
+  padding-top:var(--st);
+  background:var(--black);
+  visibility:hidden;opacity:0;
+  pointer-events:none;
+  transition:opacity .25s ease;
+}
+.screen.active{
+  visibility:visible;opacity:1;
+  pointer-events:auto;
+  animation:fadeUp .25s ease;
+}
+@keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+
+/* ══════════════════════════════════════════════════
+   BARRA DE NAVEGAÇÃO INFERIOR
+   ══════════════════════════════════════════════════ */
+.nav{position:fixed;bottom:0;left:0;right:0;background:rgba(13,13,20,.97);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border-top:1px solid var(--b1);display:none;padding-bottom:var(--sb);z-index:100;}
+.nav.show{display:flex;}
+.nav-btn{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;padding:10px 0 6px;cursor:pointer;background:none;border:none;font-family:'DM Sans',sans-serif;}
+.nav-icon{font-size:20px;line-height:1;}
+.nav-label{font-size:10px;font-weight:500;color:var(--t3);letter-spacing:.03em;}
+.nav-btn.active .nav-label{color:var(--green);}
+.nav-btn.active .nav-icon{filter:drop-shadow(0 0 6px var(--green));}
+
+/* Botão flutuante da IA */
+.ai-fab{position:fixed;bottom:calc(84px + var(--sb));right:16px;width:52px;height:52px;border-radius:16px;background:linear-gradient(135deg,var(--purple),var(--blue));display:none;align-items:center;justify-content:center;font-size:22px;cursor:pointer;box-shadow:0 4px 20px rgba(168,85,247,.4);z-index:99;border:none;transition:transform .2s;}
+.ai-fab.show{display:flex;}
+.ai-fab:active{transform:scale(.92);}
+
+/* ══════════════════════════════════════════════════
+   COMPONENTES REUTILIZÁVEIS
+   ══════════════════════════════════════════════════ */
+.card{background:var(--s2);border:1px solid var(--b1);border-radius:var(--r);padding:16px;margin:10px 16px 0;}
+.card-sm{background:var(--s2);border:1px solid var(--b1);border-radius:var(--rs);padding:14px;}
+.card-label{font-size:11px;font-weight:500;color:var(--t3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px;}
+.btn{width:100%;border:none;border-radius:14px;padding:15px;font-size:15px;font-weight:600;font-family:'DM Sans',sans-serif;cursor:pointer;transition:transform .15s,opacity .15s;}
+.btn:active{transform:scale(.98);opacity:.9;}
+.btn-primary{background:var(--green);color:var(--black);}
+.btn-secondary{background:var(--gd);color:var(--green);border:1px solid rgba(0,232,150,.2);}
+.btn-ghost{background:transparent;color:var(--t2);border:1px solid var(--b2);}
+.field{margin-bottom:14px;}
+.field-label{font-size:11px;font-weight:600;color:var(--t2);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px;display:block;}
+.field-input{width:100%;background:var(--s2);border:1.5px solid var(--b1);border-radius:var(--rs);padding:14px 16px;font-size:16px;font-family:'DM Sans',sans-serif;color:var(--t1);outline:none;transition:border-color .2s;-webkit-appearance:none;}
+.field-input:focus{border-color:var(--green);}
+.field-input::placeholder{color:var(--t3);}
+.section-hdr{display:flex;justify-content:space-between;align-items:center;padding:0 16px;margin-top:20px;margin-bottom:8px;}
+.section-title{font-family:'Syne',sans-serif;font-size:16px;font-weight:700;}
+.section-link{font-size:12px;color:var(--green);font-weight:500;cursor:pointer;}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:10px 16px 0;}
+.toast{position:fixed;bottom:calc(80px + var(--sb));left:16px;right:16px;background:var(--s3);border:1px solid var(--b2);color:var(--t1);border-radius:12px;padding:13px 16px;font-size:13px;font-weight:500;text-align:center;z-index:500;transform:translateY(20px);opacity:0;transition:all .3s;pointer-events:none;}
+.toast.show{transform:translateY(0);opacity:1;}
+.spin{display:inline-block;width:16px;height:16px;border:2px solid var(--b2);border-top-color:var(--green);border-radius:50%;animation:rot .6s linear infinite;}
+@keyframes rot{to{transform:rotate(360deg);}}
+.pv{filter:blur(7px);user-select:none;transition:filter .3s;}
+.term{border-bottom:1px dashed var(--green);color:var(--green);cursor:pointer;}
+.icon-btn{background:var(--s2);border:1px solid var(--b1);width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:16px;cursor:pointer;}
+
+/* ══════════════════════════════════════════════════
+   BOAS-VINDAS — orbs e slides
+   ══════════════════════════════════════════════════ */
+/* Boas-vindas: layout em coluna, sem padding inferior */
+#screen-welcome{display:flex !important;flex-direction:column;padding-bottom:0;}
+.orbs{position:fixed;inset:0;overflow:hidden;pointer-events:none;z-index:0;}
+.orb{position:absolute;border-radius:50%;filter:blur(80px);opacity:.3;animation:drift 8s ease-in-out infinite alternate;}
+.orb1{width:300px;height:300px;background:var(--purple);top:-80px;left:-80px;animation-delay:0s;}
+.orb2{width:250px;height:250px;background:var(--green);bottom:-60px;right:-60px;animation-delay:2s;}
+.orb3{width:180px;height:180px;background:var(--amber);top:40%;left:30%;animation-delay:4s;}
+@keyframes drift{0%{transform:translate(0,0) scale(1)}100%{transform:translate(25px,15px) scale(1.08)}}
+.welcome-body{position:relative;z-index:1;flex:1;display:flex;flex-direction:column;padding:0 24px;padding-top:calc(var(--st) + 20px);}
+.logo{font-family:'Syne',sans-serif;font-size:40px;font-weight:800;letter-spacing:-1px;margin-bottom:6px;}
+.logo span{color:var(--green);}
+.tagline{font-size:15px;color:var(--t2);margin-bottom:36px;line-height:1.5;}
+.slides-wrap{flex:1;position:relative;overflow:hidden;margin:0 -24px;}
+.slide{position:absolute;inset:0;padding:0 24px;display:flex;flex-direction:column;justify-content:center;opacity:0;transform:translateX(40px);transition:all .4s ease;pointer-events:none;}
+.slide.active{opacity:1;transform:translateX(0);pointer-events:auto;}
+.slide.prev{opacity:0;transform:translateX(-40px);}
+.slide-emoji{font-size:60px;margin-bottom:20px;}
+.slide-title{font-family:'Syne',sans-serif;font-size:26px;font-weight:700;margin-bottom:12px;line-height:1.2;}
+.slide-desc{font-size:15px;color:var(--t2);line-height:1.65;}
+.slide-desc strong{color:var(--t1);}
+.dots{display:flex;gap:8px;padding:24px 0 16px;}
+.dot{width:6px;height:6px;border-radius:3px;background:var(--b2);transition:all .3s;}
+.dot.active{width:24px;background:var(--green);}
+.welcome-btns{padding-bottom:36px;display:flex;flex-direction:column;gap:10px;}
+
+/* ══════════════════════════════════════════════════
+   AUTH — Login / Signup
+   ══════════════════════════════════════════════════ */
+.auth-wrap{padding:calc(var(--st) + 16px) 24px 40px;min-height:100dvh;display:flex;flex-direction:column;}
+.back-btn{background:var(--s2);border:1px solid var(--b1);width:38px;height:38px;border-radius:10px;font-size:16px;cursor:pointer;color:var(--t2);margin-bottom:28px;display:flex;align-items:center;justify-content:center;}
+.auth-title{font-family:'Syne',sans-serif;font-size:28px;font-weight:800;margin-bottom:6px;}
+.auth-sub{font-size:14px;color:var(--t2);margin-bottom:32px;line-height:1.5;}
+.divider{display:flex;align-items:center;gap:12px;margin:20px 0;color:var(--t3);font-size:12px;}
+.divider::before,.divider::after{content:'';flex:1;height:1px;background:var(--b1);}
+.social-btn{width:100%;background:var(--s2);border:1px solid var(--b1);border-radius:var(--rs);padding:13px;font-size:14px;font-weight:500;font-family:'DM Sans',sans-serif;color:var(--t1);cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:10px;}
+.aux-link{text-align:center;font-size:13px;color:var(--t2);margin-top:14px;cursor:pointer;}
+.aux-link span{color:var(--green);font-weight:600;}
+
+/* ══════════════════════════════════════════════════
+   PIN
+   ══════════════════════════════════════════════════ */
+.pin-wrap{padding:calc(var(--st) + 40px) 32px 40px;min-height:100dvh;display:flex;flex-direction:column;align-items:center;}
+.pin-avatar{width:72px;height:72px;border-radius:24px;background:linear-gradient(135deg,var(--purple),var(--green));display:flex;align-items:center;justify-content:center;font-size:32px;margin-bottom:20px;box-shadow:0 8px 32px rgba(168,85,247,.3);}
+.pin-title{font-family:'Syne',sans-serif;font-size:24px;font-weight:700;margin-bottom:6px;text-align:center;}
+.pin-sub{font-size:13px;color:var(--t2);margin-bottom:36px;text-align:center;}
+.pin-dots{display:flex;gap:16px;margin-bottom:40px;}
+.pin-dot{width:14px;height:14px;border-radius:50%;border:2px solid var(--b2);transition:all .2s;}
+.pin-dot.on{background:var(--green);border-color:var(--green);box-shadow:0 0 12px var(--green);}
+.pin-dot.err{background:var(--red);border-color:var(--red);}
+.pin-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;width:100%;max-width:280px;}
+.pin-key{background:var(--s2);border:1px solid var(--b1);border-radius:14px;padding:18px;font-size:22px;font-weight:600;font-family:'Syne',sans-serif;color:var(--t1);cursor:pointer;transition:all .15s;}
+.pin-key:active{background:var(--gd);border-color:var(--green);transform:scale(.93);}
+.pin-key.empty{background:transparent;border-color:transparent;pointer-events:none;}
+.pin-hint{font-size:12px;color:var(--t3);margin-top:20px;text-align:center;}
+@keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-8px)}75%{transform:translateX(8px)}}
+.shake{animation:shake .3s ease;}
+
+/* ══════════════════════════════════════════════════
+   ONBOARDING
+   ══════════════════════════════════════════════════ */
+.onb-wrap{padding:calc(var(--st) + 16px) 20px 32px;min-height:100dvh;}
+.onb-prog{height:3px;background:var(--b1);border-radius:2px;margin-bottom:28px;overflow:hidden;}
+.onb-bar{height:100%;background:var(--green);border-radius:2px;transition:width .4s ease;}
+.onb-step{font-size:11px;color:var(--t3);font-weight:500;text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px;}
+.onb-q{font-family:'Syne',sans-serif;font-size:22px;font-weight:700;line-height:1.3;margin-bottom:8px;}
+.onb-hint{font-size:13px;color:var(--t2);margin-bottom:28px;line-height:1.5;}
+.onb-opts{display:flex;flex-direction:column;gap:10px;}
+.onb-opt{background:var(--s2);border:1.5px solid var(--b1);border-radius:14px;padding:14px 16px;cursor:pointer;transition:all .2s;display:flex;align-items:center;gap:12px;}
+.onb-opt:active{transform:scale(.98);}
+.onb-opt.sel{border-color:var(--green);background:var(--gd);}
+.onb-opt-ico{font-size:24px;width:32px;text-align:center;flex-shrink:0;}
+.onb-opt-body{flex:1;}
+.onb-opt-title{font-size:14px;font-weight:600;color:var(--t1);}
+.onb-opt-desc{font-size:12px;color:var(--t2);margin-top:2px;}
+.onb-check{width:20px;height:20px;border-radius:50%;border:2px solid var(--b2);flex-shrink:0;display:flex;align-items:center;justify-content:center;transition:all .2s;font-size:11px;}
+.onb-opt.sel .onb-check{background:var(--green);border-color:var(--green);color:var(--black);}
+
+/* ══════════════════════════════════════════════════
+   RESULTADO DO PERFIL
+   ══════════════════════════════════════════════════ */
+.result-wrap{padding:calc(var(--st) + 20px) 20px 32px;min-height:100dvh;}
+.result-badge{display:inline-flex;align-items:center;gap:6px;background:var(--gd);color:var(--green);border:1px solid rgba(0,232,150,.2);border-radius:20px;padding:6px 14px;font-size:12px;font-weight:600;margin-bottom:16px;}
+.result-title{font-family:'Syne',sans-serif;font-size:26px;font-weight:800;line-height:1.2;margin-bottom:8px;}
+.result-sub{font-size:14px;color:var(--t2);line-height:1.6;margin-bottom:24px;}
+.strat-card{background:linear-gradient(135deg,rgba(0,232,150,.1),rgba(168,85,247,.06));border:1px solid rgba(0,232,150,.25);border-radius:var(--rl);padding:20px;margin-bottom:16px;}
+.strat-name{font-family:'Syne',sans-serif;font-size:18px;font-weight:700;margin-bottom:6px;}
+.strat-desc{font-size:13px;color:var(--t2);line-height:1.5;margin-bottom:16px;}
+.strat-alloc{display:flex;flex-direction:column;gap:8px;}
+.alloc-row{display:flex;align-items:center;gap:10px;}
+.alloc-label{font-size:12px;font-weight:600;min-width:60px;}
+.alloc-bar-wrap{flex:1;height:6px;background:var(--b1);border-radius:3px;overflow:hidden;}
+.alloc-bar{height:100%;border-radius:3px;}
+.alloc-pct{font-size:12px;font-weight:600;min-width:32px;text-align:right;}
+
+/* ══════════════════════════════════════════════════
+   DASHBOARD
+   ══════════════════════════════════════════════════ */
+.dash-hdr{padding:calc(var(--st) + 12px) 16px 0;display:flex;justify-content:space-between;align-items:center;}
+.dash-greeting{font-size:13px;color:var(--t2);}
+.dash-name{font-family:'Syne',sans-serif;font-size:20px;font-weight:700;}
+.hdr-icons{display:flex;gap:8px;}
+.market-bar{margin:12px 16px 0;background:var(--s2);border:1px solid var(--b1);border-radius:10px;padding:10px 14px;display:flex;align-items:center;gap:8px;}
+.mkt-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+.mkt-dot.open{background:var(--green);box-shadow:0 0 8px var(--green);animation:pulse 2s infinite;}
+.mkt-dot.closed{background:var(--red);}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+.mkt-text{font-size:12px;font-weight:600;}
+.mkt-sub{font-size:11px;color:var(--t2);margin-left:auto;}
+.pat-card{margin:12px 16px 0;background:var(--s2);border:1px solid var(--b1);border-radius:20px;padding:20px;position:relative;overflow:hidden;}
+.pat-card::before{content:'';position:absolute;top:-60px;right:-60px;width:180px;height:180px;background:radial-gradient(circle,var(--gd),transparent);border-radius:50%;pointer-events:none;}
+.pat-label{font-size:11px;color:var(--t2);font-weight:500;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px;}
+.pat-value{font-family:'Syne',sans-serif;font-size:34px;font-weight:800;letter-spacing:-1px;margin-bottom:4px;}
+.pat-change{font-size:12px;font-weight:600;}
+.pat-change.up{color:var(--green);}
+.pat-change.down{color:var(--red);}
+.pat-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:16px;}
+.pat-stat{background:rgba(255,255,255,.04);border-radius:10px;padding:12px;}
+.pat-stat-label{font-size:10px;color:var(--t2);margin-bottom:4px;}
+.pat-stat-value{font-size:15px;font-weight:600;}
+.g{color:var(--green);}
+.r{color:var(--red);}
+.health-card{margin:10px 16px 0;background:var(--s2);border:1px solid var(--b1);border-radius:14px;padding:14px;display:flex;align-items:center;gap:14px;}
+.health-ring{position:relative;width:56px;height:56px;flex-shrink:0;}
+.health-ring svg{transform:rotate(-90deg);}
+.health-score{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:'Syne',sans-serif;font-size:17px;font-weight:800;}
+.health-info{flex:1;}
+.health-title{font-size:13px;font-weight:600;margin-bottom:3px;}
+.health-sub{font-size:12px;color:var(--t2);line-height:1.4;}
+.ativo-card{background:var(--s2);border:1px solid var(--b1);border-radius:14px;padding:14px;margin:0 16px 10px;display:flex;align-items:center;gap:12px;}
+.ativo-badge{width:42px;height:42px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;font-family:'DM Mono',monospace;flex-shrink:0;}
+.ativo-badge.en{background:var(--gd);color:var(--green);}
+.ativo-badge.fii{background:var(--bd);color:var(--blue);}
+.ativo-badge.etf{background:var(--ad);color:var(--amber);}
+.ativo-ticker{font-size:14px;font-weight:600;}
+.ativo-nome{font-size:11px;color:var(--t2);margin-top:2px;}
+.ativo-right{text-align:right;margin-left:auto;flex-shrink:0;}
+.ativo-val{font-size:14px;font-weight:600;}
+.ativo-chg{font-size:11px;font-weight:500;margin-top:2px;}
+.ativo-chg.up{color:var(--green);}
+.ativo-chg.dn{color:var(--red);}
+
+/* ══════════════════════════════════════════════════
+   APORTE
+   ══════════════════════════════════════════════════ */
+.div-row-preview{display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-bottom:1px solid var(--b1);}
+.div-row-preview:last-child{border-bottom:none;}
+.div-ticker{font-size:13px;font-weight:600;}
+.div-qtd{font-size:11px;color:var(--t2);}
+.div-val{font-size:13px;font-weight:600;color:var(--green);}
+
+/* ══════════════════════════════════════════════════
+   METAS
+   ══════════════════════════════════════════════════ */
+.meta-hero{margin:12px 16px 0;background:linear-gradient(135deg,rgba(168,85,247,.15),rgba(0,232,150,.08));border:1px solid rgba(168,85,247,.3);border-radius:20px;padding:20px;}
+.meta-badge{font-size:11px;color:var(--purple);font-weight:600;text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px;}
+.meta-title{font-family:'Syne',sans-serif;font-size:20px;font-weight:700;margin-bottom:4px;}
+.meta-sub{font-size:12px;color:var(--t2);margin-bottom:16px;}
+.meta-bar{height:6px;background:var(--b1);border-radius:3px;overflow:hidden;margin-bottom:8px;}
+.meta-fill{height:100%;background:linear-gradient(90deg,var(--purple),var(--green));border-radius:3px;transition:width .8s ease;}
+.meta-stats{display:flex;justify-content:space-between;font-size:12px;color:var(--t2);}
+.meta-stats span{font-weight:600;color:var(--t1);}
+.meta-next-card{margin:10px 16px 0;background:var(--s2);border:1px solid var(--b1);border-radius:14px;padding:14px;display:flex;align-items:center;gap:12px;}
+.meta-next-ico{font-size:28px;}
+.meta-next-body{flex:1;}
+.meta-next-lbl{font-size:10px;color:var(--t3);text-transform:uppercase;letter-spacing:.04em;margin-bottom:3px;}
+.meta-next-name{font-size:14px;font-weight:600;}
+.meta-next-val{font-size:12px;color:var(--t2);margin-top:2px;}
+.achieved-wrap{margin:16px 16px 0;}
+.achieved-label{font-size:11px;color:var(--t3);text-transform:uppercase;letter-spacing:.04em;margin-bottom:10px;}
+.achieved-row{display:flex;gap:10px;overflow-x:auto;padding-bottom:4px;scrollbar-width:none;}
+.achieved-item{background:var(--s2);border:1px solid var(--b1);border-radius:12px;padding:10px 14px;flex-shrink:0;text-align:center;}
+.achieved-emoji{font-size:24px;display:block;margin-bottom:4px;}
+.achieved-name{font-size:11px;color:var(--t2);white-space:nowrap;}
+
+/* ══════════════════════════════════════════════════
+   IA CHAT
+   ══════════════════════════════════════════════════ */
+#ai-panel{position:fixed;inset:0;background:var(--black);z-index:200;display:none;flex-direction:column;}
+#ai-panel.show{display:flex;}
+.ai-hdr{padding:calc(var(--st) + 8px) 16px 12px;border-bottom:1px solid var(--b1);display:flex;align-items:center;gap:12px;}
+.ai-avatar{width:40px;height:40px;border-radius:12px;background:linear-gradient(135deg,var(--purple),var(--blue));display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;}
+.ai-close{margin-left:auto;background:var(--s2);border:1px solid var(--b1);width:32px;height:32px;border-radius:8px;font-size:14px;cursor:pointer;color:var(--t2);}
+.ai-chips{display:flex;gap:8px;overflow-x:auto;padding:10px 16px 0;scrollbar-width:none;}
+.ai-chip{background:var(--s2);border:1px solid var(--b1);border-radius:20px;padding:7px 14px;font-size:12px;font-weight:500;font-family:'DM Sans',sans-serif;color:var(--t2);cursor:pointer;white-space:nowrap;flex-shrink:0;}
+.ai-chip:active{border-color:var(--green);color:var(--green);}
+.ai-msgs{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:12px;}
+.ai-msg{max-width:85%;padding:12px 14px;border-radius:16px;font-size:14px;line-height:1.55;white-space:pre-wrap;}
+.ai-msg.bot{background:var(--s2);border:1px solid var(--b1);border-bottom-left-radius:4px;align-self:flex-start;}
+.ai-msg.user{background:var(--purple);color:#fff;border-bottom-right-radius:4px;align-self:flex-end;}
+.ai-input-row{display:flex;gap:8px;padding:12px 16px;padding-bottom:calc(12px + var(--sb));border-top:1px solid var(--b1);}
+.ai-input{flex:1;background:var(--s2);border:1.5px solid var(--b1);border-radius:12px;padding:12px 14px;font-size:15px;font-family:'DM Sans',sans-serif;color:var(--t1);outline:none;}
+.ai-input:focus{border-color:var(--purple);}
+.ai-input::placeholder{color:var(--t3);}
+.ai-send{background:var(--purple);color:#fff;border:none;border-radius:12px;width:44px;height:44px;font-size:18px;cursor:pointer;flex-shrink:0;}
+
+/* ══════════════════════════════════════════════════
+   GLOSSÁRIO
+   ══════════════════════════════════════════════════ */
+#glossary{position:fixed;bottom:calc(80px + var(--sb));left:16px;right:16px;background:var(--s2);border:1px solid var(--b2);border-radius:16px;padding:16px;z-index:300;display:none;animation:fadeUp .2s ease;}
+.glos-term{font-size:11px;color:var(--green);font-weight:600;text-transform:uppercase;letter-spacing:.05em;margin-bottom:5px;}
+.glos-title{font-size:15px;font-weight:700;margin-bottom:6px;}
+.glos-desc{font-size:13px;color:var(--t2);line-height:1.5;}
+.glos-ex{font-size:12px;background:var(--s3);border-radius:8px;padding:10px;margin-top:10px;line-height:1.5;}
+.glos-close{position:absolute;top:12px;right:12px;background:none;border:none;color:var(--t3);font-size:18px;cursor:pointer;}
+
+/* ══════════════════════════════════════════════════
+   CELEBRAÇÃO
+   ══════════════════════════════════════════════════ */
+#celebration{position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:400;display:none;flex-direction:column;align-items:center;justify-content:center;padding:32px;}
+#celebration.show{display:flex;}
+.cel-card{background:var(--s2);border:1px solid var(--b1);border-radius:24px;padding:32px 24px;width:100%;max-width:340px;text-align:center;}
+.cel-emoji{font-size:72px;display:block;margin-bottom:16px;}
+.cel-title{font-family:'Syne',sans-serif;font-size:24px;font-weight:800;margin-bottom:8px;}
+.cel-sub{font-size:14px;color:var(--t2);line-height:1.6;margin-bottom:12px;}
+.cel-suggest{background:var(--pd);border:1px solid rgba(168,85,247,.2);border-radius:12px;padding:14px;font-size:13px;line-height:1.6;margin-bottom:16px;text-align:left;}
+.cel-btn{background:var(--green);color:var(--black);}
+@keyframes cfall{0%{transform:translateY(-100px) rotate(0deg);opacity:1}100%{transform:translateY(100vh) rotate(720deg);opacity:0}}
+.cp{position:fixed;width:8px;height:8px;border-radius:2px;animation:cfall 2s ease-in forwards;pointer-events:none;z-index:401;}
+
+/* ══════════════════════════════════════════════════
+   MODAL DE ESTRATÉGIA
+   ══════════════════════════════════════════════════ */
+#strat-modal{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:200;display:none;align-items:flex-end;}
+#strat-modal.show{display:flex;}
+.modal-sheet{background:var(--s1);border-radius:24px 24px 0 0;padding:0 20px 32px;padding-bottom:calc(32px + var(--sb));width:100%;max-height:85vh;overflow-y:auto;}
+.modal-handle{width:40px;height:4px;background:var(--b2);border-radius:2px;margin:16px auto 20px;}
+.modal-title{font-family:'Syne',sans-serif;font-size:18px;font-weight:700;margin-bottom:16px;}
+.strat-opt{border:1.5px solid var(--b1);border-radius:14px;padding:14px;margin-bottom:10px;cursor:pointer;transition:all .2s;}
+.strat-opt.sel{border-color:var(--green);background:var(--gd);}
+.strat-opt-name{font-size:14px;font-weight:600;margin-bottom:4px;}
+.strat-opt-desc{font-size:12px;color:var(--t2);line-height:1.4;margin-bottom:8px;}
+.strat-tags{display:flex;gap:6px;flex-wrap:wrap;}
+.strat-tag{font-size:11px;font-weight:500;padding:3px 8px;border-radius:6px;}
+
+/* ══════════════════════════════════════════════════
+   HISTÓRICO
+   ══════════════════════════════════════════════════ */
+.hist-row{display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--b1);}
+.hist-row:last-child{border-bottom:none;}
+.hist-ico{width:36px;height:36px;border-radius:10px;background:var(--pd);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;}
+.hist-info{flex:1;}
+.hist-name{font-size:13px;font-weight:500;}
+.hist-date{font-size:11px;color:var(--t2);margin-top:2px;}
+.hist-val{font-size:13px;font-weight:600;}
+</style>
+</head>
+<body>
+
+<!-- ECRÃ 1: BOAS-VINDAS -->
+<div class="screen active" id="screen-welcome" style="display:flex;flex-direction:column;padding-bottom:0;">
+  <div class="orbs"><div class="orb orb1"></div><div class="orb orb2"></div><div class="orb orb3"></div></div>
+  <div class="welcome-body">
+    <div class="logo">vesti<span>.</span></div>
+    <div class="tagline">O seu dinheiro a trabalhar.<br>Explicado de forma simples.</div>
+    <div class="slides-wrap">
+      <div class="slide active" id="sl0"><div class="slide-emoji">📊</div><div class="slide-title">A sua carteira.<br>Em tempo real.</div><div class="slide-desc">Acções, FIIs, ETFs — actualizados ao segundo. <strong>Sem abrir 10 apps</strong> diferentes.</div></div>
+      <div class="slide" id="sl1"><div class="slide-emoji">🤖</div><div class="slide-title">IA que explica.<br>Não complica.</div><div class="slide-desc">Pergunte qualquer coisa. O <strong>Gestor IA</strong> responde em linguagem simples — sem jargão.</div></div>
+      <div class="slide" id="sl2"><div class="slide-emoji">🏆</div><div class="slide-title">Metas que<br>celebram consigo.</div><div class="slide-desc">Cada marco financeiro merece <strong>celebração real</strong>. O app sugere como comemorar.</div></div>
+    </div>
+    <div class="dots"><div class="dot active" id="dot0"></div><div class="dot" id="dot1"></div><div class="dot" id="dot2"></div></div>
+    <div class="welcome-btns">
+      <button class="btn btn-primary" id="btn-next" onclick="slideNext()">Continuar</button>
+      <button class="btn btn-ghost" onclick="showScreen('login')">Já tenho conta</button>
+    </div>
+  </div>
+</div>
+
+<!-- ECRÃ 2: LOGIN -->
+<div class="screen" id="screen-login">
+  <div class="auth-wrap">
+    <button class="back-btn" onclick="showScreen('welcome')">←</button>
+    <div class="auth-title">Bem-vindo de volta.</div>
+    <div class="auth-sub">Entre na sua conta para continuar.</div>
+    <div class="field"><label class="field-label">Email</label><input class="field-input" type="email" placeholder="o.seu@email.com" inputmode="email" id="inp-email"></div>
+    <div class="field"><label class="field-label">Senha</label><input class="field-input" type="password" placeholder="••••••••" id="inp-pass"></div>
+    <button class="btn btn-primary" onclick="doLogin()" style="margin-top:8px">Entrar</button>
+    <div class="divider">ou entre com</div>
+    <button class="social-btn">🍎 &nbsp;Continuar com Apple</button>
+    <button class="social-btn">🇬 &nbsp;Continuar com Google</button>
+    <div class="aux-link">Não tem conta? <span onclick="showScreen('signup')">Criar conta</span></div>
+    <div class="aux-link">Esqueceu a senha? <span onclick="showToast('Em breve: recuperação por email 📧')">Recuperar</span></div>
+  </div>
+</div>
+
+<!-- ECRÃ 2B: CRIAR CONTA -->
+<div class="screen" id="screen-signup">
+  <div class="auth-wrap">
+    <button class="back-btn" onclick="showScreen('login')">←</button>
+    <div class="auth-title">Criar conta.</div>
+    <div class="auth-sub">Junte-se a quem já está a construir liberdade financeira.</div>
+    <div class="field"><label class="field-label">Nome</label><input class="field-input" type="text" placeholder="O seu nome" id="inp-nome"></div>
+    <div class="field"><label class="field-label">Email</label><input class="field-input" type="email" placeholder="o.seu@email.com" inputmode="email" id="inp-email2"></div>
+    <div class="field"><label class="field-label">Senha</label><input class="field-input" type="password" placeholder="Mínimo 6 caracteres" id="inp-pass2"></div>
+    <button class="btn btn-primary" onclick="doSignup()" style="margin-top:8px">Criar conta</button>
+    <div class="aux-link" style="margin-top:16px">Já tem conta? <span onclick="showScreen('login')">Entrar</span></div>
+  </div>
+</div>
+
+<!-- ECRÃ 3: CONFIGURAR PIN (primeira vez) -->
+<div class="screen" id="screen-setpin">
+  <div class="pin-wrap">
+    <div class="pin-avatar">🔐</div>
+    <div class="pin-title" id="pin-title">Criar PIN de segurança</div>
+    <div class="pin-sub" id="pin-sub">Escolha 4 dígitos que vai lembrar</div>
+    <div class="pin-dots" id="pin-dots"><div class="pin-dot" id="pd0"></div><div class="pin-dot" id="pd1"></div><div class="pin-dot" id="pd2"></div><div class="pin-dot" id="pd3"></div></div>
+    <div class="pin-grid">
+      <button class="pin-key" onclick="pinPress('1')">1</button><button class="pin-key" onclick="pinPress('2')">2</button><button class="pin-key" onclick="pinPress('3')">3</button>
+      <button class="pin-key" onclick="pinPress('4')">4</button><button class="pin-key" onclick="pinPress('5')">5</button><button class="pin-key" onclick="pinPress('6')">6</button>
+      <button class="pin-key" onclick="pinPress('7')">7</button><button class="pin-key" onclick="pinPress('8')">8</button><button class="pin-key" onclick="pinPress('9')">9</button>
+      <button class="pin-key empty"></button><button class="pin-key" onclick="pinPress('0')">0</button><button class="pin-key" onclick="pinDel()">⌫</button>
+    </div>
+    <div class="pin-hint" id="pin-hint">O PIN protege o acesso ao app</div>
+  </div>
+</div>
+
+<!-- ECRÃ 3B: LOGIN COM PIN -->
+<div class="screen" id="screen-pin">
+  <div class="pin-wrap">
+    <div class="pin-avatar">🇮🇪</div>
+    <div class="pin-title">Confirme o PIN</div>
+    <div class="pin-sub">Segundo passo de segurança</div>
+    <div class="pin-dots" id="pin-login-dots"><div class="pin-dot" id="pld0"></div><div class="pin-dot" id="pld1"></div><div class="pin-dot" id="pld2"></div><div class="pin-dot" id="pld3"></div></div>
+    <div class="pin-grid">
+      <button class="pin-key" onclick="pinLoginPress('1')">1</button><button class="pin-key" onclick="pinLoginPress('2')">2</button><button class="pin-key" onclick="pinLoginPress('3')">3</button>
+      <button class="pin-key" onclick="pinLoginPress('4')">4</button><button class="pin-key" onclick="pinLoginPress('5')">5</button><button class="pin-key" onclick="pinLoginPress('6')">6</button>
+      <button class="pin-key" onclick="pinLoginPress('7')">7</button><button class="pin-key" onclick="pinLoginPress('8')">8</button><button class="pin-key" onclick="pinLoginPress('9')">9</button>
+      <button class="pin-key empty"></button><button class="pin-key" onclick="pinLoginPress('0')">0</button><button class="pin-key" onclick="pinLoginDel()">⌫</button>
+    </div>
+  </div>
+</div>
+
+<!-- ECRÃ 4: ONBOARDING -->
+<div class="screen" id="screen-onboarding">
+  <div class="onb-wrap">
+    <div class="onb-prog"><div class="onb-bar" id="onb-bar"></div></div>
+    <div class="onb-step" id="onb-step"></div>
+    <div class="onb-q"    id="onb-q"></div>
+    <div class="onb-hint" id="onb-hint"></div>
+    <div class="onb-opts" id="onb-opts"></div>
+    <button class="btn btn-primary" onclick="onbNext()" style="margin-top:24px">Próximo</button>
+  </div>
+</div>
+
+<!-- ECRÃ 5: RESULTADO DO PERFIL -->
+<div class="screen" id="screen-result">
+  <div class="result-wrap">
+    <div class="result-badge">🤖 Análise da IA completa</div>
+    <div class="result-title" id="res-title">Estratégia ideal para si</div>
+    <div class="result-sub"   id="res-sub"></div>
+    <div class="strat-card">
+      <div class="strat-name" id="res-name"></div>
+      <div class="strat-desc" id="res-desc"></div>
+      <div class="strat-alloc" id="res-alloc"></div>
+    </div>
+    <div class="card" style="margin-top:0">
+      <div style="font-size:11px;font-weight:600;color:var(--t3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px">Por que esta estratégia?</div>
+      <div style="font-size:13px;color:var(--t2);line-height:1.6" id="res-why"></div>
+    </div>
+    <button class="btn btn-primary" onclick="startApp()" style="margin:16px 0 0">Começar a usar o Vesti</button>
+  </div>
+</div>
+
+<!-- ECRÃ 6: DASHBOARD -->
+<div class="screen" id="screen-dashboard">
+  <div class="dash-hdr">
+    <div><div class="dash-greeting" id="dash-greeting">Bom dia 👋</div><div class="dash-name" id="dash-name">Gestor</div></div>
+    <div class="hdr-icons">
+      <div class="icon-btn" onclick="togglePrivacy()">👁</div>
+      <div class="icon-btn" onclick="lockApp()">🔒</div>
+    </div>
+  </div>
+  <div class="market-bar" id="market-bar">
+    <div class="mkt-dot" id="mkt-dot"></div>
+    <div class="mkt-text" id="mkt-text">A verificar...</div>
+    <div class="mkt-sub"  id="mkt-sub"></div>
+  </div>
+  <div class="pat-card">
+    <div class="pat-label">Patrimônio total</div>
+    <div class="pat-value pv-target" id="pat-total">R$ —</div>
+    <div class="pat-change pv-target" id="pat-change">...</div>
+    <div class="pat-grid">
+      <div class="pat-stat"><div class="pat-stat-label">Investido</div><div class="pat-stat-value pv-target" id="pat-inv">—</div></div>
+      <div class="pat-stat"><div class="pat-stat-label">Renda/mês est.</div><div class="pat-stat-value g pv-target" id="pat-renda">—</div></div>
+      <div class="pat-stat"><div class="pat-stat-label">Rendimento</div><div class="pat-stat-value pv-target" id="pat-rend">—</div></div>
+      <div class="pat-stat"><div class="pat-stat-label">vs. IPCA</div><div class="pat-stat-value pv-target" id="pat-ipca">—</div></div>
+    </div>
+  </div>
+  <div class="health-card">
+    <div class="health-ring">
+      <svg width="56" height="56" viewBox="0 0 56 56">
+        <circle cx="28" cy="28" r="22" fill="none" stroke="var(--b1)" stroke-width="5"/>
+        <circle cx="28" cy="28" r="22" fill="none" stroke="var(--green)" stroke-width="5" stroke-dasharray="138" id="health-ring-fill" stroke-dashoffset="41" stroke-linecap="round"/>
+      </svg>
+      <div class="health-score" id="health-score">7</div>
+    </div>
+    <div class="health-info"><div class="health-title">Saúde da Carteira</div><div class="health-sub" id="health-msg">A analisar...</div></div>
+  </div>
+  <div class="section-hdr">
+    <div class="section-title">Meus Ativos</div>
+    <div class="section-link" onclick="showToast('Em breve: gestão completa 📈')">Gerir</div>
+  </div>
+  <div id="ativos-list"><div style="text-align:center;padding:24px;color:var(--t2);font-size:13px"><div class="spin" style="margin:0 auto 10px"></div>A buscar cotações...</div></div>
+  <div class="card" style="display:flex;gap:10px;align-items:flex-start;margin-bottom:0">
+    <span style="font-size:20px">🤖</span>
+    <div style="font-size:13px;color:var(--t2);line-height:1.5" id="ai-insight">A analisar a sua carteira...</div>
+  </div>
+  <div style="height:12px"></div>
+</div>
+
+<!-- ECRÃ 7: APORTE -->
+<div class="screen" id="screen-aporte">
+  <div style="padding:calc(var(--st) + 16px) 16px 0">
+    <div style="font-family:'Syne',sans-serif;font-size:22px;font-weight:800">Novo Aporte</div>
+    <div style="font-size:13px;color:var(--t2);margin-top:3px" id="aporte-strat-label">A carregar...</div>
+  </div>
+  <div class="card" style="margin-top:16px">
+    <div class="card-label">Saldo disponível</div>
+    <div style="display:flex;align-items:center;gap:10px;margin-top:4px">
+      <div style="font-family:'Syne',sans-serif;font-size:24px;font-weight:700;color:var(--green)" id="saldo-disp">—</div>
+      <span style="background:var(--gd);color:var(--green);border:1px solid rgba(0,232,150,.2);font-size:11px;font-weight:600;padding:3px 10px;border-radius:20px">💰 Nuinvest</span>
+    </div>
+  </div>
+  <div style="margin:16px 16px 0">
+    <div class="field">
+      <label class="field-label">Valor do aporte (R$) — qualquer valor</label>
+      <input class="field-input" type="number" id="aporte-val" placeholder="Ex: 50, 200, 500..." inputmode="decimal" oninput="calcAporte()">
+    </div>
+  </div>
+  <div class="card" id="div-preview" style="display:none">
+    <div style="font-size:11px;font-weight:600;color:var(--t3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px">Divisão automática</div>
+    <div id="div-rows"></div>
+    <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--b1);display:flex;justify-content:space-between;font-size:12px;color:var(--t2)">
+      <span>Saldo após aporte</span><span style="font-weight:600;color:var(--green)" id="saldo-apos">—</span>
+    </div>
+  </div>
+  <div id="aporte-insight" style="display:none">
+    <div class="card" style="display:flex;gap:10px;align-items:flex-start">
+      <span style="font-size:18px">💡</span>
+      <div style="font-size:12px;color:var(--t2);line-height:1.5" id="aporte-insight-txt"></div>
+    </div>
+  </div>
+  <div style="margin:16px 0 0;display:flex;flex-direction:column;gap:8px;padding:0 16px">
+    <button class="btn btn-primary" onclick="registarAporte()">Registar Aporte</button>
+    <button class="btn btn-secondary" onclick="openStratModal()">⚙️ Alterar estratégia</button>
+    <button class="btn btn-ghost" onclick="showToast('Nuinvest → Buscar ticker → Comprar pelo valor de mercado')">Como comprar na Nuinvest ↗</button>
+  </div>
+  <div style="height:12px"></div>
+</div>
+
+<!-- ECRÃ 8: METAS -->
+<div class="screen" id="screen-metas">
+  <div style="padding:calc(var(--st) + 16px) 16px 0;display:flex;justify-content:space-between;align-items:center">
+    <div><div style="font-family:'Syne',sans-serif;font-size:22px;font-weight:800">Metas 🏆</div><div style="font-size:13px;color:var(--t2);margin-top:2px">A sua jornada financeira</div></div>
+    <div class="icon-btn" onclick="openAI()">🤖</div>
+  </div>
+  <div class="grid2">
+    <div class="card-sm"><div class="card-label">Conquistadas</div><div style="font-size:22px;font-weight:700;color:var(--green);margin-top:4px" id="metas-done">0</div></div>
+    <div class="card-sm"><div class="card-label">Próxima em</div><div style="font-size:22px;font-weight:700;color:var(--purple);margin-top:4px" id="metas-next-val">—</div></div>
+  </div>
+  <div class="meta-hero" id="meta-hero"></div>
+  <div class="meta-next-card" id="meta-next-card"></div>
+  <div class="card" style="display:flex;gap:10px;align-items:flex-start">
+    <span style="font-size:20px">🤖</span>
+    <div style="font-size:13px;color:var(--t2);line-height:1.5" id="meta-ia-pred"></div>
+  </div>
+  <div class="achieved-wrap">
+    <div class="achieved-label">Conquistas anteriores</div>
+    <div class="achieved-row" id="achieved-row"><div style="font-size:12px;color:var(--t3);padding:10px 0">Nenhuma conquista ainda — continue a investir! 🌱</div></div>
+  </div>
+  <div style="height:12px"></div>
+</div>
+
+<!-- ECRÃ 9: HISTÓRICO -->
+<div class="screen" id="screen-historico">
+  <div style="padding:calc(var(--st) + 16px) 16px 0">
+    <div style="font-family:'Syne',sans-serif;font-size:22px;font-weight:800">Histórico</div>
+    <div style="font-size:13px;color:var(--t2);margin-top:2px">Todos os aportes registados</div>
+  </div>
+  <div class="grid2">
+    <div class="card-sm"><div class="card-label">Total aportado</div><div style="font-size:18px;font-weight:700;color:var(--purple);margin-top:4px" id="hist-total">—</div></div>
+    <div class="card-sm"><div class="card-label">Aportes feitos</div><div style="font-size:18px;font-weight:700;margin-top:4px" id="hist-count">—</div></div>
+  </div>
+  <div class="card"><div id="hist-list"></div></div>
+  <div class="section-hdr"><div class="section-title">Backup</div></div>
+  <div class="card"><div id="backup-list"></div></div>
+  <div style="margin:12px 16px 0;display:flex;flex-direction:column;gap:8px">
+    <button class="btn btn-secondary" onclick="exportar()">📤 Exportar backup JSON</button>
+  </div>
+  <div style="height:12px"></div>
+</div>
+
+<!-- PAINEL DA IA -->
+<div id="ai-panel">
+  <div class="ai-hdr">
+    <div class="ai-avatar">🤖</div>
+    <div><div style="font-size:15px;font-weight:600;font-family:'Syne',sans-serif">Gestor IA</div><div style="font-size:11px;color:var(--t2)">Análise personalizada em tempo real</div></div>
+    <button class="ai-close" onclick="closeAI()">✕</button>
+  </div>
+  <div class="ai-chips">
+    <button class="ai-chip" onclick="askAI('Como está a minha carteira hoje?')">📊 Minha carteira</button>
+    <button class="ai-chip" onclick="askAI('Devo aportar agora ou esperar?')">⏰ Quando aportar?</button>
+    <button class="ai-chip" onclick="askAI('Qual é a próxima meta e como chego lá?')">🎯 Próxima meta</button>
+    <button class="ai-chip" onclick="askAI('O que é DY e como usar?')">❓ O que é DY?</button>
+    <button class="ai-chip" onclick="askAI('Estou a perder dinheiro, o que faço?')">😰 No vermelho</button>
+    <button class="ai-chip" onclick="askAI('Sugere uma nova estratégia para mim')">🔄 Nova estratégia</button>
+  </div>
+  <div class="ai-msgs" id="ai-msgs"></div>
+  <div class="ai-input-row">
+    <input class="ai-input" id="ai-inp" placeholder="Pergunte o que quiser..." onkeydown="if(event.key==='Enter')sendAI()">
+    <button class="ai-send" onclick="sendAI()">↑</button>
+  </div>
+</div>
+
+<!-- GLOSSÁRIO -->
+<div id="glossary">
+  <div class="glos-term"  id="glos-term"></div>
+  <div class="glos-title" id="glos-title"></div>
+  <div class="glos-desc"  id="glos-desc"></div>
+  <div class="glos-ex"    id="glos-ex"></div>
+  <button class="glos-close" onclick="document.getElementById('glossary').style.display='none'">✕</button>
+</div>
+
+<!-- CELEBRAÇÃO -->
+<div id="celebration">
+  <div class="cel-card">
+    <span class="cel-emoji" id="cel-emoji">🎉</span>
+    <div class="cel-title"   id="cel-title">Meta atingida!</div>
+    <div class="cel-sub"     id="cel-sub"></div>
+    <div class="cel-suggest" id="cel-suggest"></div>
+    <button class="btn cel-btn" onclick="closeCel()">Continuar a investir 🚀</button>
+  </div>
+</div>
+
+<!-- MODAL DE ESTRATÉGIA -->
+<div id="strat-modal" onclick="if(event.target===this)closeStratModal()">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title">Escolher Estratégia</div>
+    <div id="strat-opts"></div>
+    <div style="display:flex;flex-direction:column;gap:8px;margin-top:4px">
+      <button class="btn btn-primary" onclick="saveStrat()">Confirmar</button>
+      <button class="btn btn-ghost"   onclick="closeStratModal()">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<!-- NAV INFERIOR -->
+<nav class="nav" id="main-nav">
+  <button class="nav-btn active" onclick="showMain('dashboard',this)"><span class="nav-icon">📊</span><span class="nav-label">Carteira</span></button>
+  <button class="nav-btn"        onclick="showMain('aporte',this)">  <span class="nav-icon">➕</span><span class="nav-label">Aporte</span></button>
+  <button class="nav-btn"        onclick="showMain('metas',this)">   <span class="nav-icon">🏆</span><span class="nav-label">Metas</span></button>
+  <button class="nav-btn"        onclick="showMain('historico',this)"><span class="nav-icon">🕐</span><span class="nav-label">Histórico</span></button>
+</nav>
+<button class="ai-fab" id="ai-fab" onclick="openAI()">🤖</button>
+<div class="toast" id="toast"></div>
+
+<script>
+// ═══════════════════════════════════════════════════
+// DADOS: 4 ESTRATÉGIAS DE INVESTIMENTO
+// ═══════════════════════════════════════════════════
+const STRATEGIES = [
+  {
+    id:'conservador', name:'🛡️ Conservador',
+    desc:'Foco em estabilidade e dividendos previsíveis. Ideal para quem quer segurança.',
+    why:'Com base no seu perfil, identificámos baixa tolerância a risco. A TAEE11 tem receita contratada pelo governo até 2031 — praticamente imune a crises. O MXRF11 garante renda todo mês.',
+    ativos:[
+      {ticker:'TAEE11',nome:'Taesa',      tipo:'en', pct:60,dy:0.085,divUnit:0.94,freq:'Semestral'},
+      {ticker:'MXRF11',nome:'Maxi Renda', tipo:'fii',pct:25,dy:0.12, divUnit:0.10,freq:'Mensal'},
+      {ticker:'CPLE3', nome:'Copel',      tipo:'en', pct:15,dy:0.071,divUnit:0.37,freq:'Semestral'},
+    ],
+    colors:['#00E896','#3B82F6','#A855F7']
+  },
+  {
+    id:'balanceado', name:'⚖️ Balanceado',
+    desc:'Equilíbrio entre segurança e crescimento. A escolha mais popular.',
+    why:'O seu perfil indica tolerância moderada a risco com foco em renda passiva a longo prazo. Esta estratégia divide o capital entre transmissão (receita fixa), energia integrada (crescimento) e FII (renda mensal) — o melhor dos três mundos.',
+    ativos:[
+      {ticker:'TAEE11',nome:'Taesa',      tipo:'en', pct:50,dy:0.085,divUnit:0.94,freq:'Semestral'},
+      {ticker:'CPLE3', nome:'Copel',      tipo:'en', pct:30,dy:0.071,divUnit:0.37,freq:'Semestral'},
+      {ticker:'MXRF11',nome:'Maxi Renda', tipo:'fii',pct:20,dy:0.12, divUnit:0.10,freq:'Mensal'},
+    ],
+    colors:['#00E896','#A855F7','#3B82F6']
+  },
+  {
+    id:'renda_max', name:'💰 Renda Máxima',
+    desc:'Máximo de dividendos mensais. Para quem quer receber renda todo mês sem falta.',
+    why:'Identificámos que o seu principal objectivo é receber renda mensal consistente. O MXRF11 com 50% garante pagamentos todo mês. A combinação com TAEE11 e CPLE3 adiciona segurança.',
+    ativos:[
+      {ticker:'MXRF11',nome:'Maxi Renda', tipo:'fii',pct:50,dy:0.12, divUnit:0.10,freq:'Mensal'},
+      {ticker:'TAEE11',nome:'Taesa',      tipo:'en', pct:30,dy:0.085,divUnit:0.94,freq:'Semestral'},
+      {ticker:'CPLE3', nome:'Copel',      tipo:'en', pct:20,dy:0.071,divUnit:0.37,freq:'Semestral'},
+    ],
+    colors:['#3B82F6','#00E896','#A855F7']
+  },
+  {
+    id:'crescimento', name:'🚀 Crescimento',
+    desc:'Maior potencial de valorização. Para quem tolera volatilidade por mais crescimento.',
+    why:'O seu perfil mostra que vê quedas como oportunidade e tem horizonte de longo prazo. A CPLE3 tem potencial de valorização com revisão tarifária em 2026. Esta estratégia prioriza crescimento do patrimônio.',
+    ativos:[
+      {ticker:'CPLE3', nome:'Copel',      tipo:'en', pct:50,dy:0.071,divUnit:0.37,freq:'Semestral'},
+      {ticker:'TAEE11',nome:'Taesa',      tipo:'en', pct:30,dy:0.085,divUnit:0.94,freq:'Semestral'},
+      {ticker:'MXRF11',nome:'Maxi Renda', tipo:'fii',pct:20,dy:0.12, divUnit:0.10,freq:'Mensal'},
+    ],
+    colors:['#A855F7','#00E896','#3B82F6']
+  }
+];
+
+// ═══════════════════════════════════════════════════
+// DADOS: 12 METAS PROGRESSIVAS
+// ═══════════════════════════════════════════════════
+const METAS = [
+  {id:'m100',  val:100,    emoji:'🌱',title:'Primeira semente',      desc:'R$ 100 investidos',         cel:'Plantou a primeira semente. A jornada de mil quilómetros começa com um passo.',sug:'Tire uma captura de ecrã deste momento. Daqui a 5 anos vai sorrir ao ver onde começou 📸'},
+  {id:'m500',  val:500,    emoji:'⚡',title:'Impulso inicial',        desc:'R$ 500 no portfólio',       cel:'Meio salário mínimo a gerar renda por si. Isso é real e é seu.',sug:'Partilhe com alguém de confiança — um amigo, a sua esposa. Celebrações partilhadas valem mais 🥂'},
+  {id:'m1k',   val:1000,   emoji:'🏆',title:'Primeiro milhar',        desc:'R$ 1.000 conquistados',     cel:'R$ 1.000 gerando ~R$ 7/mês em dividendos. O dinheiro já trabalha por si.',sug:'Jantar especial em casa hoje à noite 🍝 — conte o que aconteceu. Este é um marco real.'},
+  {id:'m2500', val:2500,   emoji:'🎯',title:'Disciplina comprovada',  desc:'R$ 2.500 acumulados',       cel:'Provou a si mesmo que consegue manter o hábito. Isso vale mais que qualquer rendimento.',sug:'Um fim de semana diferente — museu, natureza, algo que normalmente adia. Invista também em experiências 🎨'},
+  {id:'m5k',   val:5000,   emoji:'🔥',title:'A bola de neve começou', desc:'R$ 5.000 no portfólio',     cel:'R$ 5.000 gerando ~R$ 35/mês. Os dividendos já pagam uma conta.',sug:'Algo que usa todo dia mas sempre adiou comprar — uma caneta boa, uns auscultadores, algo seu 🎧'},
+  {id:'m10k',  val:10000,  emoji:'💎',title:'Cinco dígitos',          desc:'R$ 10.000 investidos',      cel:'Dez mil reais a trabalhar enquanto dorme. Isso é liberdade em construção.',sug:'Um passeio especial — museu, show, restaurante diferente. Marco que merece ser vivido 🇮🇪'},
+  {id:'m25k',  val:25000,  emoji:'🌟',title:'Investidor sério',       desc:'R$ 25.000 acumulados',      cel:'R$ 25.000 gerando ~R$ 175/mês. Quase um salário mínimo em renda passiva.',sug:'Renove algo que usa todo dia. Você mudou por dentro, pode mudar por fora também 🛍️'},
+  {id:'m50k',  val:50000,  emoji:'🚀',title:'Rumo à liberdade',       desc:'R$ 50.000 no portfólio',    cel:'Cinquenta mil. R$ 350/mês em dividendos. Um salário em construção.',sug:'Viagem especial — dentro da Irlanda ou país vizinho. Celebre com uma memória que dura para sempre ✈️'},
+  {id:'m100k', val:100000, emoji:'👑',title:'Centena de ouro',        desc:'R$ 100.000 conquistados',   cel:'Cem mil reais. R$ 700/mês em renda passiva. A maioria nunca chega aqui.',sug:'Este marco merece algo verdadeiramente especial — você decide 🍾'},
+  {id:'m250k', val:250000, emoji:'🏰',title:'Soberania em construção',desc:'R$ 250.000 acumulados',     cel:'R$ 250k gerando ~R$ 1.750/mês. A liberdade financeira está no horizonte.',sug:'Uma viagem dos sonhos — não a próxima viagem, A viagem 🌍'},
+  {id:'m500k', val:500000, emoji:'🌈',title:'Meio milhão',            desc:'R$ 500.000 no portfólio',   cel:'Meio milhão de reais. ~R$ 3.500/mês em dividendos. Liberdade financeira parcial.',sug:'Algo que muda a vida — para si, para a família, para alguém que ama 💫'},
+  {id:'m1m',   val:1000000,emoji:'🌙',title:'Clube do milhão',        desc:'R$ 1.000.000 — meta máxima',cel:'Um milhão de reais gerando ~R$ 7.000/mês. Você chegou. Liberdade financeira real.',sug:'Escreva uma carta para o "você" de quando começou. Ele merece saber que valeu cada aporte 📜'},
+];
+
+// ═══════════════════════════════════════════════════
+// DADOS: GLOSSÁRIO FINANCEIRO
+// ═══════════════════════════════════════════════════
+const GLOSSARIO = {
+  dy:       {term:'DY — Dividend Yield',          title:'Quanto rende em dividendos por ano',     desc:'É a percentagem do preço da acção que você recebe de volta como dividendo por ano. Quanto maior o DY, mais renda passiva gera sem precisar vender nada.',                         ex:'💡 Acção a R$ 100 com DY 8% → recebe R$ 8/ano. Em 12 anos e meio recuperou todo o capital só em dividendos.'},
+  pl:       {term:'P/L — Preço sobre Lucro',      title:'Se a acção está cara ou barata',         desc:'Divide o preço da acção pelo lucro anual por acção. P/L baixo pode indicar acção barata; P/L alto pode indicar cara — mas depende do sector.',                                   ex:'💡 P/L 8x: paga R$ 8 por cada R$ 1 de lucro. P/L 20x: paga R$ 20 por cada R$ 1 de lucro.'},
+  fii:      {term:'FII — Fundo Imobiliário',       title:'Investir em imóveis sem comprar imóveis',desc:'Um FII agrupa vários imóveis (shoppings, galpões, hospitais). Comprando uma cota, recebe parte do aluguel todo mês. Por lei, 95% do lucro é distribuído.',                       ex:'💡 MXRF11 possui dezenas de CRIs. Com 10 cotas a R$ 9,89 cada, recebe ~R$ 1/mês sem fazer nada.'},
+  etf:      {term:'ETF — Exchange Traded Fund',   title:'Um cesto de acções numa só compra',      desc:'Um ETF replica um índice. Comprando uma cota, investe em dezenas de empresas ao mesmo tempo — diversificação automática com custo baixo.',                                         ex:'💡 BOVA11 replica o Ibovespa. Uma cota = exposição às 80+ maiores empresas do Brasil.'},
+  dividendo:{term:'Dividendo',                     title:'O "salário" das suas acções',           desc:'Quando uma empresa lucra, pode distribuir parte desse lucro para os accionistas. Isso é o dividendo — um pagamento periódico que você recebe só por ser dono de acções.',           ex:'💡 Tem 100 acções da Taesa. A empresa paga R$ 0,94 por acção no semestre. Você recebe R$ 94 sem fazer nada.'},
+  payout:   {term:'Payout',                        title:'Quanto do lucro vira dividendo',         desc:'Percentagem do lucro que a empresa distribui como dividendo. Payout de 100% significa que distribui todo o lucro — mais renda para você, mas menos para crescimento.',             ex:'💡 TAEE11 tem payout ~100%. Cada real que a empresa lucra, você recebe como dividendo.'},
+};
+
+// ═══════════════════════════════════════════════════
+// ESTADO GLOBAL — todos os dados do utilizador
+// ═══════════════════════════════════════════════════
+let APP = {
+  user:      {nome:'', email:''},
+  pin:       null,      // PIN definido pelo utilizador
+  pinSetup:  null,      // PIN temporário durante configuração
+  stratId:   'balanceado',
+  carteira: [
+    {ticker:'TAEE11', qtd:11, pmedio:38.67},
+    {ticker:'CPLE3',  qtd:19, pmedio:15.09},
+    {ticker:'MXRF11', qtd:11, pmedio:9.89 },
+  ],
+  saldo:     28.41,
+  historico: [
+    {data:'20/05/2026', valor:545.79, ativos:'TAEE11 · CPLE3 · MXRF11'},
+    {data:'14/05/2026', valor:275.01, ativos:'TAEE11 · CPLE3'},
+  ],
+  metasOk:    [],
+  privacidade:false,
+  perfil:     {},
+};
+
+// Cotações (actualizadas a cada 60s via Brapi.dev)
+let COT = {
+  TAEE11:{price:38.05, change:-0.5},
+  CPLE3: {price:14.71, change: 0.8},
+  MXRF11:{price: 9.89, change: 0.1},
+};
+
+// Histórico de mensagens da IA
+let aiHistory = [];
+
+// ═══════════════════════════════════════════════════
+// PERSISTÊNCIA — localStorage
+// ═══════════════════════════════════════════════════
+function save() {
+  try { localStorage.setItem('vesti-v1', JSON.stringify(APP)); } catch(e) {}
+}
+function load() {
+  try {
+    const d = localStorage.getItem('vesti-v1');
+    if (d) APP = {...APP, ...JSON.parse(d)};
+  } catch(e) {}
+}
+
+// ═══════════════════════════════════════════════════
+// SLIDES DE BOAS-VINDAS
+// ═══════════════════════════════════════════════════
+let slideIdx = 0;
+function slideNext() {
+  if (slideIdx < 2) {
+    document.getElementById('sl' + slideIdx).classList.remove('active');
+    document.getElementById('sl' + slideIdx).classList.add('prev');
+    document.getElementById('dot' + slideIdx).classList.remove('active');
+    slideIdx++;
+    document.getElementById('sl' + slideIdx).classList.add('active');
+    document.getElementById('dot' + slideIdx).classList.add('active');
+    if (slideIdx === 2) document.getElementById('btn-next').textContent = 'Começar';
+  } else {
+    showScreen('signup');
+  }
+}
+
+// ═══════════════════════════════════════════════════
+// AUTENTICAÇÃO
+// ═══════════════════════════════════════════════════
+function doLogin() {
+  const email = document.getElementById('inp-email').value.trim();
+  const pass  = document.getElementById('inp-pass').value;
+  if (!email || !pass) { showToast('Preencha email e senha'); return; }
+  if (!email.includes('@')) { showToast('Email inválido'); return; }
+  load();
+  APP.user.email = email;
+  if (APP.pin) { showScreen('pin'); }
+  else { showScreen('onboarding'); initOnb(); }
+}
+
+function doSignup() {
+  const nome  = document.getElementById('inp-nome').value.trim();
+  const email = document.getElementById('inp-email2').value.trim();
+  const pass  = document.getElementById('inp-pass2').value;
+  if (!nome)  { showToast('Introduza o seu nome'); return; }
+  if (!email.includes('@')) { showToast('Email inválido'); return; }
+  if (pass.length < 6) { showToast('Senha mínimo 6 caracteres'); return; }
+  APP.user = {nome, email};
+  save();
+  showScreen('setpin');
+  initPinSetup();
+}
+
+// ═══════════════════════════════════════════════════
+// PIN — CONFIGURAÇÃO E LOGIN
+// ═══════════════════════════════════════════════════
+let pinBuf = '', pinStep = 'set';
+
+function initPinSetup() {
+  pinBuf = ''; pinStep = 'set'; APP.pinSetup = null;
+  updatePinDots('pin-dots', 0);
+  document.getElementById('pin-title').textContent = 'Criar PIN de segurança';
+  document.getElementById('pin-sub').textContent   = 'Escolha 4 dígitos que vai lembrar';
+  document.getElementById('pin-hint').textContent  = 'O PIN protege o acesso ao app';
+}
+
+function pinPress(d) {
+  if (pinBuf.length >= 4) return;
+  pinBuf += d;
+  updatePinDots('pin-dots', pinBuf.length);
+  if (pinBuf.length === 4) {
+    setTimeout(() => {
+      if (pinStep === 'set') {
+        APP.pinSetup = pinBuf; pinBuf = ''; pinStep = 'confirm';
+        updatePinDots('pin-dots', 0);
+        document.getElementById('pin-title').textContent = 'Confirmar PIN';
+        document.getElementById('pin-sub').textContent   = 'Digite os mesmos 4 dígitos';
+      } else {
+        if (pinBuf === APP.pinSetup) {
+          APP.pin = pinBuf; save();
+          showScreen('onboarding'); initOnb();
+        } else {
+          shakePin('pin-dots');
+          setTimeout(() => { pinBuf = ''; pinStep = 'set'; APP.pinSetup = null; initPinSetup(); }, 800);
+        }
+      }
+    }, 150);
+  }
+}
+function pinDel() {
+  if (!pinBuf.length) return;
+  pinBuf = pinBuf.slice(0,-1);
+  updatePinDots('pin-dots', pinBuf.length);
+}
+
+let pinLoginBuf = '';
+function pinLoginPress(d) {
+  if (pinLoginBuf.length >= 4) return;
+  pinLoginBuf += d;
+  updatePinDots('pin-login-dots', pinLoginBuf.length);
+  if (pinLoginBuf.length === 4) {
+    setTimeout(() => {
+      if (pinLoginBuf === APP.pin) {
+        pinLoginBuf = ''; updatePinDots('pin-login-dots', 0);
+        startApp();
+      } else {
+        shakePin('pin-login-dots');
+        setTimeout(() => { pinLoginBuf = ''; updatePinDots('pin-login-dots', 0); }, 700);
+      }
+    }, 150);
+  }
+}
+function pinLoginDel() {
+  if (!pinLoginBuf.length) return;
+  pinLoginBuf = pinLoginBuf.slice(0,-1);
+  updatePinDots('pin-login-dots', pinLoginBuf.length);
+}
+
+function updatePinDots(id, n) {
+  const c = document.getElementById(id);
+  if (!c) return;
+  c.querySelectorAll('.pin-dot').forEach((d,i) => d.classList.toggle('on', i < n));
+}
+function shakePin(id) {
+  const c = document.getElementById(id);
+  if (!c) return;
+  c.querySelectorAll('.pin-dot').forEach(d => d.classList.add('err'));
+  c.classList.add('shake');
+  setTimeout(() => {
+    c.querySelectorAll('.pin-dot').forEach(d => d.classList.remove('err','on'));
+    c.classList.remove('shake');
+  }, 700);
+}
+function lockApp() {
+  pinLoginBuf = ''; updatePinDots('pin-login-dots', 0);
+  document.getElementById('main-nav').classList.remove('show');
+  document.getElementById('ai-fab').classList.remove('show');
+  showScreen('pin');
+}
+
+// ═══════════════════════════════════════════════════
+// ONBOARDING — 5 perguntas de perfil
+// ═══════════════════════════════════════════════════
+const ONB_STEPS = [
+  {q:'Qual é o seu principal objectivo financeiro?', hint:'Isso define a base da sua estratégia.',
+   opts:[{ico:'🏖️',t:'Parar de trabalhar cedo',d:'Independência financeira total',val:'independencia'},
+         {ico:'💰',t:'Receber renda todo mês',  d:'Dividendos mensais constantes', val:'renda'},
+         {ico:'📈',t:'Fazer o dinheiro crescer', d:'Valorização do patrimônio',     val:'crescimento'},
+         {ico:'🛡️',t:'Proteger o que já tenho',  d:'Segurança acima de tudo',       val:'seguranca'}]},
+  {q:'Quanto consegue investir por mês?', hint:'Sem julgamento. Qualquer valor é melhor que zero.',
+   opts:[{ico:'🌱',t:'Menos de R$ 200',   d:'Começando do zero',   val:'baixo'},
+         {ico:'⚡',t:'R$ 200 a R$ 500',   d:'Ritmo consistente',   val:'medio'},
+         {ico:'🚀',t:'R$ 500 a R$ 2.000', d:'Acelerado',           val:'alto'},
+         {ico:'💎',t:'Mais de R$ 2.000',  d:'Alto impacto',        val:'muito_alto'}]},
+  {q:'Se a sua carteira cair 20%, o que faz?', hint:'Honestidade aqui melhora a qualidade da estratégia.',
+   opts:[{ico:'😰',t:'Vendo tudo imediatamente',    d:'Não aguento ver vermelho',        val:'baixo'},
+         {ico:'🤔',t:'Fico preocupado mas aguento',  d:'Tolerância moderada',             val:'medio'},
+         {ico:'😌',t:'Fico calmo, espero recuperar', d:'Boa resistência emocional',       val:'alto'},
+         {ico:'🛒',t:'Compro mais barato',           d:'Queda = oportunidade de compra',  val:'muito_alto'}]},
+  {q:'Qual é o seu nível de conhecimento?', hint:'Isso calibra as explicações. Sem julgamento.',
+   opts:[{ico:'👶',t:'Zero — nunca investi',       d:'Estou começando do zero',   val:'zero'},
+         {ico:'📚',t:'Básico — ouvi falar',          d:'Conheço alguns termos',     val:'basico'},
+         {ico:'🎓',t:'Intermédio — já invisto',      d:'Tenho alguma experiência',  val:'medio'},
+         {ico:'🔬',t:'Avançado — analiso activos',   d:'Conheço análise técnica',   val:'avancado'}]},
+  {q:'Em quanto tempo quer resultados reais?', hint:'Define o horizonte da sua estratégia.',
+   opts:[{ico:'⚡',t:'1 a 2 anos',  d:'Curto prazo',       val:'curto'},
+         {ico:'🎯',t:'3 a 5 anos',  d:'Médio prazo',       val:'medio'},
+         {ico:'🌳',t:'5 a 10 anos', d:'Longo prazo',       val:'longo'},
+         {ico:'🏔️',t:'10+ anos',    d:'Muito longo prazo', val:'muito_longo'}]},
+];
+
+let onbIdx = 0, onbSel = null;
+
+function initOnb() { onbIdx = 0; onbSel = null; APP.perfil = {}; renderOnb(); }
+
+function renderOnb() {
+  const s = ONB_STEPS[onbIdx];
+  document.getElementById('onb-bar').style.width  = ((onbIdx+1)/ONB_STEPS.length*100)+'%';
+  document.getElementById('onb-step').textContent = 'Passo '+(onbIdx+1)+' de '+ONB_STEPS.length;
+  document.getElementById('onb-q').textContent    = s.q;
+  document.getElementById('onb-hint').textContent = s.hint;
+  onbSel = null;
+  document.getElementById('onb-opts').innerHTML = s.opts.map((o,i) =>
+    `<div class="onb-opt" onclick="selOnb(${i},this)">
+      <div class="onb-opt-ico">${o.ico}</div>
+      <div class="onb-opt-body"><div class="onb-opt-title">${o.t}</div><div class="onb-opt-desc">${o.d}</div></div>
+      <div class="onb-check" id="oc${i}"></div>
+    </div>`
+  ).join('');
+}
+
+function selOnb(i, el) {
+  document.querySelectorAll('.onb-opt').forEach(o => o.classList.remove('sel'));
+  document.querySelectorAll('[id^="oc"]').forEach(c => { c.textContent = ''; });
+  el.classList.add('sel');
+  document.getElementById('oc'+i).textContent = '✓';
+  onbSel = i;
+}
+
+function onbNext() {
+  if (onbSel === null) { showToast('Seleccione uma opção para continuar'); return; }
+  const chaves = ['objectivo','aporte','risco','conhecimento','horizonte'];
+  APP.perfil[chaves[onbIdx]] = ONB_STEPS[onbIdx].opts[onbSel].val;
+  if (onbIdx < ONB_STEPS.length-1) { onbIdx++; onbSel = null; renderOnb(); }
+  else { calcularEstrategia(); showScreen('result'); renderResult(); }
+}
+
+// ═══════════════════════════════════════════════════
+// CALCULAR ESTRATÉGIA com base no perfil
+// ═══════════════════════════════════════════════════
+function calcularEstrategia() {
+  const p = APP.perfil;
+  let s = {conservador:0, balanceado:0, renda_max:0, crescimento:0};
+  if (p.objectivo==='seguranca')     s.conservador+=3;
+  if (p.objectivo==='renda')         s.renda_max+=3;
+  if (p.objectivo==='crescimento')   s.crescimento+=3;
+  if (p.objectivo==='independencia') s.balanceado+=2;
+  if (p.risco==='baixo')       s.conservador+=2;
+  if (p.risco==='medio')       s.balanceado+=2;
+  if (p.risco==='alto')        s.crescimento+=1;
+  if (p.risco==='muito_alto')  s.crescimento+=2;
+  if (p.horizonte==='curto')       s.conservador+=1;
+  if (p.horizonte==='longo')       s.crescimento+=1;
+  if (p.horizonte==='muito_longo') s.crescimento+=2;
+  APP.stratId = Object.entries(s).sort((a,b)=>b[1]-a[1])[0][0];
+  save();
+}
+
+function renderResult() {
+  const st = getStrat();
+  const nome = APP.user.nome || 'Gestor';
+  document.getElementById('res-title').textContent = 'Estratégia ideal para '+nome;
+  document.getElementById('res-sub').textContent   = 'Com base nas suas respostas, a IA identificou o perfil mais adequado para si.';
+  document.getElementById('res-name').textContent  = st.name;
+  document.getElementById('res-desc').textContent  = st.desc;
+  document.getElementById('res-why').textContent   = st.why;
+  document.getElementById('res-alloc').innerHTML   = st.ativos.map((a,i)=>
+    `<div class="alloc-row">
+      <div class="alloc-label" style="color:${st.colors[i]}">${a.ticker}</div>
+      <div class="alloc-bar-wrap"><div class="alloc-bar" style="width:${a.pct}%;background:${st.colors[i]}"></div></div>
+      <div class="alloc-pct" style="color:${st.colors[i]}">${a.pct}%</div>
+    </div>`
+  ).join('');
+}
+
+// ═══════════════════════════════════════════════════
+// INICIAR APP — entra no dashboard
+// ═══════════════════════════════════════════════════
+function startApp() {
+  document.getElementById('main-nav').classList.add('show');
+  document.getElementById('ai-fab').classList.add('show');
+  showScreen('dashboard');
+  const h = new Date().getHours();
+  document.getElementById('dash-greeting').textContent = (h<12?'Bom dia':h<18?'Boa tarde':'Boa noite')+' 👋';
+  document.getElementById('dash-name').textContent = APP.user.nome || 'Gestor';
+  fetchCotacoes();
+  checkMercado();
+  checkMetas();
+  setInterval(fetchCotacoes, 60000);
+  setInterval(checkMercado, 60000);
+  addAIWelcome();
+}
+
+// ═══════════════════════════════════════════════════
+// COTAÇÕES — Brapi.dev (API gratuita da B3)
+// ═══════════════════════════════════════════════════
+async function fetchCotacoes() {
+  try {
+    const res  = await fetch('https://brapi.dev/api/quote/TAEE11,CPLE3,MXRF11?token=demo');
+    const data = await res.json();
+    if (data?.results) {
+      data.results.forEach(r => { COT[r.symbol] = {price:r.regularMarketPrice, change:r.regularMarketChangePercent}; });
+    }
+  } catch(e) { /* usa valores de referência */ }
+  renderDashboard();
+}
+
+// ═══════════════════════════════════════════════════
+// STATUS DO MERCADO B3
+// Abre 10:00, fecha 17:55 (horário Brasília, UTC-3)
+// ═══════════════════════════════════════════════════
+function checkMercado() {
+  const br   = new Date(new Date().toLocaleString('en-US',{timeZone:'America/Sao_Paulo'}));
+  const mins = br.getHours()*60 + br.getMinutes();
+  const dia  = br.getDay();
+  const open = dia>=1 && dia<=5 && mins>=600 && mins<1075;
+  const dot  = document.getElementById('mkt-dot');
+  const txt  = document.getElementById('mkt-text');
+  const sub  = document.getElementById('mkt-sub');
+  if (!dot) return;
+  if (open) {
+    dot.className = 'mkt-dot open';
+    txt.textContent = 'Mercado aberto';
+    const falta = 1075-mins;
+    sub.textContent = 'B3 · fecha em '+Math.floor(falta/60)+'h '+(falta%60)+'min';
+  } else {
+    dot.className = 'mkt-dot closed';
+    txt.textContent = 'Mercado fechado';
+    sub.textContent = 'B3 · '+(dia===0||dia===6?'abre Segunda':'abre amanhã')+' às 10:00';
+  }
+}
+
+// ═══════════════════════════════════════════════════
+// RENDER DASHBOARD — actualiza todos os números
+// ═══════════════════════════════════════════════════
+function renderDashboard() {
+  const st = getStrat();
+  let total=0, investido=0, renda=0;
+  APP.carteira.forEach(c => {
+    const p = COT[c.ticker]?.price || c.pmedio;
+    const a = st.ativos.find(x=>x.ticker===c.ticker);
+    total    += p * c.qtd;
+    investido += c.pmedio * c.qtd;
+    if (a) renda += (p * c.qtd * a.dy) / 12;
+  });
+  const diff = total - investido;
+  const pct  = investido>0 ? (diff/investido*100).toFixed(1) : '0.0';
+  const vsIPCA = diff - investido*0.05/12;
+
+  setText('pat-total', fmt(total));
+  setText('pat-inv',   fmt(investido));
+  setText('pat-renda', fmt(renda));
+  setText('pat-rend',  (diff>=0?'+':'')+fmt(diff)+' ('+pct+'%)');
+  setText('pat-ipca',  (vsIPCA>=0?'+':'')+fmt(vsIPCA));
+
+  const chgEl = document.getElementById('pat-change');
+  if (chgEl) {
+    chgEl.textContent = (diff>=0?'▲ +':'▼ ')+fmt(Math.abs(diff))+' ('+pct+'%)';
+    chgEl.className   = 'pat-change '+(diff>=0?'up':'down')+' pv-target';
+  }
+  const rendEl = document.getElementById('pat-rend');
+  if (rendEl) rendEl.className = 'pat-stat-value pv-target '+(diff>=0?'g':'r');
+
+  // Anel de saúde
+  const score = calcSaude(total, investido, st.ativos.length);
+  updateSaude(score);
+  renderAtivos(st);
+  gerarInsightDash(total, investido, diff, renda);
+
+  // Actualiza ecrã de aporte
+  const sdEl = document.getElementById('saldo-disp');
+  if (sdEl) sdEl.textContent = fmt(APP.saldo);
+  const slEl = document.getElementById('aporte-strat-label');
+  if (slEl) slEl.textContent = st.name+' · '+st.ativos.map(a=>a.pct+'% '+a.ticker).join(' · ');
+
+  applyPrivacy();
+}
+
+function calcSaude(total, inv, n) {
+  let s = 5;
+  if (n>=3)          s+=2;
+  if (total>inv)     s+=1;
+  if (total>inv*1.05) s+=1;
+  if (APP.historico.length>=3) s+=1;
+  return Math.min(s,10);
+}
+
+function updateSaude(score) {
+  const offset = (138*(1-score/10)).toFixed(0);
+  const ring = document.getElementById('health-ring-fill');
+  const sc   = document.getElementById('health-score');
+  if (ring) ring.setAttribute('stroke-dashoffset', offset);
+  if (sc)   sc.textContent = score;
+  const msgs = ['','','','Em construção. Invista mensalmente.','A crescer. Consistência é a chave.','Em construção. Continue investindo.','Razoável. Mais aportes melhoram a nota.','Boa. Considere adicionar um ETF.','Boa diversificação e consistência.','Muito boa saúde. Continue o ritmo.','Carteira excelente!'];
+  setText('health-msg', msgs[Math.max(score,3)]);
+}
+
+function renderAtivos(st) {
+  let html = '';
+  APP.carteira.forEach(c => {
+    const a   = st.ativos.find(x=>x.ticker===c.ticker); if (!a) return;
+    const p   = COT[c.ticker]?.price || c.pmedio;
+    const chg = COT[c.ticker]?.change || 0;
+    const vPm = ((p-c.pmedio)/c.pmedio*100).toFixed(1);
+    const cls = parseFloat(vPm)>=0?'up':'dn';
+    const und = c.ticker==='MXRF11'?'cotas':c.ticker==='TAEE11'?'units':'acções';
+    html += `<div class="ativo-card">
+      <div class="ativo-badge ${a.tipo}">${a.nome.substring(0,4).toUpperCase()}</div>
+      <div style="flex:1">
+        <div class="ativo-ticker">${c.ticker} <span style="font-size:10px;background:var(--gd);color:var(--green);padding:2px 6px;border-radius:4px;font-weight:500">${a.pct}%</span></div>
+        <div class="ativo-nome">${a.nome} · ${c.qtd} ${und} · <span class="term" onclick="showGlos('dy')">DY</span> ${(a.dy*100).toFixed(1)}%</div>
+        <div style="font-size:11px;color:var(--t2);margin-top:3px">R$ ${p.toFixed(2)} <span class="${cls}" style="font-size:10px;font-weight:600;margin-left:4px">${chg>=0?'▲+':'▼'}${Math.abs(chg).toFixed(1)}%</span></div>
+      </div>
+      <div class="ativo-right">
+        <div class="ativo-val pv-target">${fmt(p*c.qtd)}</div>
+        <div class="ativo-chg ${cls}">${parseFloat(vPm)>=0?'+':''}${vPm}% vs PM</div>
+        <div style="font-size:10px;color:var(--t3);margin-top:2px">PM R$ ${c.pmedio.toFixed(2)}</div>
+      </div>
+    </div>`;
+  });
+  const el = document.getElementById('ativos-list');
+  if (el) el.innerHTML = html || '<div style="text-align:center;padding:20px;color:var(--t2);font-size:13px">Nenhum activo. Faça o primeiro aporte!</div>';
+}
+
+function gerarInsightDash(total, inv, diff, renda) {
+  const nome = APP.user.nome ? APP.user.nome.split(' ')[0] : 'Gestor';
+  let msg = '';
+  if (total < 1000) msg = `${nome}, a carteira está em fase de construção. Continue os aportes — os primeiros R$ 1.000 são os mais importantes da jornada.`;
+  else if (diff < 0) msg = `A carteira está temporariamente abaixo do custo médio. Não venda. Quedas em activos de qualidade são oportunidades de compra a preços melhores.`;
+  else if (renda < 50) msg = `A renda passiva ainda é pequena (${fmt(renda)}/mês) mas está a crescer. Com aportes consistentes, em 12 meses estará a receber dividendos mensais relevantes.`;
+  else msg = `Carteira saudável. ${fmt(renda)}/mês em renda passiva estimada. Reinvestir os dividendos vai acelerar o crescimento de forma exponencial.`;
+  setText('ai-insight', msg);
+}
+
+// ═══════════════════════════════════════════════════
+// APORTE — calculadora de divisão
+// ═══════════════════════════════════════════════════
+function calcAporte() {
+  const val = parseFloat(document.getElementById('aporte-val').value) || 0;
+  const prev = document.getElementById('div-preview');
+  if (val < 1) { prev.style.display='none'; document.getElementById('aporte-insight').style.display='none'; return; }
+  prev.style.display = 'block';
+  const st = getStrat();
+  let usado = 0, html = '';
+  st.ativos.forEach((a,i) => {
+    const p    = COT[a.ticker]?.price || 10;
+    const alloc = val * (a.pct/100);
+    const qtd  = Math.floor(alloc/p);
+    const custo = qtd*p;
+    usado += custo;
+    html += `<div class="div-row-preview">
+      <div><div class="div-ticker">${a.ticker} <span style="font-size:10px;color:var(--t3)">${a.pct}%</span></div>
+      <div class="div-qtd">~${qtd} ${a.ticker==='MXRF11'?'cotas':a.ticker==='TAEE11'?'units':'acções'} × R$ ${p.toFixed(2)}</div></div>
+      <div class="div-val">R$ ${custo.toFixed(2)}</div>
+    </div>
+    <div style="height:4px;background:var(--b1);border-radius:2px;margin:4px 0 6px;overflow:hidden">
+      <div style="width:${a.pct}%;height:100%;background:${st.colors[i]};border-radius:2px"></div>
+    </div>`;
+  });
+  document.getElementById('div-rows').innerHTML = html;
+  document.getElementById('saldo-apos').textContent = 'R$ '+(APP.saldo+val-usado).toFixed(2);
+  if (val >= 10) {
+    const dyMedio = st.ativos.reduce((s,a)=>s+a.dy*a.pct/100, 0);
+    document.getElementById('aporte-insight').style.display = 'block';
+    document.getElementById('aporte-insight-txt').textContent =
+      'R$ '+val.toFixed(2)+' aportados hoje geram ~R$ '+(usado*dyMedio/12).toFixed(2)+'/mês em renda passiva adicional. Cada aporte, por menor que seja, acelera a sua liberdade financeira.';
+  }
+}
+
+function registarAporte() {
+  const val = parseFloat(document.getElementById('aporte-val').value) || 0;
+  if (val < 1) { showToast('Insira um valor válido'); return; }
+  const st = getStrat();
+  let usado = 0;
+  st.ativos.forEach(a => {
+    const p   = COT[a.ticker]?.price || 10;
+    const qtd = Math.floor(val*(a.pct/100)/p);
+    if (qtd > 0) {
+      const c = APP.carteira.find(x=>x.ticker===a.ticker);
+      if (c) { const nt = c.pmedio*c.qtd + p*qtd; c.qtd+=qtd; c.pmedio=nt/c.qtd; }
+      usado += qtd*p;
+    }
+  });
+  APP.saldo = APP.saldo + val - usado;
+  APP.historico.unshift({data:new Date().toLocaleDateString('pt-BR'), valor:usado, ativos:st.ativos.map(a=>a.ticker).join(' · ')});
+  checkMetas(); save();
+  document.getElementById('aporte-val').value = '';
+  document.getElementById('div-preview').style.display = 'none';
+  document.getElementById('aporte-insight').style.display = 'none';
+  const sdEl = document.getElementById('saldo-disp');
+  if (sdEl) sdEl.textContent = fmt(APP.saldo);
+  renderDashboard();
+  showToast('✅ Aporte de R$ '+usado.toFixed(2)+' registado!');
+  setTimeout(() => showMain('dashboard', document.querySelectorAll('.nav-btn')[0]), 1200);
+}
+
+// ═══════════════════════════════════════════════════
+// METAS — verificação e celebração
+// ═══════════════════════════════════════════════════
+function getTotal() {
+  return APP.carteira.reduce((s,c) => s + (COT[c.ticker]?.price||c.pmedio)*c.qtd, 0);
+}
+
+function checkMetas() {
+  const total = getTotal();
+  METAS.forEach(m => {
+    if (!APP.metasOk.includes(m.id) && total >= m.val) {
+      APP.metasOk.push(m.id); save();
+      setTimeout(() => showCelebration(m), 700);
+    }
+  });
+}
+
+function showCelebration(m) {
+  spawnConfetti();
+  document.getElementById('cel-emoji').textContent   = m.emoji;
+  document.getElementById('cel-title').textContent   = m.title+' conquistado!';
+  document.getElementById('cel-sub').textContent     = m.cel;
+  document.getElementById('cel-suggest').innerHTML   = '<strong>💡 O Gestor sugere:</strong><br>'+m.sug;
+  document.getElementById('celebration').classList.add('show');
+}
+function closeCel() { document.getElementById('celebration').classList.remove('show'); renderMetas(); }
+
+function spawnConfetti() {
+  const cores = ['#00E896','#A855F7','#F59E0B','#FF4757','#3B82F6','#FF6B9D'];
+  for (let i=0; i<35; i++) {
+    const el = document.createElement('div');
+    el.className = 'cp';
+    el.style.cssText = `left:${Math.random()*100}vw;background:${cores[Math.floor(Math.random()*cores.length)]};animation-delay:${Math.random()*.5}s;animation-duration:${1.5+Math.random()}s;border-radius:${Math.random()>.5?'50%':'2px'}`;
+    document.body.appendChild(el);
+    setTimeout(() => el.remove(), 2500);
+  }
+}
+
+function renderMetas() {
+  const total = getTotal();
+  const atual = METAS.find(m => !APP.metasOk.includes(m.id));
+  const prox  = METAS.filter(m => !APP.metasOk.includes(m.id))[1];
+  document.getElementById('metas-done').textContent     = APP.metasOk.length;
+  document.getElementById('metas-next-val').textContent = prox ? fmt(prox.val) : '🏅';
+  if (atual) {
+    const pct   = Math.min(Math.round(total/atual.val*100),100);
+    const falta = Math.max(atual.val-total, 0);
+    document.getElementById('meta-hero').innerHTML = `
+      <div class="meta-badge">🎯 Meta actual</div>
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px">
+        <span style="font-size:36px">${atual.emoji}</span>
+        <div><div class="meta-title">${atual.title}</div><div class="meta-sub">${atual.desc}</div></div>
+      </div>
+      <div class="meta-bar"><div class="meta-fill" style="width:${pct}%"></div></div>
+      <div class="meta-stats"><div>${fmt(total)} <span>/ ${fmt(atual.val)}</span></div><div>Faltam <span>${fmt(falta)}</span></div></div>`;
+  }
+  if (prox) {
+    document.getElementById('meta-next-card').innerHTML = `
+      <div class="meta-next-ico">${prox.emoji}</div>
+      <div class="meta-next-body">
+        <div class="meta-next-lbl">A seguir</div>
+        <div class="meta-next-name">${prox.title}</div>
+        <div class="meta-next-val">${fmt(prox.val)} no portfólio</div>
+      </div>
+      <div style="font-size:22px;color:var(--t3)">›</div>`;
+  }
+  const aporteMedio = APP.historico.length>0
+    ? APP.historico.slice(0,3).reduce((s,h)=>s+h.valor,0)/Math.min(APP.historico.length,3)
+    : 500;
+  if (atual && aporteMedio>0) {
+    const meses = Math.ceil((atual.val-total)/aporteMedio);
+    setText('meta-ia-pred', 'Com o seu ritmo actual (~'+fmt(aporteMedio)+'/mês), atinge "'+atual.title+'" em aproximadamente '+meses+' mês'+(meses!==1?'es':'')+'.');
+  }
+  const conquistadas = METAS.filter(m => APP.metasOk.includes(m.id));
+  if (conquistadas.length>0) {
+    document.getElementById('achieved-row').innerHTML = conquistadas.map(m=>
+      `<div class="achieved-item"><span class="achieved-emoji">${m.emoji}</span><div class="achieved-name">${m.title}</div></div>`
+    ).join('');
+  }
+}
+
+// ═══════════════════════════════════════════════════
+// HISTÓRICO E EXPORTAÇÃO
+// ═══════════════════════════════════════════════════
+function renderHistorico() {
+  const st = getStrat();
+  document.getElementById('hist-list').innerHTML = APP.historico.length
+    ? APP.historico.map(h=>`<div class="hist-row"><div class="hist-ico">💸</div><div class="hist-info"><div class="hist-name">Aporte · ${h.ativos}</div><div class="hist-date">${h.data}</div></div><div class="hist-val">${fmt(h.valor)}</div></div>`).join('')
+    : '<div style="text-align:center;padding:20px;color:var(--t2);font-size:13px">Nenhum aporte ainda</div>';
+  let bhtml = APP.carteira.map(c => {
+    const a = st.ativos.find(x=>x.ticker===c.ticker); if (!a) return '';
+    const p = COT[c.ticker]?.price||c.pmedio;
+    const und = c.ticker==='MXRF11'?'cotas':c.ticker==='TAEE11'?'units':'acções';
+    return `<div class="hist-row"><div class="hist-ico" style="background:var(--gd);font-size:10px;font-weight:700;font-family:'DM Mono',monospace;color:var(--green)">${c.ticker.substring(0,4)}</div><div class="hist-info"><div class="hist-name">${c.qtd} ${und} · PM R$ ${c.pmedio.toFixed(2)}</div><div class="hist-date">Cotação: R$ ${p.toFixed(2)} · Total: ${fmt(p*c.qtd)}</div></div></div>`;
+  }).join('');
+  bhtml += `<div class="hist-row"><div class="hist-ico" style="background:var(--gd)">💰</div><div class="hist-info"><div class="hist-name">Saldo disponível</div><div class="hist-date">Nuinvest</div></div><div class="hist-val" style="color:var(--green)">${fmt(APP.saldo)}</div></div>`;
+  document.getElementById('backup-list').innerHTML = bhtml;
+  const total = APP.historico.reduce((s,h)=>s+h.valor,0);
+  setText('hist-total', fmt(total));
+  setText('hist-count', APP.historico.length);
+}
+
+function exportar() {
+  const blob = new Blob([JSON.stringify(APP,null,2)], {type:'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob); a.download = 'vesti-backup.json'; a.click();
+  showToast('📤 Backup exportado!');
+}
+
+// ═══════════════════════════════════════════════════
+// MODAL DE ESTRATÉGIA
+// ═══════════════════════════════════════════════════
+let pendStrat = null;
+function openStratModal() {
+  pendStrat = APP.stratId;
+  document.getElementById('strat-opts').innerHTML = STRATEGIES.map(s=>
+    `<div class="strat-opt ${s.id===APP.stratId?'sel':''}" onclick="selStrat('${s.id}',this)">
+      <div class="strat-opt-name">${s.name}</div>
+      <div class="strat-opt-desc">${s.desc}</div>
+      <div class="strat-tags">${s.ativos.map((a,i)=>`<span class="strat-tag" style="background:${s.colors[i]}22;color:${s.colors[i]}">${a.pct}% ${a.ticker}</span>`).join('')}</div>
+    </div>`
+  ).join('');
+  document.getElementById('strat-modal').classList.add('show');
+}
+function selStrat(id, el) {
+  pendStrat = id;
+  document.querySelectorAll('.strat-opt').forEach(o=>o.classList.remove('sel'));
+  el.classList.add('sel');
+}
+function saveStrat() {
+  if (pendStrat) { APP.stratId=pendStrat; save(); renderDashboard(); }
+  closeStratModal(); showToast('✅ Estratégia actualizada!');
+}
+function closeStratModal() { document.getElementById('strat-modal').classList.remove('show'); }
+
+// ═══════════════════════════════════════════════════
+// IA — Chat com Claude via API Anthropic
+// ═══════════════════════════════════════════════════
+function addAIWelcome() {
+  const nome  = APP.user.nome ? APP.user.nome.split(' ')[0] : 'Gestor';
+  const total = getTotal();
+  addMsg(`Olá ${nome}! 👋 Sou o Gestor IA do Vesti.\n\nAnalisei a sua carteira e estou pronto para ajudar. Pode perguntar qualquer coisa — desde "o que é um dividendo?" até análises avançadas.\n\nActualmente tem ${fmt(total)} em carteira com estratégia ${getStrat().name}. Como posso ajudar?`, 'bot');
+  aiHistory = [];
+}
+
+function openAI()  { document.getElementById('ai-panel').classList.add('show'); if (aiHistory.length===0) addAIWelcome(); }
+function closeAI() { document.getElementById('ai-panel').classList.remove('show'); }
+function askAI(q)  { document.getElementById('ai-inp').value=q; sendAI(); }
+
+async function sendAI() {
+  const inp = document.getElementById('ai-inp');
+  const q   = inp.value.trim(); if (!q) return;
+  inp.value = '';
+  addMsg(q, 'user');
+  aiHistory.push({role:'user', content:q});
+  const loadId = addMsg('⏳ A analisar...', 'bot');
+  const st    = getStrat();
+  const total = getTotal();
+  const inv   = APP.carteira.reduce((s,c)=>s+c.pmedio*c.qtd,0);
+  const renda = APP.carteira.reduce((s,c)=>{ const a=st.ativos.find(x=>x.ticker===c.ticker); return s+(a?(COT[c.ticker]?.price||c.pmedio)*c.qtd*a.dy/12:0); },0);
+  const nextMeta = METAS.find(m=>!APP.metasOk.includes(m.id));
+  const system = `Você é o Gestor IA do app Vesti — assistente financeiro pessoal.
+Fale em português do Brasil, de forma directa, clara e sem jargão desnecessário.
+Explique sempre os termos técnicos de forma simples.
+
+DADOS REAIS DA CARTEIRA:
+- Nome: ${APP.user.nome||'Gestor'}
+- Patrimônio total: ${fmt(total)}
+- Total investido: ${fmt(inv)}
+- Rendimento: ${fmt(total-inv)} (${((total-inv)/Math.max(inv,1)*100).toFixed(1)}%)
+- Renda passiva estimada/mês: ${fmt(renda)}
+- Estratégia activa: ${st.name}
+- Alocação: ${st.ativos.map(a=>a.pct+'% '+a.ticker).join(', ')}
+- Aportes realizados: ${APP.historico.length}
+- Metas conquistadas: ${APP.metasOk.length}/${METAS.length}
+- Próxima meta: ${nextMeta?nextMeta.title+' ('+fmt(nextMeta.val)+')':'Todas conquistadas!'}
+- Carteira: ${APP.carteira.map(c=>`${c.ticker}: ${c.qtd} unidades, PM R$${c.pmedio.toFixed(2)}, cotação R$${(COT[c.ticker]?.price||c.pmedio).toFixed(2)}`).join('; ')}
+- Perfil: ${JSON.stringify(APP.perfil)}
+
+Responda de forma concisa (máx 200 palavras). Use emojis com moderação.
+Seja específico com os dados reais — não use exemplos genéricos.`;
+
+  try {
+    const res  = await fetch('https://api.anthropic.com/v1/messages', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({model:'claude-sonnet-4-20250514', max_tokens:1000, system, messages:aiHistory.slice(-8)})
+    });
+    const data  = await res.json();
+    const reply = data.content?.[0]?.text || 'Erro ao processar. Tente novamente.';
+    aiHistory.push({role:'assistant', content:reply});
+    updateMsg(loadId, reply);
+  } catch(e) {
+    updateMsg(loadId, 'Sem ligação ao servidor IA. Verifique a internet e tente novamente. 📡');
+  }
+}
+
+function addMsg(text, type) {
+  const id  = 'msg-'+Date.now();
+  const div = document.createElement('div');
+  div.id = id; div.className = 'ai-msg '+type;
+  div.textContent = text;
+  const msgs = document.getElementById('ai-msgs');
+  if (msgs) { msgs.appendChild(div); div.scrollIntoView({behavior:'smooth'}); }
+  return id;
+}
+function updateMsg(id, text) {
+  const el = document.getElementById(id);
+  if (el) { el.textContent = text; el.scrollIntoView({behavior:'smooth'}); }
+}
+
+// ═══════════════════════════════════════════════════
+// GLOSSÁRIO
+// ═══════════════════════════════════════════════════
+function showGlos(k) {
+  const g = GLOSSARIO[k]; if (!g) return;
+  setText('glos-term',  g.term);
+  setText('glos-title', g.title);
+  setText('glos-desc',  g.desc);
+  setText('glos-ex',    g.ex);
+  document.getElementById('glossary').style.display = 'block';
+}
+
+// ═══════════════════════════════════════════════════
+// MODO PRIVACIDADE
+// ═══════════════════════════════════════════════════
+function togglePrivacy() {
+  APP.privacidade = !APP.privacidade;
+  applyPrivacy();
+  showToast(APP.privacidade ? '👁 Valores ocultados' : '👁 Valores visíveis');
+}
+function applyPrivacy() {
+  document.querySelectorAll('.pv-target').forEach(el => el.classList.toggle('pv', APP.privacidade));
+}
+
+// ═══════════════════════════════════════════════════
+// NAVEGAÇÃO
+// ═══════════════════════════════════════════════════
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => {
+    s.classList.remove('active');
+    // Repõe display normal após remover active do welcome
+    if (s.id === 'screen-welcome') s.style.display = '';
+  });
+  const sc = document.getElementById('screen-'+id);
+  if (sc) {
+    // Boas-vindas precisa de display:flex
+    if (id === 'welcome') sc.style.display = 'flex';
+    sc.classList.add('active');
+  }
+  window.scrollTo(0,0);
+}
+function showMain(id, btn) {
+  showScreen(id);
+  document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  if (id==='historico') renderHistorico();
+  if (id==='metas')     renderMetas();
+  if (id==='aporte') { const sdEl=document.getElementById('saldo-disp'); if(sdEl) sdEl.textContent=fmt(APP.saldo); }
+}
+
+// ═══════════════════════════════════════════════════
+// UTILITÁRIOS
+// ═══════════════════════════════════════════════════
+function fmt(n) {
+  return 'R$ '+Math.abs(n).toFixed(2).replace('.',',').replace(/\B(?=(\d{3})+(?!\d))/g,'.');
+}
+function setText(id, val) { const el=document.getElementById(id); if(el) el.textContent=val; }
+function getStrat() { return STRATEGIES.find(s=>s.id===APP.stratId)||STRATEGIES[1]; }
+function showToast(msg) {
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),2800);
+}
+
+// ═══════════════════════════════════════════════════
+// INIT — corre quando a página carrega
+// ═══════════════════════════════════════════════════
+(function init() {
+  load();
+  if (APP.pin && APP.user.email) showScreen('pin');
+})();
+
+</script>
+</body>
+</html>
