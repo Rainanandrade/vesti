@@ -1,0 +1,648 @@
+import { useEffect, useState, useCallback } from 'react';
+import { RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
+import { colors, fontSize, radius, spacing } from '../theme/colors';
+import { useApp } from '../context/AppContext';
+import { fetchQuotes, IPCA_12M, Quote } from '../api/brapi';
+import { fmtBRL, fmtPct, fmtCompactBRL } from '../utils/format';
+import { getMarketStatus } from '../utils/market';
+import { getGoals } from '../utils/goals';
+import { computePortfolioStats } from '../utils/portfolio';
+import Card from '../components/Card';
+import InfoTooltip from '../components/InfoTooltip';
+import { notifyAssetDrop, notifyGoalReached } from '../services/notifications';
+import { computeHealthScoreDetailed, healthLevelLabel, CoachAction } from '../utils/healthCoach';
+import { getQuoteOfDay } from '../data/motivational';
+import CelebrationModal from '../components/CelebrationModal';
+import { fetchAssetDetails, AssetDetails } from '../api/yahooDetails';
+import { computeDividendForecast } from '../utils/dividendForecast';
+import { MONTH_NAMES_PT } from '../data/dividends';
+import { fetchDividendInfoBatch, DividendInfo, formatNextPayment, formatDateBR, frequencyLabel, clearDividendCache } from '../api/dividends';
+
+export default function DashboardScreen({ navigation }: any) {
+  const { user, activeWallet, privacyMode, togglePrivacy, profile, recordGoal, wallets, setActiveWalletId, goalsReached } = useApp();
+  const [quotes, setQuotes] = useState<Record<string, Quote>>({});
+  const [detailsMap, setDetailsMap] = useState<Record<string, AssetDetails | null>>({});
+  const [dividendInfoMap, setDividendInfoMap] = useState<Record<string, DividendInfo | null>>({});
+  const [refreshing, setRefreshing] = useState(false);
+  const [marketStatus, setMarketStatus] = useState(getMarketStatus());
+  const [celebrateGoal, setCelebrateGoal] = useState<{ value: number; label: string } | null>(null);
+
+  const load = useCallback(async (force = false) => {
+    if (!activeWallet || activeWallet.assets.length === 0) {
+      setQuotes({});
+      return;
+    }
+    const symbols = activeWallet.assets
+      .filter((a) => a.type === 'acao' || a.type === 'fii' || a.type === 'etf')
+      .map((a) => a.symbol);
+    const data = await fetchQuotes(symbols);
+    const map: Record<string, Quote> = {};
+    data.forEach((q) => (map[q.symbol] = q));
+    setQuotes(map);
+    // Alertar quedas significativas no dia (> 5%)
+    data.forEach((q) => {
+      if (q.regularMarketChangePercent <= -5) {
+        notifyAssetDrop(q.symbol, q.regularMarketChangePercent);
+      }
+    });
+    // Detalhes pra previsão de dividendos (em paralelo)
+    const detailsResults = await Promise.all(
+      symbols.map((s) => fetchAssetDetails(s).then((d) => [s, d] as const)),
+    );
+    const detailsMapNew: Record<string, AssetDetails | null> = {};
+    detailsResults.forEach(([s, d]) => (detailsMapNew[s] = d));
+    setDetailsMap(detailsMapNew);
+
+    // Histórico de dividendos reais (force=true ignora cache no refresh)
+    const dividendMap = await fetchDividendInfoBatch(symbols, force);
+    setDividendInfoMap(dividendMap);
+  }, [activeWallet]);
+
+  useEffect(() => {
+    load();
+    const t = setInterval(() => setMarketStatus(getMarketStatus()), 60_000);
+    return () => clearInterval(t);
+  }, [load]);
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    clearDividendCache();
+    await load(true);
+    setRefreshing(false);
+  };
+
+  const priceMap = Object.fromEntries(
+    Object.entries(quotes).map(([k, v]) => [k, v.regularMarketPrice]),
+  );
+  const stats = computePortfolioStats(activeWallet?.assets || [], priceMap);
+  const { totalInvested, totalCurrent, profit, profitPct, annualizedPct, weightedDays } = stats;
+
+  const goals = getGoals(totalCurrent);
+
+  useEffect(() => {
+    if (goals.current.reached && !goalsReached.includes(goals.current.value)) {
+      recordGoal(goals.current.value);
+      notifyGoalReached(goals.current.label);
+      // Mostra popup dentro do app
+      setCelebrateGoal({ value: goals.current.value, label: goals.current.label });
+    }
+  }, [goals.current.value, goals.current.reached, goals.current.label, recordGoal, goalsReached]);
+
+  const healthData = computeHealthScoreDetailed(activeWallet?.assets || [], profitPct, profile);
+  const healthScore = healthData.score;
+  const quote = getQuoteOfDay();
+
+  // Previsão de dividendos
+  const dividendForecast = computeDividendForecast(
+    activeWallet?.assets || [],
+    priceMap,
+    detailsMap,
+  );
+  const currentMonthName = MONTH_NAMES_PT[new Date().getMonth()];
+
+  // Próximos pagamentos reais (com dados do histórico)
+  const upcomingPayments = (() => {
+    const list: { symbol: string; date: string; amount: number; confidence: string; whenLabel: string; daysAhead: number; isConfirmed: boolean }[] = [];
+    if (!activeWallet) return list;
+    for (const asset of activeWallet.assets) {
+      const info = dividendInfoMap[asset.symbol];
+      if (!info) continue;
+      const totalAmount = info.nextEstimatedAmount * asset.quantity;
+      if (totalAmount <= 0) continue;
+      const { whenLabel, daysAhead } = formatNextPayment(info);
+      if (daysAhead < -7) continue;
+      list.push({
+        symbol: asset.symbol,
+        date: info.nextEstimatedDate,
+        amount: totalAmount,
+        confidence: info.confidence,
+        whenLabel,
+        daysAhead,
+        isConfirmed: !!info.isConfirmed,
+      });
+    }
+    list.sort((a, b) => a.daysAhead - b.daysAhead);
+    return list.slice(0, 5);
+  })();
+
+  // Rentabilidade: pra evitar anualização absurda em períodos curtos,
+  // só mostramos anual/mensal quando carteira tem 30+ dias. Antes disso, mostra retorno simples.
+  const hasEnoughHistory = weightedDays >= 30;
+  // Cap defensivo: anualização pode explodir em períodos curtos
+  const cappedAnnualized = Math.max(-95, Math.min(500, annualizedPct));
+  const monthlyPct = hasEnoughHistory ? (Math.pow(1 + cappedAnnualized / 100, 1 / 12) - 1) * 100 : 0;
+
+  return (
+    <SafeAreaView style={styles.safe} edges={['top']}>
+      <ScrollView
+        contentContainerStyle={styles.scroll}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+      >
+        {/* Header */}
+        <View style={styles.header}>
+          <View>
+            <Text style={styles.hello}>Olá, {user?.name?.split(' ')[0] || ''}</Text>
+            <Text style={styles.subHello}>{profile?.type ? `Perfil ${profile.type}` : 'Sua carteira'}</Text>
+          </View>
+          <View style={{ flexDirection: 'row' }}>
+            <TouchableOpacity onPress={onRefresh} style={styles.eyeBtn} disabled={refreshing}>
+              <Ionicons
+                name="refresh"
+                size={22}
+                color={refreshing ? colors.primary : colors.textSecondary}
+              />
+            </TouchableOpacity>
+            <TouchableOpacity onPress={togglePrivacy} style={[styles.eyeBtn, { marginLeft: spacing.sm }]}>
+              <Ionicons name={privacyMode ? 'eye-off' : 'eye'} size={22} color={colors.textSecondary} />
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => navigation.getParent()?.navigate('Settings')}
+              style={[styles.eyeBtn, { marginLeft: spacing.sm }]}
+            >
+              <Ionicons name="settings-outline" size={22} color={colors.textSecondary} />
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* Multi-wallet selector */}
+        {wallets.length > 1 && (
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.walletTabs}>
+            {wallets.map((w) => (
+              <TouchableOpacity
+                key={w.id}
+                style={[styles.walletTab, w.id === activeWallet?.id && styles.walletTabActive]}
+                onPress={() => setActiveWalletId(w.id)}
+              >
+                <Text
+                  style={[
+                    styles.walletTabText,
+                    w.id === activeWallet?.id && styles.walletTabTextActive,
+                  ]}
+                >
+                  {w.name}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        )}
+
+        {/* Market status */}
+        <View style={styles.marketRow}>
+          <View style={[styles.dot, { backgroundColor: marketStatus.isOpen ? colors.success : colors.danger }]} />
+          <Text style={styles.marketText}>{marketStatus.label}</Text>
+          <Text style={styles.marketSub}> · {marketStatus.nextChange}</Text>
+        </View>
+
+        {/* Patrimônio total */}
+        <Card style={styles.heroCard}>
+          <Text style={styles.heroLabel}>Patrimônio atual</Text>
+          <Text style={styles.heroValue}>{fmtBRL(totalCurrent, privacyMode)}</Text>
+          <View style={styles.heroRow}>
+            <Text
+              style={[
+                styles.heroChange,
+                { color: profit >= 0 ? colors.success : colors.danger },
+              ]}
+            >
+              {profit >= 0 ? '↑' : '↓'} {fmtBRL(Math.abs(profit), privacyMode)} ({fmtPct(profitPct, privacyMode)})
+            </Text>
+          </View>
+          <Text style={styles.heroInvested}>Investido: {fmtBRL(totalInvested, privacyMode)}</Text>
+        </Card>
+
+        {/* Frase do dia */}
+        <Card style={[styles.quoteCard, { marginTop: spacing.md }]}>
+          <Text style={styles.quoteLabel}>✨ Pensamento do dia</Text>
+          <Text style={styles.quoteText}>"{quote.text}"</Text>
+          {quote.author && <Text style={styles.quoteAuthor}>— {quote.author}</Text>}
+        </Card>
+
+        {/* Health Score + Coach */}
+        <Card style={{ marginTop: spacing.md }}>
+          <View style={styles.cardHeader}>
+            <Text style={styles.cardTitle}>Saúde da carteira</Text>
+            <InfoTooltip termName="Diversificação" />
+          </View>
+          <View style={styles.healthRow}>
+            <Text style={[styles.healthScore, { color: healthScoreColor(healthScore) }]}>
+              {healthScore.toFixed(1)}
+            </Text>
+            <Text style={styles.healthOutOf}>/ 10</Text>
+            <Text style={[styles.healthLevel, { color: healthScoreColor(healthScore) }]}>
+              {healthLevelLabel(healthScore)}
+            </Text>
+          </View>
+
+          {/* Coach actions */}
+          {healthData.actions.length > 0 && (
+            <View style={styles.coachBox}>
+              <Text style={styles.coachLabel}>🎯 Seu coach sugere:</Text>
+              {healthData.actions.map((action: CoachAction, i: number) => (
+                <View key={i} style={styles.coachAction}>
+                  <Text style={styles.coachIcon}>{action.icon}</Text>
+                  <View style={{ flex: 1 }}>
+                    <View style={styles.coachActionTitle}>
+                      <Text style={styles.coachActionTitleText}>{action.title}</Text>
+                      <View style={[styles.impactBadge, impactBadgeColor(action.impact)]}>
+                        <Text style={styles.impactText}>{action.impact}</Text>
+                      </View>
+                    </View>
+                    <Text style={styles.coachActionDesc}>{action.description}</Text>
+                  </View>
+                </View>
+              ))}
+            </View>
+          )}
+        </Card>
+
+        {/* Inflação */}
+        <Card style={{ marginTop: spacing.md }}>
+          <View style={styles.cardHeader}>
+            <Text style={styles.cardTitle}>vs Inflação</Text>
+            <InfoTooltip termName="IPCA" />
+          </View>
+          {weightedDays < 30 || totalInvested === 0 ? (
+            <Text style={styles.ipca}>
+              {totalInvested === 0
+                ? 'Adicione ativos pra comparar com a inflação.'
+                : 'Aguarde pelo menos 30 dias de carteira pra ter uma comparação significativa.'}
+            </Text>
+          ) : (
+            <>
+              <Text style={styles.ipca}>
+                Sua rentabilidade anualizada: <Text style={{ fontWeight: '700' }}>{annualizedPct.toFixed(2)}%</Text>
+              </Text>
+              <Text style={styles.ipca}>IPCA dos últimos 12 meses: {IPCA_12M}%</Text>
+              <Text
+                style={[
+                  styles.ipcaVerdict,
+                  { color: annualizedPct >= IPCA_12M ? colors.success : colors.danger },
+                ]}
+              >
+                {annualizedPct >= IPCA_12M
+                  ? `✅ Você está ${(annualizedPct - IPCA_12M).toFixed(2)} pontos acima da inflação`
+                  : `⚠️ Você está ${(IPCA_12M - annualizedPct).toFixed(2)} pontos abaixo da inflação`}
+              </Text>
+              <Text style={styles.ipcaFootnote}>
+                Anualização baseada em {Math.round(weightedDays)} dias de carteira (média ponderada).
+              </Text>
+            </>
+          )}
+        </Card>
+
+        {/* Dividendos & Rentabilidade */}
+        {(activeWallet?.assets.length || 0) > 0 && (
+          <Card style={{ marginTop: spacing.md }}>
+            <View style={styles.cardHeader}>
+              <Text style={styles.cardTitle}>💰 Dividendos & Rentabilidade</Text>
+            </View>
+
+            {/* Este mês */}
+            <View style={styles.divThisMonth}>
+              <Text style={styles.divMonthLabel}>{currentMonthName}</Text>
+              <Text style={styles.divMonthValue}>{fmtBRL(dividendForecast.thisMonth, privacyMode)}</Text>
+              {Object.keys(dividendForecast.thisMonthBySymbol).length > 0 ? (
+                <View style={styles.divSymbolsRow}>
+                  {Object.entries(dividendForecast.thisMonthBySymbol).map(([sym, val]) => (
+                    <View key={sym} style={styles.divSymbolChip}>
+                      <Text style={styles.divSymbolText}>{sym}</Text>
+                      <Text style={styles.divSymbolValue}>{fmtBRL(val, privacyMode)}</Text>
+                    </View>
+                  ))}
+                </View>
+              ) : (
+                <Text style={styles.divEmpty}>Nenhum dos seus ativos paga em {currentMonthName}.</Text>
+              )}
+            </View>
+
+            <View style={styles.divDivider} />
+
+            {/* Recebido YTD + A receber */}
+            <View style={styles.divRow}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.divRowLabel}>Recebido em {dividendForecast.currentYear}</Text>
+                <Text style={styles.divRowValue}>{fmtBRL(dividendForecast.ytdReceived, privacyMode)}</Text>
+              </View>
+              <View style={{ flex: 1, alignItems: 'flex-end' }}>
+                <Text style={styles.divRowLabel}>A receber até 31/dez</Text>
+                <Text style={[styles.divRowValue, { color: colors.success }]}>
+                  {fmtBRL(dividendForecast.remainingThisYear, privacyMode)}
+                </Text>
+              </View>
+            </View>
+
+            <View style={{ height: spacing.sm }} />
+            <View style={styles.divRow}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.divRowLabel}>Total esperado em {dividendForecast.currentYear}</Text>
+                <Text style={styles.divRowValue}>{fmtBRL(dividendForecast.totalThisYear, privacyMode)}</Text>
+              </View>
+              <View style={{ flex: 1, alignItems: 'flex-end' }}>
+                <Text style={styles.divRowLabel}>DY da carteira</Text>
+                <Text style={styles.divRowValue}>{dividendForecast.weightedDY.toFixed(2)}%</Text>
+              </View>
+            </View>
+
+            <View style={styles.divDivider} />
+
+            {/* Rentabilidade — adapta ao histórico disponível */}
+            {hasEnoughHistory ? (
+              <View style={styles.divRow}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.divRowLabel}>Rendimento ao mês</Text>
+                  <Text style={[styles.divRowValue, { color: monthlyPct >= 0 ? colors.success : colors.danger }]}>
+                    {monthlyPct >= 0 ? '+' : ''}{monthlyPct.toFixed(2)}%
+                  </Text>
+                </View>
+                <View style={{ flex: 1, alignItems: 'flex-end' }}>
+                  <Text style={styles.divRowLabel}>Rendimento ao ano</Text>
+                  <Text style={[styles.divRowValue, { color: cappedAnnualized >= 0 ? colors.success : colors.danger }]}>
+                    {cappedAnnualized >= 0 ? '+' : ''}{cappedAnnualized.toFixed(2)}%
+                  </Text>
+                </View>
+              </View>
+            ) : (
+              <View>
+                <View style={styles.divRow}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.divRowLabel}>Retorno até agora</Text>
+                    <Text style={[styles.divRowValue, { color: profitPct >= 0 ? colors.success : colors.danger }]}>
+                      {profitPct >= 0 ? '+' : ''}{profitPct.toFixed(2)}%
+                    </Text>
+                  </View>
+                  <View style={{ flex: 1, alignItems: 'flex-end' }}>
+                    <Text style={styles.divRowLabel}>Dias de carteira</Text>
+                    <Text style={styles.divRowValue}>{Math.round(weightedDays)} dia{Math.round(weightedDays) === 1 ? '' : 's'}</Text>
+                  </View>
+                </View>
+                <Text style={styles.divFootnote}>
+                  * Rentabilidade mensal/anual disponível após 30 dias de carteira pra evitar distorções.
+                </Text>
+              </View>
+            )}
+            <Text style={styles.divFootnote}>
+              💡 Valores de dividendos baseados no DY atual de cada ativo. Pagamentos reais variam.
+            </Text>
+          </Card>
+        )}
+
+        {/* Próximos pagamentos (dados reais) */}
+        {upcomingPayments.length > 0 && (
+          <Card style={{ marginTop: spacing.md }}>
+            <View style={styles.cardHeader}>
+              <Text style={styles.cardTitle}>📅 Próximos pagamentos</Text>
+            </View>
+            {upcomingPayments.map((p, i) => (
+              <View key={`${p.symbol}-${i}`} style={[styles.upcomingRow, i > 0 && styles.upcomingRowBorder]}>
+                <View style={styles.upcomingLeft}>
+                  {p.daysAhead <= 7 && <Text style={styles.upcomingFire}>🔜</Text>}
+                  <Text style={styles.upcomingSymbol}>{p.symbol}</Text>
+                  {p.isConfirmed && (
+                    <View style={styles.confirmedBadge}>
+                      <Ionicons name="checkmark" size={10} color={colors.textLight} />
+                    </View>
+                  )}
+                </View>
+                <View style={styles.upcomingMid}>
+                  <Text style={styles.upcomingWhen}>{p.whenLabel}</Text>
+                  <Text style={styles.upcomingDate}>
+                    {p.isConfirmed ? '✓ ' : '~'}{formatDateBR(p.date)}
+                  </Text>
+                </View>
+                <Text style={[styles.upcomingAmount, { color: colors.success }]}>
+                  {fmtBRL(p.amount, privacyMode)}
+                </Text>
+              </View>
+            ))}
+
+            {/* Total somado dos pagamentos visíveis */}
+            <View style={styles.upcomingTotalRow}>
+              <Text style={styles.upcomingTotalLabel}>
+                Total esperado ({upcomingPayments.length} pagamento{upcomingPayments.length === 1 ? '' : 's'})
+              </Text>
+              <Text style={styles.upcomingTotalValue}>
+                {fmtBRL(upcomingPayments.reduce((sum, p) => sum + p.amount, 0), privacyMode)}
+              </Text>
+            </View>
+
+            <Text style={styles.upcomingFootnote}>
+              ✓ data confirmada oficialmente · ~ data estimada pelo padrão histórico
+            </Text>
+          </Card>
+        )}
+
+        {/* Próxima meta */}
+        <Card style={{ marginTop: spacing.md }}>
+          <Text style={styles.cardTitle}>Próxima meta</Text>
+          <Text style={styles.goalLabel}>{goals.next.label}</Text>
+          <View style={styles.goalBar}>
+            <View
+              style={[
+                styles.goalBarFill,
+                {
+                  width: `${Math.min(100, (totalCurrent / goals.next.value) * 100)}%`,
+                },
+              ]}
+            />
+          </View>
+          <Text style={styles.goalSub}>
+            Falta {fmtCompactBRL(goals.next.value - totalCurrent, privacyMode)}
+          </Text>
+        </Card>
+
+        {/* Assets list shortcut */}
+        <TouchableOpacity
+          style={styles.cta}
+          onPress={() => navigation.navigate('Carteira')}
+        >
+          <Text style={styles.ctaText}>Ver carteira completa →</Text>
+        </TouchableOpacity>
+
+        {(!activeWallet || activeWallet.assets.length === 0) && (
+          <Card style={{ marginTop: spacing.md, alignItems: 'center' }}>
+            <Text style={styles.emptyEmoji}>🌱</Text>
+            <Text style={styles.emptyTitle}>Comece sua carteira</Text>
+            <Text style={styles.emptyDesc}>
+              Adicione seus primeiros ativos pra ver a mágica acontecer.
+            </Text>
+            <TouchableOpacity
+              style={styles.emptyBtn}
+              onPress={() => navigation.navigate('Carteira')}
+            >
+              <Text style={styles.emptyBtnText}>+ Adicionar ativo</Text>
+            </TouchableOpacity>
+          </Card>
+        )}
+      </ScrollView>
+
+      {/* Popup auto ao bater meta nova */}
+      <CelebrationModal
+        visible={celebrateGoal !== null}
+        goalValue={celebrateGoal?.value ?? null}
+        goalLabel={celebrateGoal?.label || ''}
+        variant="new"
+        onClose={() => setCelebrateGoal(null)}
+      />
+    </SafeAreaView>
+  );
+}
+
+function healthScoreColor(score: number) {
+  if (score >= 8) return colors.success;
+  if (score >= 5) return colors.warning;
+  return colors.danger;
+}
+
+function impactBadgeColor(impact: 'alto' | 'médio' | 'baixo') {
+  if (impact === 'alto') return { backgroundColor: colors.dangerLight };
+  if (impact === 'médio') return { backgroundColor: colors.warningLight };
+  return { backgroundColor: colors.surface };
+}
+
+const styles = StyleSheet.create({
+  safe: { flex: 1, backgroundColor: colors.surface },
+  scroll: { padding: spacing.md, paddingBottom: spacing.xxl },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing.md,
+  },
+  hello: { fontSize: fontSize.title, fontWeight: 'bold', color: colors.text },
+  subHello: { fontSize: fontSize.small, color: colors.textSecondary, textTransform: 'capitalize' },
+  eyeBtn: { padding: spacing.sm, backgroundColor: colors.background, borderRadius: radius.pill },
+  walletTabs: { marginBottom: spacing.sm },
+  walletTab: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    backgroundColor: colors.background,
+    borderRadius: radius.pill,
+    marginRight: spacing.sm,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  walletTabActive: { backgroundColor: colors.primary, borderColor: colors.primary },
+  walletTabText: { color: colors.textSecondary, fontWeight: '500' },
+  walletTabTextActive: { color: colors.textLight, fontWeight: '600' },
+  marketRow: { flexDirection: 'row', alignItems: 'center', marginBottom: spacing.md },
+  dot: { width: 8, height: 8, borderRadius: 4, marginRight: spacing.sm },
+  marketText: { fontSize: fontSize.body, fontWeight: '600', color: colors.text },
+  marketSub: { fontSize: fontSize.body, color: colors.textSecondary },
+  heroCard: { backgroundColor: colors.primary, borderColor: colors.primary },
+  heroLabel: { color: '#FFFFFFCC', fontSize: fontSize.body },
+  heroValue: {
+    color: colors.textLight,
+    fontSize: fontSize.hero,
+    fontWeight: 'bold',
+    marginTop: spacing.xs,
+  },
+  heroRow: { flexDirection: 'row', alignItems: 'center', marginTop: spacing.sm },
+  heroChange: { fontSize: fontSize.bodyLarge, fontWeight: '600' },
+  heroInvested: { color: '#FFFFFFAA', fontSize: fontSize.body, marginTop: spacing.xs },
+  cardHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: spacing.sm },
+  cardTitle: { fontSize: fontSize.title, fontWeight: '700', color: colors.text },
+  healthRow: { flexDirection: 'row', alignItems: 'baseline', flexWrap: 'wrap' },
+  healthScore: { fontSize: fontSize.hero, fontWeight: 'bold' },
+  healthOutOf: { fontSize: fontSize.title, color: colors.textSecondary, marginLeft: 4 },
+  healthLevel: { fontSize: fontSize.body, fontWeight: '600', marginLeft: spacing.sm },
+
+  // Quote card
+  quoteCard: { backgroundColor: colors.primaryLight, borderColor: colors.primaryAccent },
+  quoteLabel: { fontSize: fontSize.body, fontWeight: '600', color: colors.primaryDark, marginBottom: spacing.sm },
+  quoteText: { fontSize: fontSize.bodyLarge, color: colors.text, lineHeight: 22, fontStyle: 'italic' },
+  quoteAuthor: { fontSize: fontSize.body, color: colors.textSecondary, marginTop: spacing.xs, fontWeight: '600' },
+
+  // Coach
+  coachBox: { marginTop: spacing.md, paddingTop: spacing.md, borderTopWidth: 1, borderColor: colors.divider },
+  coachLabel: { fontSize: fontSize.body, fontWeight: '700', color: colors.primary, marginBottom: spacing.sm },
+  coachAction: { flexDirection: 'row', marginBottom: spacing.md },
+  coachIcon: { fontSize: 24, marginRight: spacing.sm, marginTop: 2 },
+  coachActionTitle: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', marginBottom: 2 },
+  coachActionTitleText: { fontSize: fontSize.body, fontWeight: '700', color: colors.text, marginRight: spacing.sm, flex: 1 },
+  impactBadge: { paddingHorizontal: spacing.sm, paddingVertical: 2, borderRadius: radius.pill },
+  impactText: { fontSize: fontSize.tiny, fontWeight: '700', color: colors.text, textTransform: 'uppercase' },
+  coachActionDesc: { fontSize: fontSize.body, color: colors.textSecondary, lineHeight: 18, marginTop: 2 },
+  divThisMonth: { marginTop: spacing.sm },
+  divMonthLabel: { fontSize: fontSize.small, color: colors.textSecondary, textTransform: 'uppercase', fontWeight: '700' },
+  divMonthValue: { fontSize: fontSize.display, fontWeight: 'bold', color: colors.success, marginTop: 2 },
+  divSymbolsRow: { flexDirection: 'row', flexWrap: 'wrap', marginTop: spacing.sm },
+  divSymbolChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.successLight,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 4,
+    borderRadius: radius.pill,
+    marginRight: spacing.xs,
+    marginBottom: spacing.xs,
+  },
+  divSymbolText: { fontSize: fontSize.tiny, fontWeight: '700', color: colors.text },
+  divSymbolValue: { fontSize: fontSize.tiny, color: colors.textSecondary, marginLeft: 4 },
+  divEmpty: { fontSize: fontSize.body, color: colors.textSecondary, marginTop: spacing.xs, fontStyle: 'italic' },
+  divDivider: { height: 1, backgroundColor: colors.divider, marginVertical: spacing.md },
+  divRow: { flexDirection: 'row', alignItems: 'center' },
+  divRowLabel: { fontSize: fontSize.small, color: colors.textSecondary, textTransform: 'uppercase', fontWeight: '600' },
+  divRowValue: { fontSize: fontSize.title, fontWeight: 'bold', color: colors.text, marginTop: 2 },
+  divFootnote: { fontSize: fontSize.tiny, color: colors.textTertiary, marginTop: spacing.sm, fontStyle: 'italic' },
+
+  upcomingRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: spacing.sm },
+  upcomingRowBorder: { borderTopWidth: 1, borderColor: colors.divider },
+  upcomingLeft: { flexDirection: 'row', alignItems: 'center', width: 100 },
+  upcomingFire: { fontSize: 16, marginRight: 4 },
+  upcomingSymbol: { fontSize: fontSize.bodyLarge, fontWeight: '700', color: colors.text },
+  upcomingMid: { flex: 1, paddingHorizontal: spacing.sm },
+  upcomingWhen: { fontSize: fontSize.body, color: colors.text, fontWeight: '600' },
+  upcomingDate: { fontSize: fontSize.tiny, color: colors.textTertiary },
+  upcomingAmount: { fontSize: fontSize.bodyLarge, fontWeight: '700' },
+  upcomingFootnote: { fontSize: fontSize.tiny, color: colors.textTertiary, marginTop: spacing.sm, fontStyle: 'italic' },
+  confirmedBadge: {
+    backgroundColor: colors.success,
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 4,
+  },
+  upcomingTotalRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingTop: spacing.md,
+    marginTop: spacing.sm,
+    borderTopWidth: 2,
+    borderColor: colors.success,
+  },
+  upcomingTotalLabel: {
+    fontSize: fontSize.body,
+    color: colors.textSecondary,
+    fontWeight: '600',
+  },
+  upcomingTotalValue: {
+    fontSize: fontSize.title,
+    color: colors.success,
+    fontWeight: 'bold',
+  },
+  ipca: { fontSize: fontSize.body, color: colors.textSecondary, marginTop: 2 },
+  ipcaVerdict: { fontSize: fontSize.body, fontWeight: '600', marginTop: spacing.sm },
+  ipcaFootnote: { fontSize: fontSize.tiny, color: colors.textTertiary, marginTop: spacing.xs, fontStyle: 'italic' },
+  goalLabel: { fontSize: fontSize.display, fontWeight: 'bold', color: colors.text, marginVertical: spacing.sm },
+  goalBar: { height: 10, backgroundColor: colors.divider, borderRadius: 5, overflow: 'hidden' },
+  goalBarFill: { height: 10, backgroundColor: colors.primary },
+  goalSub: { fontSize: fontSize.body, color: colors.textSecondary, marginTop: spacing.xs },
+  cta: { padding: spacing.md, alignItems: 'center' },
+  ctaText: { color: colors.primary, fontWeight: '600' },
+  emptyEmoji: { fontSize: 48, marginBottom: spacing.sm },
+  emptyTitle: { fontSize: fontSize.title, fontWeight: 'bold', color: colors.text },
+  emptyDesc: { fontSize: fontSize.body, color: colors.textSecondary, textAlign: 'center', marginTop: spacing.xs },
+  emptyBtn: {
+    marginTop: spacing.md,
+    backgroundColor: colors.primary,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+    borderRadius: radius.pill,
+  },
+  emptyBtnText: { color: colors.textLight, fontWeight: '600' },
+});

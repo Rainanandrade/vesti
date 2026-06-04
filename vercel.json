@@ -1,0 +1,13 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "buildCommand": "npx expo export -p web && node scripts/post-build-web.js",
+  "outputDirectory": "dist",
+  "framework": null,
+  "installCommand": "npm install",
+  "functions": {
+    "api/quote.js": { "maxDuration": 10 },
+    "api/details.js": { "maxDuration": 10 },
+    "api/dividends.js": { "maxDuration": 10 },
+    "api/ai-suggest.js": { "maxDuration": 30 }
+  }
+}

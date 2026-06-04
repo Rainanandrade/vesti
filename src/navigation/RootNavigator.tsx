@@ -1,0 +1,143 @@
+import { NavigationContainer } from '@react-navigation/native';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { Ionicons } from '@expo/vector-icons';
+import { ActivityIndicator, StyleSheet, View } from 'react-native';
+import { colors } from '../theme/colors';
+import { useApp } from '../context/AppContext';
+
+import OnboardingScreen from '../screens/OnboardingScreen';
+import AuthScreen from '../screens/AuthScreen';
+import PinScreen from '../screens/PinScreen';
+import ProfileQuizScreen from '../screens/ProfileQuizScreen';
+import DashboardScreen from '../screens/DashboardScreen';
+import PortfolioScreen from '../screens/PortfolioScreen';
+import AddAssetScreen from '../screens/AddAssetScreen';
+import EditAssetScreen from '../screens/EditAssetScreen';
+import AporteScreen from '../screens/AporteScreen';
+import GoalsScreen from '../screens/GoalsScreen';
+import LearnScreen from '../screens/LearnScreen';
+import SettingsScreen from '../screens/SettingsScreen';
+
+const Stack = createNativeStackNavigator();
+const Tab = createBottomTabNavigator();
+const PortfolioStack = createNativeStackNavigator();
+
+function PortfolioStackNavigator() {
+  return (
+    <PortfolioStack.Navigator screenOptions={{ headerShown: false }}>
+      <PortfolioStack.Screen name="PortfolioMain" component={PortfolioScreen} />
+      <PortfolioStack.Screen
+        name="AddAsset"
+        component={AddAssetScreen}
+        options={{ presentation: 'modal' }}
+      />
+      <PortfolioStack.Screen
+        name="EditAsset"
+        component={EditAssetScreen}
+        options={{ presentation: 'modal' }}
+      />
+    </PortfolioStack.Navigator>
+  );
+}
+
+function CenterTabButton({ focused }: { focused: boolean }) {
+  return (
+    <View style={[styles.centerBtn, focused && styles.centerBtnActive]}>
+      <Ionicons name="add" size={28} color={colors.textLight} />
+    </View>
+  );
+}
+
+function MainTabs() {
+  return (
+    <Tab.Navigator
+      screenOptions={({ route }) => ({
+        headerShown: false,
+        tabBarActiveTintColor: colors.primary,
+        tabBarInactiveTintColor: colors.textTertiary,
+        tabBarStyle: { borderTopColor: colors.divider, paddingTop: 4, height: 64, paddingBottom: 8 },
+        tabBarLabelStyle: { fontSize: 11 },
+        tabBarIcon: ({ color, size, focused }) => {
+          if (route.name === 'Aportar') return <CenterTabButton focused={focused} />;
+          const map: Record<string, any> = {
+            Início: 'home',
+            Carteira: 'wallet',
+            Metas: 'trophy',
+            Aprender: 'book',
+          };
+          return <Ionicons name={map[route.name] || 'ellipse'} size={size} color={color} />;
+        },
+      })}
+    >
+      <Tab.Screen name="Início" component={DashboardScreen} />
+      <Tab.Screen name="Carteira" component={PortfolioStackNavigator} />
+      <Tab.Screen
+        name="Aportar"
+        component={AporteScreen}
+        options={{ tabBarLabel: '' }}
+      />
+      <Tab.Screen name="Metas" component={GoalsScreen} />
+      <Tab.Screen name="Aprender" component={LearnScreen} />
+    </Tab.Navigator>
+  );
+}
+
+function MainStack() {
+  return (
+    <Stack.Navigator screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="Tabs" component={MainTabs} />
+      <Stack.Screen name="Settings" component={SettingsScreen} options={{ presentation: 'modal' }} />
+    </Stack.Navigator>
+  );
+}
+
+export default function RootNavigator() {
+  const { loading, onboardingDone, user, hasPin, pinVerified, profile } = useApp();
+
+  if (loading) {
+    return (
+      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.background }}>
+        <ActivityIndicator color={colors.primary} size="large" />
+      </View>
+    );
+  }
+
+  return (
+    <NavigationContainer>
+      <Stack.Navigator screenOptions={{ headerShown: false }}>
+        {!onboardingDone ? (
+          <Stack.Screen name="Onboarding" component={OnboardingScreen} />
+        ) : !user ? (
+          <Stack.Screen name="Auth" component={AuthScreen} />
+        ) : !hasPin ? (
+          <Stack.Screen name="PinSetup" component={PinScreen} />
+        ) : !pinVerified ? (
+          <Stack.Screen name="PinEnter" component={PinScreen} />
+        ) : !profile ? (
+          <Stack.Screen name="Quiz" component={ProfileQuizScreen} />
+        ) : (
+          <Stack.Screen name="Main" component={MainStack} />
+        )}
+      </Stack.Navigator>
+    </NavigationContainer>
+  );
+}
+
+const styles = StyleSheet.create({
+  centerBtn: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: -16,
+    shadowColor: colors.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 6,
+  },
+  centerBtnActive: { backgroundColor: colors.primaryDark },
+});
