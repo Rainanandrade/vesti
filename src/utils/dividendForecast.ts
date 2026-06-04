@@ -1,6 +1,7 @@
 import { Asset } from '../context/AppContext';
 import { AssetDetails } from '../api/yahooDetails';
 import { DividendCalendar, getCalendarFor } from '../data/dividends';
+import { DividendInfo } from '../api/dividends';
 
 export type DividendForecast = {
   thisMonth: number;
@@ -67,13 +68,14 @@ export function computeDividendForecast(
   assets: Asset[],
   prices: Record<string, number>,
   details: Record<string, AssetDetails | null>,
+  dividendsInfo: Record<string, DividendInfo | null> = {},
   now: Date = new Date(),
 ): DividendForecast {
   const currentYear = now.getFullYear();
-  const currentMonth = now.getMonth() + 1; // 1-12
+  const currentMonth = now.getMonth() + 1;
   const monthlyDist = new Array(12).fill(0);
   const thisMonthBySymbol: Record<string, number> = {};
-  let totalAnnualPotential = 0; // pra calcular DY da carteira (full year)
+  let totalAnnualPotential = 0;
   let totalValue = 0;
 
   for (const asset of assets) {
@@ -82,6 +84,89 @@ export function computeDividendForecast(
     if (value <= 0) continue;
     totalValue += value;
 
+    const addedDate = new Date(asset.addedAt);
+    const addedYear = addedDate.getFullYear();
+    const addedMonth = addedDate.getMonth() + 1;
+    if (addedYear > currentYear) continue;
+    const startMonth = addedYear < currentYear ? 1 : addedMonth;
+
+    const realInfo = dividendsInfo[asset.symbol];
+
+    // ============ PREFERE DADO REAL DO STATUS INVEST ============
+    if (realInfo && realInfo.history && realInfo.history.length > 0) {
+      // Regra de elegibilidade: o usuário precisa ter comprado pelo menos 5 dias
+      // antes da data do pagamento pra ser considerado holder (cobre o ex-dividendo)
+      const MIN_HOLD_DAYS = 5;
+      const yearStart = `${currentYear}-01-01`;
+      const yearEnd = `${currentYear}-12-31`;
+      const todayIso = now.toISOString().slice(0, 10);
+      const addedAtMs = asset.addedAt;
+      const addedIsoDate = new Date(addedAtMs).toISOString().slice(0, 10);
+
+      // Soma POR MÊS (evita duplicação de JCP + dividendo na mesma data)
+      const sumByMonth = new Map<number, number>();
+      const knownMonths = new Set<number>();
+
+      for (const entry of realInfo.history) {
+        if (entry.date < yearStart || entry.date > yearEnd) continue;
+        const entryMs = new Date(entry.date).getTime();
+        // Pagamento passado/atual: precisa ter sido holder por X dias antes
+        if (entry.date <= todayIso) {
+          if (entryMs - addedAtMs < MIN_HOLD_DAYS * 24 * 60 * 60 * 1000) continue;
+        } else {
+          // Futuro: precisa ter sido adicionado antes dessa data
+          if (entry.date < addedIsoDate) continue;
+        }
+        const m = parseInt(entry.date.slice(5, 7), 10);
+        sumByMonth.set(m, (sumByMonth.get(m) || 0) + entry.amount);
+        knownMonths.add(m);
+      }
+
+      // Projeta meses futuros do ano (não cobertos pelo histórico)
+      const avgPerPayment = realInfo.averageAmount > 0 ? realInfo.averageAmount : realInfo.lastAmount;
+      const freq = realInfo.frequency;
+      if (freq === 'monthly') {
+        for (let m = startMonth; m <= 12; m++) {
+          if (knownMonths.has(m)) continue;
+          // Só projeta se for mês futuro
+          if (m >= currentMonth) sumByMonth.set(m, (sumByMonth.get(m) || 0) + avgPerPayment);
+        }
+      } else if (realInfo.averageInterval > 0) {
+        const sortedDates = realInfo.history.map((h) => h.date).sort();
+        const lastKnown = sortedDates[sortedDates.length - 1];
+        if (lastKnown) {
+          const cursor = new Date(lastKnown);
+          while (cursor.getFullYear() <= currentYear) {
+            cursor.setDate(cursor.getDate() + realInfo.averageInterval);
+            const cy = cursor.getFullYear();
+            const cm = cursor.getMonth() + 1;
+            const cursorIso = cursor.toISOString().slice(0, 10);
+            if (cy > currentYear) break;
+            if (cursorIso < addedIsoDate) continue;
+            if (cursorIso <= todayIso) continue; // só projeta no futuro
+            if (knownMonths.has(cm)) continue;
+            if (cm < startMonth) continue;
+            sumByMonth.set(cm, (sumByMonth.get(cm) || 0) + avgPerPayment);
+          }
+        }
+      }
+
+      // Aplica ao monthlyDist e thisMonth
+      sumByMonth.forEach((sumPerCota, m) => {
+        const total = sumPerCota * asset.quantity;
+        monthlyDist[m - 1] += total;
+        if (m === currentMonth) {
+          thisMonthBySymbol[asset.symbol] = (thisMonthBySymbol[asset.symbol] || 0) + total;
+        }
+      });
+
+      // Soma anual potencial pra DY
+      const monthsPerYear = freq === 'monthly' ? 12 : freq === 'quarterly' ? 4 : freq === 'semestral' ? 2 : 1;
+      totalAnnualPotential += avgPerPayment * asset.quantity * monthsPerYear;
+      continue;
+    }
+
+    // ============ FALLBACK: ESTIMATIVA POR DY + CALENDÁRIO ============
     const dy = estimateDY(asset, details[asset.symbol] || null);
     if (dy <= 0) continue;
 
@@ -92,17 +177,6 @@ export function computeDividendForecast(
     const cal = getCalendarForAsset(asset);
     if (cal.months.length === 0) continue;
     const perPayment = annualIncome / cal.months.length;
-
-    // Determina meses elegíveis no ANO ATUAL com base em quando o ativo foi adicionado
-    const addedDate = new Date(asset.addedAt);
-    const addedYear = addedDate.getFullYear();
-    const addedMonth = addedDate.getMonth() + 1;
-    // Se foi adicionado em anos anteriores, vale o ano inteiro (a partir de jan).
-    // Se foi adicionado no ano atual, só vale a partir do mês de adição.
-    const startMonth = addedYear < currentYear ? 1 : addedMonth;
-    // Se foi adicionado no futuro (impossível mas seguro), pula
-    if (addedYear > currentYear) continue;
-
     const eligibleMonths = cal.months.filter((m) => m >= startMonth);
 
     for (const m of eligibleMonths) {

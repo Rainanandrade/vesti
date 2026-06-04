@@ -94,37 +94,106 @@ export default function DashboardScreen({ navigation }: any) {
   const healthScore = healthData.score;
   const quote = getQuoteOfDay();
 
-  // Previsão de dividendos
+  // Previsão de dividendos (usa dados REAIS do Status Invest quando disponíveis)
   const dividendForecast = computeDividendForecast(
     activeWallet?.assets || [],
     priceMap,
     detailsMap,
+    dividendInfoMap,
   );
   const currentMonthName = MONTH_NAMES_PT[new Date().getMonth()];
 
-  // Próximos pagamentos reais (com dados do histórico)
+  // Próximos pagamentos: APENAS do mês corrente. Vira automaticamente quando
+  // muda o mês (pois usa new Date().getMonth()).
   const upcomingPayments = (() => {
-    const list: { symbol: string; date: string; amount: number; confidence: string; whenLabel: string; daysAhead: number; isConfirmed: boolean }[] = [];
+    type Pay = {
+      symbol: string;
+      date: string;
+      amount: number;
+      whenLabel: string;
+      daysAhead: number;
+      isConfirmed: boolean;
+    };
+    const list: Pay[] = [];
     if (!activeWallet) return list;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const todayIso = today.toISOString().slice(0, 10);
+    const curYear = today.getFullYear();
+    const curMonth = today.getMonth() + 1;
+    const monthStart = `${curYear}-${String(curMonth).padStart(2, '0')}-01`;
+    // Último dia do mês corrente
+    const lastDay = new Date(curYear, curMonth, 0).getDate();
+    const monthEnd = `${curYear}-${String(curMonth).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+
     for (const asset of activeWallet.assets) {
       const info = dividendInfoMap[asset.symbol];
       if (!info) continue;
-      const totalAmount = info.nextEstimatedAmount * asset.quantity;
-      if (totalAmount <= 0) continue;
-      const { whenLabel, daysAhead } = formatNextPayment(info);
-      if (daysAhead < -7) continue;
-      list.push({
-        symbol: asset.symbol,
-        date: info.nextEstimatedDate,
-        amount: totalAmount,
-        confidence: info.confidence,
-        whenLabel,
-        daysAhead,
-        isConfirmed: !!info.isConfirmed,
-      });
+      const addedAtMs = asset.addedAt;
+      const addedIso = new Date(addedAtMs).toISOString().slice(0, 10);
+
+      // 1) Agrupa entradas REAIS do mês corrente, dedup por data e somando
+      //    valores no mesmo dia (JCP + Dividendo no mesmo PETR4 viram 1 só)
+      const sumByDate = new Map<string, { amount: number; isConfirmed: boolean }>();
+      let firstConfirmedDate: string | null = null;
+
+      for (const entry of info.history) {
+        if (entry.date < monthStart || entry.date > monthEnd) continue;
+        // Pagamento futuro: precisa ter sido adicionado antes
+        if (entry.date > todayIso) {
+          if (entry.date < addedIso) continue;
+        } else {
+          // Pagamento passado: precisa ter sido holder por 5+ dias antes
+          const entryMs = new Date(entry.date).getTime();
+          if (entryMs - addedAtMs < 5 * 24 * 60 * 60 * 1000) continue;
+          continue; // não mostra passados (já recebido), só futuro/atual
+        }
+        const existing = sumByDate.get(entry.date) || { amount: 0, isConfirmed: false };
+        sumByDate.set(entry.date, { amount: existing.amount + entry.amount, isConfirmed: true });
+        if (!firstConfirmedDate || entry.date < firstConfirmedDate) firstConfirmedDate = entry.date;
+      }
+
+      // 2) Se NÃO tem entrada confirmada no mês corrente E a frequência é mensal,
+      //    projeta uma data estimada baseada no padrão histórico
+      if (sumByDate.size === 0 && info.frequency === 'monthly' && info.averageInterval > 0) {
+        const sortedDates = info.history.map((h) => h.date).sort();
+        const lastKnown = sortedDates[sortedDates.length - 1];
+        if (lastKnown) {
+          const cursor = new Date(lastKnown);
+          // Avança até cair no mês corrente
+          while (cursor.toISOString().slice(0, 10) < monthStart) {
+            cursor.setDate(cursor.getDate() + info.averageInterval);
+          }
+          const iso = cursor.toISOString().slice(0, 10);
+          if (iso >= monthStart && iso <= monthEnd && iso > todayIso && iso >= addedIso) {
+            sumByDate.set(iso, { amount: info.averageAmount, isConfirmed: false });
+          }
+        }
+      }
+
+      // Cria uma linha por ativo (a primeira data válida do mês)
+      const entries = Array.from(sumByDate.entries()).sort((a, b) => a[0].localeCompare(b[0]));
+      if (entries.length > 0) {
+        const [date, { amount, isConfirmed }] = entries[0];
+        const total = amount * asset.quantity;
+        if (total > 0) {
+          const daysAhead = Math.round(
+            (new Date(date).getTime() - today.getTime()) / (1000 * 60 * 60 * 24),
+          );
+          list.push({
+            symbol: asset.symbol,
+            date,
+            amount: total,
+            whenLabel: daysAheadLabel(daysAhead),
+            daysAhead,
+            isConfirmed,
+          });
+        }
+      }
     }
+
     list.sort((a, b) => a.daysAhead - b.daysAhead);
-    return list.slice(0, 5);
+    return list;
   })();
 
   // Rentabilidade: pra evitar anualização absurda em períodos curtos,
@@ -420,7 +489,7 @@ export default function DashboardScreen({ navigation }: any) {
             {/* Total somado dos pagamentos visíveis */}
             <View style={styles.upcomingTotalRow}>
               <Text style={styles.upcomingTotalLabel}>
-                Total esperado ({upcomingPayments.length} pagamento{upcomingPayments.length === 1 ? '' : 's'})
+                Total em {currentMonthName} ({upcomingPayments.length} pagamento{upcomingPayments.length === 1 ? '' : 's'})
               </Text>
               <Text style={styles.upcomingTotalValue}>
                 {fmtBRL(upcomingPayments.reduce((sum, p) => sum + p.amount, 0), privacyMode)}
@@ -493,6 +562,14 @@ function healthScoreColor(score: number) {
   if (score >= 8) return colors.success;
   if (score >= 5) return colors.warning;
   return colors.danger;
+}
+
+function daysAheadLabel(daysAhead: number): string {
+  if (daysAhead < 0) return `${Math.abs(daysAhead)} dia${Math.abs(daysAhead) === 1 ? '' : 's'} atrás`;
+  if (daysAhead === 0) return 'hoje';
+  if (daysAhead === 1) return 'amanhã';
+  if (daysAhead <= 30) return `em ${daysAhead} dias`;
+  return `em ~${Math.round(daysAhead / 30)} ${Math.round(daysAhead / 30) === 1 ? 'mês' : 'meses'}`;
 }
 
 function impactBadgeColor(impact: 'alto' | 'médio' | 'baixo') {
