@@ -2,7 +2,7 @@
 // Conformidade LGPD (Lei 13.709/2018)
 
 export const APP_NAME = 'Vesti';
-export const SUPPORT_EMAIL = 'vesti.suporte@gmail.com'; // TROCAR pelo email real
+export const SUPPORT_EMAIL = 'rainangleidson@protonmail.com';
 export const LEGAL_DATE = '03 de junho de 2026';
 
 export const PRIVACY_POLICY = `
@@ -171,7 +171,9 @@ Podemos alterar estes Termos. Mudanças significativas são notificadas com no m
 
 ## 10. Lei aplicável e foro
 
-Estes Termos são regidos pelas leis brasileiras. Eventuais disputas serão resolvidas no foro da Comarca de [SUA CIDADE], com renúncia a qualquer outro.
+Estes Termos são regidos pelas leis brasileiras quando aplicáveis aos usuários no Brasil. Como o responsável pelo Vesti está sediado em **Cork, Irlanda**, eventuais disputas envolvendo o operador serão resolvidas conforme a legislação irlandesa, com foro nos tribunais competentes de Cork.
+
+Para usuários brasileiros, fica preservada a aplicação da Lei Geral de Proteção de Dados (LGPD) e do Código de Defesa do Consumidor, sempre que mais favorável ao usuário.
 
 ## 11. Contato
 
