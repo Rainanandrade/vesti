@@ -204,6 +204,8 @@ export default function AuthScreen() {
 
           <Text style={styles.disclaimer}>
             Sua conta e dados ficam salvos na nuvem com criptografia. Você acessa do iPhone, Android ou navegador com a mesma conta.
+            {'\n\n'}
+            Ao criar conta, você concorda com a Política de Privacidade e os Termos de Uso (disponíveis em Ajustes).
           </Text>
         </ScrollView>
       </KeyboardAvoidingView>

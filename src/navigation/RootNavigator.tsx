@@ -18,6 +18,7 @@ import AporteScreen from '../screens/AporteScreen';
 import GoalsScreen from '../screens/GoalsScreen';
 import LearnScreen from '../screens/LearnScreen';
 import SettingsScreen from '../screens/SettingsScreen';
+import LegalDocScreen from '../screens/LegalDocScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -88,6 +89,7 @@ function MainStack() {
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       <Stack.Screen name="Tabs" component={MainTabs} />
       <Stack.Screen name="Settings" component={SettingsScreen} options={{ presentation: 'modal' }} />
+      <Stack.Screen name="Legal" component={LegalDocScreen} options={{ presentation: 'modal' }} />
     </Stack.Navigator>
   );
 }

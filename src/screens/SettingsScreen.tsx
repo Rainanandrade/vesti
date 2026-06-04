@@ -235,13 +235,39 @@ export default function SettingsScreen({ navigation }: any) {
           </TouchableOpacity>
         )}
 
+        <Text style={styles.sectionTitle}>Legal</Text>
+        <TouchableOpacity onPress={() => navigation.navigate('Legal', { kind: 'privacy' })}>
+          <Card style={{ marginBottom: spacing.sm }}>
+            <View style={styles.row}>
+              <Ionicons name="shield-checkmark-outline" size={22} color={colors.primary} />
+              <View style={{ flex: 1, marginLeft: spacing.md }}>
+                <Text style={styles.rowTitle}>Política de Privacidade</Text>
+                <Text style={styles.rowSub}>Como tratamos seus dados (LGPD)</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color={colors.textTertiary} />
+            </View>
+          </Card>
+        </TouchableOpacity>
+        <TouchableOpacity onPress={() => navigation.navigate('Legal', { kind: 'terms' })}>
+          <Card>
+            <View style={styles.row}>
+              <Ionicons name="document-text-outline" size={22} color={colors.primary} />
+              <View style={{ flex: 1, marginLeft: spacing.md }}>
+                <Text style={styles.rowTitle}>Termos de Uso</Text>
+                <Text style={styles.rowSub}>Regras e responsabilidades</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color={colors.textTertiary} />
+            </View>
+          </Card>
+        </TouchableOpacity>
+
         <Text style={styles.sectionTitle}>Sobre</Text>
         <Card>
           <Text style={styles.aboutText}>
             Vesti v1.0{'\n\n'}
-            App de acompanhamento de carteira. Suas informações ficam só no seu celular.
+            App educacional de acompanhamento de carteira. Não é corretora nem aconselhamento financeiro.
             {'\n\n'}
-            Cotações fornecidas por brapi.dev.
+            Cotações por brapi.dev, dividendos por Status Invest, IA por Groq.
           </Text>
         </Card>
 
