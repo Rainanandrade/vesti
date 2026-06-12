@@ -8,6 +8,7 @@
     "api/quote.js": { "maxDuration": 10 },
     "api/details.js": { "maxDuration": 10 },
     "api/dividends.js": { "maxDuration": 10 },
+    "api/chart.js": { "maxDuration": 10 },
     "api/ai-suggest.js": { "maxDuration": 30 }
   }
 }

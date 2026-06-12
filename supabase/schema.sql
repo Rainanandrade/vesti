@@ -60,6 +60,22 @@ drop policy if exists "lessons_own" on public.lessons_completed;
 create policy "lessons_own" on public.lessons_completed
   for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
+-- Watchlist (ativos que o usuário acompanha sem ter comprado)
+create table if not exists public.watchlist (
+  user_id uuid not null references auth.users(id) on delete cascade,
+  symbol text not null,
+  name text not null,
+  type text default 'acao',
+  target_price numeric,
+  added_at timestamptz default now(),
+  primary key (user_id, symbol)
+);
+
+alter table public.watchlist enable row level security;
+drop policy if exists "watchlist_own" on public.watchlist;
+create policy "watchlist_own" on public.watchlist
+  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
 -- =========================
 -- ROW LEVEL SECURITY (cada user só vê seus próprios dados)
 -- =========================

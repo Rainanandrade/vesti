@@ -141,3 +141,39 @@ export async function notifyImbalance(message: string) {
     });
   } catch {}
 }
+
+// Histórico de alertas já disparados pra evitar spam (sessão)
+const FIRED_ALERTS = new Set<string>();
+
+export async function checkWatchlistAlerts(
+  watchlist: { symbol: string; targetPrice?: number }[],
+  prices: Record<string, number>,
+): Promise<{ symbol: string; price: number; target: number }[]> {
+  const triggered: { symbol: string; price: number; target: number }[] = [];
+  for (const item of watchlist) {
+    if (item.targetPrice == null) continue;
+    const price = prices[item.symbol];
+    if (price == null) continue;
+    if (price <= item.targetPrice) {
+      const key = `${item.symbol}_${item.targetPrice}`;
+      if (FIRED_ALERTS.has(key)) continue;
+      FIRED_ALERTS.add(key);
+      triggered.push({ symbol: item.symbol, price, target: item.targetPrice });
+
+      // Push (só nativo)
+      if (!isWeb && (await getNotificationsEnabled())) {
+        try {
+          const Notifications = await import('expo-notifications');
+          await Notifications.scheduleNotificationAsync({
+            content: {
+              title: `🔔 ${item.symbol} atingiu seu alvo!`,
+              body: `Preço atual R$ ${price.toFixed(2)} bateu seu alvo de R$ ${item.targetPrice.toFixed(2)}. Hora de avaliar.`,
+            },
+            trigger: null,
+          });
+        } catch {}
+      }
+    }
+  }
+  return triggered;
+}

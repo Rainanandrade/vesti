@@ -1,7 +1,7 @@
 // Universo de ativos com tags pra scoring por perfil.
 // Cada perfil "puxa" assets diferentes naturalmente — sem listas fixas.
 
-import { ProfileType } from './profileQuiz';
+import { Preference, ProfileType } from './profileQuiz';
 
 export type AssetTag =
   | 'safe'           // muito seguro
@@ -169,11 +169,50 @@ const PROFILE_WEIGHTS: Record<ProfileType, Partial<Record<AssetTag, number>>> = 
   },
 };
 
-export function scoreAsset(asset: UniverseAsset, profileType: ProfileType): number {
+// Modificador de score baseado no estilo (dividendos vs crescimento)
+const PREFERENCE_WEIGHTS: Record<Preference, Partial<Record<AssetTag, number>>> = {
+  dividendos: {
+    dividends: 18,
+    paper_fii: 14,
+    brick_fii: 12,
+    commodity: 6, // commodities tendem a pagar bem
+    financial: 5,
+    growth: -12,
+    small_cap: -10,
+    tech: -8,
+    broad_market: -3,
+  },
+  crescimento: {
+    growth: 16,
+    small_cap: 12,
+    tech: 12,
+    broad_market: 6,
+    mid_cap: 6,
+    dividends: -6,
+    paper_fii: -10,
+    brick_fii: -4,
+  },
+  equilibrado: {
+    dividends: 5,
+    growth: 5,
+    broad_market: 4,
+    brick_fii: 3,
+    paper_fii: 2,
+  },
+  sem_preferencia: {}, // sem modificador
+};
+
+export function scoreAsset(
+  asset: UniverseAsset,
+  profileType: ProfileType,
+  preference?: Preference,
+): number {
   const weights = PROFILE_WEIGHTS[profileType];
+  const prefWeights = preference ? PREFERENCE_WEIGHTS[preference] : {};
   let score = 50; // base
   for (const tag of asset.tags) {
     score += weights[tag] ?? 0;
+    score += prefWeights[tag] ?? 0;
   }
   return Math.max(0, Math.min(100, score));
 }
@@ -182,9 +221,10 @@ export function getCandidatesForProfile(
   profileType: ProfileType,
   cls: UniverseAsset['class'],
   minScore = 50,
+  preference?: Preference,
 ): { asset: UniverseAsset; score: number }[] {
   return UNIVERSE.filter((a) => a.class === cls)
-    .map((a) => ({ asset: a, score: scoreAsset(a, profileType) }))
+    .map((a) => ({ asset: a, score: scoreAsset(a, profileType, preference) }))
     .filter((x) => x.score >= minScore)
     .sort((a, b) => b.score - a.score);
 }
@@ -269,12 +309,106 @@ export function findBestByTags(
   cls: UniverseAsset['class'],
   profileType: ProfileType,
   exclude: Set<string>,
+  preference?: Preference,
+  options?: {
+    maxPrice?: number;
+    prices?: Record<string, number>;
+  },
 ): UniverseAsset | null {
-  const candidates = UNIVERSE.filter(
-    (a) => a.class === cls && tags.some((t) => a.tags.includes(t)) && !exclude.has(a.symbol),
+  // AND semântico: ativo precisa ter TODAS as tags solicitadas.
+  // Garante que "ETF de dividendos" [broad_market, dividends] só retorne
+  // ativos que sejam AMBOS broad_market E que paguem dividends (ex: DIVO11),
+  // não qualquer ETF ou qualquer pagador de dividendos.
+  let candidates = UNIVERSE.filter(
+    (a) =>
+      a.class === cls &&
+      tags.every((t) => a.tags.includes(t)) &&
+      !exclude.has(a.symbol),
   );
+  // Filtro de orçamento: pra tradeáveis (FII/Ação/ETF), preço unitário precisa
+  // caber no valor disponível. Renda fixa (não-tradeável) aceita qualquer valor.
+  if (options?.maxPrice && options.prices) {
+    const maxPrice = options.maxPrice;
+    const prices = options.prices;
+    candidates = candidates.filter((a) => {
+      if (!a.isTradeable) return true; // RF aceita qualquer valor
+      const p = prices[a.symbol];
+      if (p == null || !isFinite(p) || p <= 0) return true; // preço desconhecido → permite
+      return p <= maxPrice;
+    });
+  }
   if (candidates.length === 0) return null;
-  const scored = candidates.map((a) => ({ a, s: scoreAsset(a, profileType) }));
+  const scored = candidates.map((a) => ({ a, s: scoreAsset(a, profileType, preference) }));
   scored.sort((x, y) => y.s - x.s);
   return scored[0].a;
 }
+
+// Receitas alternativas de RV pra cada preferência (sobrescreve RV_MIX padrão)
+export const RV_MIX_BY_PREFERENCE: Record<
+  Preference,
+  Record<ProfileType, ClassMix[] | null>
+> = {
+  dividendos: {
+    conservador: [
+      { tags: ['paper_fii', 'dividends'], weight: 50, label: 'FII de papel (renda mensal)' },
+      { tags: ['brick_fii', 'dividends'], weight: 30, label: 'FII de tijolo (renda real)' },
+      { tags: ['broad_market', 'dividends'], weight: 20, label: 'ETF de dividendos' },
+    ],
+    moderado: [
+      { tags: ['dividends', 'large_cap'], weight: 30, label: 'Ação pagadora consistente' },
+      { tags: ['brick_fii', 'dividends'], weight: 25, label: 'FII de tijolo (renda mensal)' },
+      { tags: ['paper_fii'], weight: 20, label: 'FII de papel (estabilidade)' },
+      { tags: ['broad_market', 'dividends'], weight: 15, label: 'ETF de dividendos' },
+      { tags: ['dividends', 'financial'], weight: 10, label: 'Banco pagador de JCP' },
+    ],
+    arrojado: [
+      { tags: ['dividends', 'large_cap'], weight: 30, label: 'Ação pagadora premium' },
+      { tags: ['brick_fii', 'dividends'], weight: 22, label: 'FII de tijolo' },
+      { tags: ['commodity', 'dividends'], weight: 18, label: 'Commodity pagadora (ciclo)' },
+      { tags: ['paper_fii'], weight: 15, label: 'FII de papel' },
+      { tags: ['broad_market', 'dividends'], weight: 15, label: 'ETF de dividendos' },
+    ],
+    agressivo: [
+      { tags: ['commodity', 'dividends'], weight: 30, label: 'Commodity de ciclo (DY alto)' },
+      { tags: ['dividends', 'large_cap'], weight: 25, label: 'Ação pagadora premium' },
+      { tags: ['brick_fii', 'dividends'], weight: 20, label: 'FII de tijolo' },
+      { tags: ['paper_fii'], weight: 15, label: 'FII de papel' },
+      { tags: ['dividends', 'financial'], weight: 10, label: 'Banco pagador' },
+    ],
+  },
+  crescimento: {
+    conservador: null, // usa RV_MIX padrão (raro essa combinação)
+    moderado: [
+      { tags: ['broad_market'], weight: 35, label: 'ETF amplo (diversificação)' },
+      { tags: ['growth', 'large_cap'], weight: 30, label: 'Ação de crescimento' },
+      { tags: ['brick_fii'], weight: 15, label: 'FII de tijolo (complemento)' },
+      { tags: ['mid_cap'], weight: 20, label: 'Empresa em expansão' },
+    ],
+    arrojado: [
+      { tags: ['growth', 'large_cap'], weight: 30, label: 'Ação de crescimento (líder)' },
+      { tags: ['broad_market'], weight: 20, label: 'ETF base diversificada' },
+      { tags: ['small_cap', 'growth'], weight: 20, label: 'Small cap (potencial)' },
+      { tags: ['tech'], weight: 15, label: 'Tecnologia' },
+      { tags: ['mid_cap'], weight: 15, label: 'Mid cap em expansão' },
+    ],
+    agressivo: [
+      { tags: ['small_cap', 'growth'], weight: 30, label: 'Small cap (alto potencial)' },
+      { tags: ['tech'], weight: 25, label: 'Tecnologia' },
+      { tags: ['growth', 'large_cap'], weight: 20, label: 'Growth large cap' },
+      { tags: ['broad_market', 'small_cap'], weight: 15, label: 'ETF small caps' },
+      { tags: ['mid_cap'], weight: 10, label: 'Mid cap' },
+    ],
+  },
+  equilibrado: {
+    conservador: null,
+    moderado: null,
+    arrojado: null,
+    agressivo: null,
+  },
+  sem_preferencia: {
+    conservador: null,
+    moderado: null,
+    arrojado: null,
+    agressivo: null,
+  },
+};

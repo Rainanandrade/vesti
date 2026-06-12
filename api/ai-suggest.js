@@ -90,7 +90,7 @@ const SYSTEM_PROMPT = `Você é um assessor financeiro brasileiro especializado 
 RESPONDA APENAS EM JSON VÁLIDO seguindo este schema EXATO:
 
 {
-  "summary": "1-2 frases explicando a estratégia geral pro aporte",
+  "summary": "1-2 frases explicando a estratégia geral pro aporte (mencione perfil + preferência)",
   "picks": [
     {
       "classKey": "renda_fixa" | "renda_variavel" | "internacional",
@@ -99,7 +99,7 @@ RESPONDA APENAS EM JSON VÁLIDO seguindo este schema EXATO:
       "symbol": "TICKER ou nome exato do produto de renda fixa",
       "name": "nome completo do ativo",
       "amount": NUMERO em reais (não use string),
-      "reasoning": "2-3 frases dizendo POR QUE esse ativo combina com o usuário, citando DY, P/L ou características reais quando disponíveis"
+      "reasoning": "2-3 frases. SEMPRE mencione (a) como combina com a PREFERÊNCIA do usuário (dividendos/crescimento/equilibrado), (b) DY/P/L/preço se disponível, (c) em qual das CORRETORAS do usuário comprar"
     }
   ]
 }
@@ -107,13 +107,19 @@ RESPONDA APENAS EM JSON VÁLIDO seguindo este schema EXATO:
 REGRAS OBRIGATÓRIAS:
 1. A SOMA dos amounts DEVE SER IGUAL ao valor total do aporte (sem sobra, sem falta)
 2. Use APENAS os tickers/produtos fornecidos na lista de ATIVOS DISPONÍVEIS — NÃO invente outros
-3. Distribua respeitando a estratégia do perfil (% RF, RV, Internacional)
-4. Inclua entre 3 e 6 picks, diversificados entre as classes
-5. Para renda fixa, copie EXATAMENTE o nome fornecido (ex: "Tesouro Selic", "CDB 110% CDI")
-6. Para RV/Internacional, use o TICKER exato (PETR4, MXRF11, etc.) no campo "symbol"
-7. Para reasoning, cite NÚMEROS REAIS quando disponíveis (DY, P/L, preço)
-8. Sem markdown, sem comentários, sem texto fora do JSON
-9. Use português do Brasil`;
+3. ORÇAMENTO: pra cada pick de RV/Internacional, o amount alocado DEVE ser MAIOR OU IGUAL ao preço unitário do ativo (pra comprar pelo menos 1 cota). Se o aporte for pequeno (< R$ 50), priorize MASSIVAMENTE renda fixa + FIIs baratos como MXRF11 (R$ 9-10/cota).
+4. PREFERÊNCIA é tão importante quanto o perfil:
+   - "dividendos": SEMPRE priorize ativos com DY alto (FIIs, PETR4, VALE3, ITUB4, BBSE3, ITSA4). EVITE WEGE3, TOTS3 (são growth).
+   - "crescimento": priorize WEGE3, TOTS3, RAIL3, RDOR3, BOVA11, small caps. EVITE FIIs e dividend payers puros.
+   - "equilibrado": mistura.
+   - "sem_preferencia": segue só o perfil.
+5. CORRETORAS: ao indicar onde comprar no reasoning, USE APENAS as corretoras que o usuário tem cadastradas. Se a corretora não oferece o tipo de ativo, escolha outra que o usuário tenha e que ofereça.
+6. Distribua respeitando a estratégia (% RF, RV, Internacional)
+7. Inclua entre 3 e 6 picks, diversificados entre as classes
+8. Para renda fixa, copie EXATAMENTE o nome fornecido (ex: "Tesouro Selic", "CDB 110% CDI")
+9. Para RV/Internacional, use o TICKER exato (PETR4, MXRF11, etc.) no campo "symbol"
+10. Sem markdown, sem comentários, sem texto fora do JSON
+11. Use português do Brasil`;
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -150,6 +156,15 @@ APORTE: R$ ${amount}
 
 PERFIL DO INVESTIDOR:
 - Tipo: ${profile.type}
+- Preferência de longo prazo: ${profile.preference || 'sem_preferencia'} ${
+    profile.preference === 'dividendos'
+      ? '(IMPORTANTE: priorize ativos com DY alto — FIIs, dividend payers tipo PETR4/VALE3/ITUB4/BBSE3/ITSA4. EVITE growth puro tipo WEGE3/TOTS3)'
+      : profile.preference === 'crescimento'
+        ? '(IMPORTANTE: priorize growth — WEGE3, TOTS3, RAIL3, small caps. EVITE FIIs puros e dividend payers)'
+        : profile.preference === 'equilibrado'
+          ? '(IMPORTANTE: misture dividendos e crescimento)'
+          : ''
+  }
 - Estratégia alvo: ${profile.strategy.renda_fixa}% renda fixa, ${profile.strategy.renda_variavel}% renda variável, ${profile.strategy.internacional}% internacional
 - Descrição: ${profile.description}
 ${

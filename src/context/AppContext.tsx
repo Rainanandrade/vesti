@@ -47,6 +47,7 @@ type AppContextType = {
 
   profile: Profile | null;
   setProfile: (p: Profile) => Promise<void>;
+  resetProfile: () => Promise<void>;
 
   wallets: Wallet[];
   activeWalletId: string | null;
@@ -67,6 +68,23 @@ type AppContextType = {
 
   completedLessons: Record<string, number>; // lesson_id -> quiz_score
   recordLesson: (lessonId: string, quizScore: number) => Promise<void>;
+
+  watchlist: WatchlistItem[];
+  addToWatchlist: (item: Omit<WatchlistItem, 'addedAt'>) => Promise<void>;
+  removeFromWatchlist: (symbol: string) => Promise<void>;
+  setWatchlistTarget: (symbol: string, targetPrice: number | null) => Promise<void>;
+  isInWatchlist: (symbol: string) => boolean;
+
+  lastSeenVersion: string | null;
+  markVersionSeen: (version: string) => Promise<void>;
+};
+
+export type WatchlistItem = {
+  symbol: string;
+  name: string;
+  type: string;
+  targetPrice?: number;
+  addedAt: number;
 };
 
 const AppContext = createContext<AppContextType | null>(null);
@@ -84,6 +102,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [privacyMode, setPrivacyMode] = useState(false);
   const [goalsReached, setGoalsReached] = useState<number[]>([]);
   const [completedLessons, setCompletedLessons] = useState<Record<string, number>>({});
+  const [watchlist, setWatchlist] = useState<WatchlistItem[]>([]);
+  const [lastSeenVersion, setLastSeenVersion] = useState<string | null>(null);
 
   // Carrega dados do usuário a partir do Supabase
   const loadUserData = useCallback(async (uid: string, email: string) => {
@@ -99,6 +119,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setProfileState(prof.financial_profile || null);
       setPrivacyMode(!!prof.privacy_mode);
       setOnboardingDone(!!prof.onboarding_done);
+      // Recupera a última versão vista do perfil em nuvem
+      const remoteVer = prof.financial_profile?.lastSeenVersion;
+      if (remoteVer) setLastSeenVersion(remoteVer);
     }
 
     // Wallets
@@ -152,18 +175,38 @@ export function AppProvider({ children }: { children: ReactNode }) {
       lessons.forEach((l: any) => (map[l.lesson_id] = l.quiz_score ?? 0));
       setCompletedLessons(map);
     }
+
+    // Watchlist
+    const { data: wl } = await supabase
+      .from('watchlist')
+      .select('symbol, name, type, target_price, added_at')
+      .eq('user_id', uid)
+      .order('added_at', { ascending: false });
+    if (wl) {
+      setWatchlist(
+        wl.map((w: any) => ({
+          symbol: w.symbol,
+          name: w.name,
+          type: w.type,
+          targetPrice: w.target_price != null ? Number(w.target_price) : undefined,
+          addedAt: new Date(w.added_at).getTime(),
+        })),
+      );
+    }
   }, []);
 
   // Init: detecta sessão existente e dados locais (PIN, onboarding)
   useEffect(() => {
     (async () => {
       try {
-        const [ob, pin] = await Promise.allSettled([
+        const [ob, pin, ver] = await Promise.allSettled([
           Storage.get<boolean>(KEYS.ONBOARDING_DONE),
           Secure.get(SECURE_KEYS.PIN),
+          Storage.get<string>(KEYS.LAST_SEEN_VERSION),
         ]);
         if (ob.status === 'fulfilled') setOnboardingDone(!!ob.value);
         if (pin.status === 'fulfilled') setHasPin(!!pin.value);
+        if (ver.status === 'fulfilled' && ver.value) setLastSeenVersion(ver.value);
 
         const { data: { session } } = await supabase.auth.getSession();
         if (session?.user) {
@@ -263,6 +306,17 @@ export function AppProvider({ children }: { children: ReactNode }) {
       );
     }
   }, [userId, user]);
+
+  const resetProfile = useCallback(async () => {
+    // Apaga financial_profile mas mantém o user
+    setProfileState(null);
+    if (userId) {
+      await supabase
+        .from('profiles')
+        .update({ financial_profile: null })
+        .eq('id', userId);
+    }
+  }, [userId]);
 
   const setActiveWalletId = useCallback(async (id: string) => {
     setActiveWalletIdState(id);
@@ -387,6 +441,78 @@ export function AppProvider({ children }: { children: ReactNode }) {
     if (userId) await supabase.from('profiles').update({ privacy_mode: next }).eq('id', userId);
   }, [privacyMode, userId]);
 
+  const addToWatchlist = useCallback(
+    async (item: Omit<WatchlistItem, 'addedAt'>) => {
+      if (!userId) throw new Error('Não autenticado');
+      const newItem: WatchlistItem = { ...item, addedAt: Date.now() };
+      setWatchlist((prev) => {
+        if (prev.some((x) => x.symbol === item.symbol)) return prev;
+        return [newItem, ...prev];
+      });
+      const { error } = await supabase.from('watchlist').upsert({
+        user_id: userId,
+        symbol: item.symbol,
+        name: item.name,
+        type: item.type,
+        target_price: item.targetPrice ?? null,
+      });
+      if (error) throw new Error(translateDbError(error.message));
+    },
+    [userId],
+  );
+
+  const removeFromWatchlist = useCallback(
+    async (symbol: string) => {
+      setWatchlist((prev) => prev.filter((w) => w.symbol !== symbol));
+      if (userId) {
+        await supabase.from('watchlist').delete().eq('user_id', userId).eq('symbol', symbol);
+      }
+    },
+    [userId],
+  );
+
+  const setWatchlistTarget = useCallback(
+    async (symbol: string, targetPrice: number | null) => {
+      setWatchlist((prev) =>
+        prev.map((w) => (w.symbol === symbol ? { ...w, targetPrice: targetPrice ?? undefined } : w)),
+      );
+      if (userId) {
+        await supabase
+          .from('watchlist')
+          .update({ target_price: targetPrice })
+          .eq('user_id', userId)
+          .eq('symbol', symbol);
+      }
+    },
+    [userId],
+  );
+
+  const isInWatchlist = useCallback(
+    (symbol: string) => watchlist.some((w) => w.symbol === symbol),
+    [watchlist],
+  );
+
+  const markVersionSeen = useCallback(
+    async (version: string) => {
+      await Storage.set(KEYS.LAST_SEEN_VERSION, version);
+      setLastSeenVersion(version);
+      // Persiste TAMBÉM na nuvem (Supabase) pra sobreviver a clear de cache
+      // e funcionar entre dispositivos
+      if (userId) {
+        try {
+          const updated = { ...(profile || {}), lastSeenVersion: version };
+          await supabase
+            .from('profiles')
+            .update({ financial_profile: updated })
+            .eq('id', userId);
+        } catch (err) {
+          console.warn('failed to persist version online', err);
+        }
+      }
+    },
+    [userId, profile],
+  );
+
   const recordLesson = useCallback(async (lessonId: string, quizScore: number) => {
     setCompletedLessons((prev) => ({ ...prev, [lessonId]: quizScore }));
     if (userId) {
@@ -425,6 +551,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         resetPinSession,
         profile,
         setProfile,
+        resetProfile,
         wallets,
         activeWalletId,
         activeWallet,
@@ -440,6 +567,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
         recordGoal,
         completedLessons,
         recordLesson,
+        watchlist,
+        addToWatchlist,
+        removeFromWatchlist,
+        setWatchlistTarget,
+        isInWatchlist,
+        lastSeenVersion,
+        markVersionSeen,
       }}
     >
       {children}

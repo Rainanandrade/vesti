@@ -1,5 +1,6 @@
 import { Asset } from '../context/AppContext';
 import { Profile } from '../data/profileQuiz';
+import { AssetDetails } from '../api/yahooDetails';
 import { classify } from './allocation';
 
 export type CoachAction = {
@@ -14,6 +15,7 @@ export function computeHealthScoreDetailed(
   assets: Asset[],
   profitPct: number,
   profile: Profile | null,
+  details: Record<string, AssetDetails | null> = {},
 ): { score: number; actions: CoachAction[] } {
   if (assets.length === 0) {
     return {
@@ -127,6 +129,75 @@ export function computeHealthScoreDetailed(
       description: 'Quedas fazem parte. Se sua tese segue válida, é hora de aportar mais barato, não de vender.',
       impact: 'baixo',
     });
+  }
+
+  // ============ ALINHAMENTO COM PREFERÊNCIA ============
+  const pref = profile?.preference;
+  if (pref && pref !== 'sem_preferencia' && assets.length > 0) {
+    // Calcula DY ponderado da carteira (em ativos com detalhes disponíveis)
+    let totalValueWithDY = 0;
+    let totalDYWeighted = 0;
+    for (const a of assets) {
+      const d = details[a.symbol];
+      if (d?.dividendYield != null && d.dividendYield > 0) {
+        const value = a.avgPrice * a.quantity;
+        totalValueWithDY += value;
+        totalDYWeighted += d.dividendYield * value;
+      }
+    }
+    const portfolioDY = totalValueWithDY > 0 ? totalDYWeighted / totalValueWithDY : 0;
+
+    if (pref === 'dividendos') {
+      // Foco em dividendos: deveria ter DY alto + FIIs
+      if (!hasFII) {
+        actions.push({
+          icon: '🏢',
+          title: 'Você tem foco em dividendos mas zero FIIs',
+          description: 'FIIs pagam mensalmente e são isentos de IR. Considere MXRF11, HGLG11 ou KNRI11 pra aproveitar seu foco.',
+          impact: 'alto',
+        });
+      }
+      if (portfolioDY > 0 && portfolioDY < 4) {
+        actions.push({
+          icon: '📉',
+          title: `DY da carteira é ${portfolioDY.toFixed(1)}% — abaixo do seu foco`,
+          description: 'Pra foco em dividendos, mire DY ponderado acima de 6%. Considere ITUB4, BBSE3, ITSA4 (dividendos altos).',
+          impact: 'médio',
+        });
+      }
+      // Verifica se tem ativos de growth puro na carteira (contraproducente)
+      const growthStocks = assets.filter((a) => /^(WEGE|TOTS|RAIL|RDOR|EQTL|LREN)/.test(a.symbol.toUpperCase()));
+      if (growthStocks.length > 0) {
+        actions.push({
+          icon: '🤔',
+          title: `${growthStocks[0].symbol} não combina com foco em dividendos`,
+          description: `${growthStocks.map((a) => a.symbol).join(', ')} são empresas de crescimento (DY baixo). Não é errado, mas avalie se faz sentido.`,
+          impact: 'baixo',
+        });
+      }
+    } else if (pref === 'crescimento') {
+      // Foco em crescimento: muitos FIIs não combinam
+      const fiisInPortfolio = assets.filter((a) => a.type === 'fii');
+      const fiiValue = fiisInPortfolio.reduce((s, a) => s + a.avgPrice * a.quantity, 0);
+      const totalAssetValue = assets.reduce((s, a) => s + a.avgPrice * a.quantity, 0);
+      if (totalAssetValue > 0 && fiiValue / totalAssetValue > 0.4) {
+        actions.push({
+          icon: '📊',
+          title: 'Muitos FIIs pro seu foco em crescimento',
+          description: 'Mais de 40% da carteira em FIIs. FIIs dão renda, mas valorizam pouco. Considere realocar parte pra ações growth como WEGE3, TOTS3, RDOR3.',
+          impact: 'médio',
+        });
+      }
+      // Sem ETFs amplos? sugere
+      if (!hasETF) {
+        actions.push({
+          icon: '📈',
+          title: 'Foco em crescimento sem ETF amplo',
+          description: 'BOVA11 ou SMAL11 (small caps) trazem exposição diversificada a setores de crescimento.',
+          impact: 'médio',
+        });
+      }
+    }
   }
 
   // ============ CONCENTRAÇÃO ============

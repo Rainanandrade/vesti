@@ -11,17 +11,19 @@ import { getGoals } from '../utils/goals';
 import { computePortfolioStats } from '../utils/portfolio';
 import Card from '../components/Card';
 import InfoTooltip from '../components/InfoTooltip';
-import { notifyAssetDrop, notifyGoalReached } from '../services/notifications';
+import { notifyAssetDrop, notifyGoalReached, checkWatchlistAlerts } from '../services/notifications';
 import { computeHealthScoreDetailed, healthLevelLabel, CoachAction } from '../utils/healthCoach';
+import { preferenceLabel } from '../data/profileQuiz';
 import { getQuoteOfDay } from '../data/motivational';
 import CelebrationModal from '../components/CelebrationModal';
+import IbovespaComparison from '../components/IbovespaComparison';
 import { fetchAssetDetails, AssetDetails } from '../api/yahooDetails';
 import { computeDividendForecast } from '../utils/dividendForecast';
 import { MONTH_NAMES_PT } from '../data/dividends';
 import { fetchDividendInfoBatch, DividendInfo, formatNextPayment, formatDateBR, frequencyLabel, clearDividendCache } from '../api/dividends';
 
 export default function DashboardScreen({ navigation }: any) {
-  const { user, activeWallet, privacyMode, togglePrivacy, profile, recordGoal, wallets, setActiveWalletId, goalsReached } = useApp();
+  const { user, activeWallet, privacyMode, togglePrivacy, profile, recordGoal, wallets, setActiveWalletId, goalsReached, watchlist } = useApp();
   const [quotes, setQuotes] = useState<Record<string, Quote>>({});
   const [detailsMap, setDetailsMap] = useState<Record<string, AssetDetails | null>>({});
   const [dividendInfoMap, setDividendInfoMap] = useState<Record<string, DividendInfo | null>>({});
@@ -47,6 +49,15 @@ export default function DashboardScreen({ navigation }: any) {
         notifyAssetDrop(q.symbol, q.regularMarketChangePercent);
       }
     });
+
+    // Watchlist: busca cotações e checa preço-alvo
+    if (watchlist.length > 0) {
+      const watchSymbols = watchlist.map((w) => w.symbol);
+      const watchData = await fetchQuotes(watchSymbols);
+      const watchPrices: Record<string, number> = {};
+      watchData.forEach((q) => (watchPrices[q.symbol] = q.regularMarketPrice));
+      await checkWatchlistAlerts(watchlist, watchPrices);
+    }
     // Detalhes pra previsão de dividendos (em paralelo)
     const detailsResults = await Promise.all(
       symbols.map((s) => fetchAssetDetails(s).then((d) => [s, d] as const)),
@@ -90,7 +101,7 @@ export default function DashboardScreen({ navigation }: any) {
     }
   }, [goals.current.value, goals.current.reached, goals.current.label, recordGoal, goalsReached]);
 
-  const healthData = computeHealthScoreDetailed(activeWallet?.assets || [], profitPct, profile);
+  const healthData = computeHealthScoreDetailed(activeWallet?.assets || [], profitPct, profile, detailsMap);
   const healthScore = healthData.score;
   const quote = getQuoteOfDay();
 
@@ -213,7 +224,12 @@ export default function DashboardScreen({ navigation }: any) {
         <View style={styles.header}>
           <View>
             <Text style={styles.hello}>Olá, {user?.name?.split(' ')[0] || ''}</Text>
-            <Text style={styles.subHello}>{profile?.type ? `Perfil ${profile.type}` : 'Sua carteira'}</Text>
+            <Text style={styles.subHello}>
+              {profile?.type ? `Perfil ${profile.type}` : 'Sua carteira'}
+              {profile?.preference && preferenceLabel(profile.preference) !== '' && (
+                ` · ${preferenceLabel(profile.preference)}`
+              )}
+            </Text>
           </View>
           <View style={{ flexDirection: 'row' }}>
             <TouchableOpacity onPress={onRefresh} style={styles.eyeBtn} disabled={refreshing}>
@@ -454,6 +470,16 @@ export default function DashboardScreen({ navigation }: any) {
             <Text style={styles.divFootnote}>
               💡 Valores de dividendos baseados no DY atual de cada ativo. Pagamentos reais variam.
             </Text>
+          </Card>
+        )}
+
+        {/* Comparação com Ibovespa */}
+        {weightedDays >= 7 && totalInvested > 0 && (
+          <Card style={{ marginTop: spacing.md }}>
+            <IbovespaComparison
+              portfolioReturnPct={profitPct}
+              daysOfHistory={weightedDays}
+            />
           </Card>
         )}
 

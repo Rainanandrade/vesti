@@ -3,6 +3,7 @@ import { Profile } from '../data/profileQuiz';
 import {
   RF_MIX,
   RV_MIX,
+  RV_MIX_BY_PREFERENCE,
   INTL_MIX,
   findBestByTags,
   UniverseAsset,
@@ -64,7 +65,13 @@ export type Suggestion = {
 
 function getMix(cls: Class, profile: Profile) {
   if (cls === 'renda_fixa') return RF_MIX[profile.type];
-  if (cls === 'renda_variavel') return RV_MIX[profile.type];
+  if (cls === 'renda_variavel') {
+    // Usa receita customizada por preferência quando disponível
+    const preference = profile.preference || 'sem_preferencia';
+    const customMix = RV_MIX_BY_PREFERENCE[preference]?.[profile.type];
+    if (customMix) return customMix;
+    return RV_MIX[profile.type];
+  }
   return INTL_MIX[profile.type];
 }
 
@@ -74,6 +81,7 @@ function generatePicksForClass(
   profile: Profile,
   walletSymbols: Set<string>,
   existingAssetsByClass: Map<Class, Asset[]>,
+  prices: Record<string, number>,
 ): Pick[] {
   const mix = getMix(cls, profile);
   const totalWeight = mix.reduce((s, m) => s + m.weight, 0);
@@ -106,7 +114,10 @@ function generatePicksForClass(
     const subAmount = remaining * (m.weight / totalWeight);
     if (subAmount < MIN_AMOUNT_PER_PICK) continue;
 
-    const best = findBestByTags(m.tags, cls, profile.type, usedSymbols);
+    const best = findBestByTags(m.tags, cls, profile.type, usedSymbols, profile.preference, {
+      maxPrice: subAmount,
+      prices,
+    });
     if (!best) continue;
 
     picks.push({
@@ -123,7 +134,10 @@ function generatePicksForClass(
 
   // 3) Se nada foi gerado (amount muito pequeno), gera 1 pick consolidado
   if (picks.length === 0 && amount >= 1) {
-    const fallback = findBestByTags(mix[0].tags, cls, profile.type, walletSymbols);
+    const fallback = findBestByTags(mix[0].tags, cls, profile.type, walletSymbols, profile.preference, {
+      maxPrice: amount,
+      prices,
+    });
     if (fallback) {
       picks.push({
         symbol: fallback.symbol,
@@ -219,7 +233,7 @@ export function suggestAporte(
       class: c,
       classLabel: labels[c],
       totalAmount: allocations[c],
-      picks: generatePicksForClass(c, allocations[c], profile, walletSymbols, existingByClass),
+      picks: generatePicksForClass(c, allocations[c], profile, walletSymbols, existingByClass, prices),
     }))
     .filter((s) => s.picks.length > 0);
 

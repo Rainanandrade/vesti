@@ -21,6 +21,7 @@ import { fetchQuotes } from '../api/brapi';
 import { fetchAssetDetails, AssetDetails } from '../api/yahooDetails';
 import { fmtBRL } from '../utils/format';
 import { computeAllocation, suggestAporte, Suggestion, Pick } from '../utils/allocation';
+import { UNIVERSE, getCandidatesForProfile } from '../data/universe';
 import { fetchAiSuggestion, AiSuggestion } from '../api/ai';
 import { getBrokerById, brokerLimitations } from '../data/brokers';
 import { bestBrokerForAsset } from '../utils/brokerMatch';
@@ -51,6 +52,9 @@ export default function AporteScreen() {
   const [bought, setBought] = useState<Set<string>>(new Set());
   const [toast, setToast] = useState<{ visible: boolean; message: string }>({ visible: false, message: '' });
 
+  // Preços do universo (pra filtrar sugestões por orçamento)
+  const [universePrices, setUniversePrices] = useState<Record<string, number>>({});
+
   // Corretoras do usuário (legado brokerId + atual brokerIds)
   const userBrokerIds: string[] =
     profile?.brokerIds || (profile?.brokerId ? [profile.brokerId] : []);
@@ -79,19 +83,40 @@ export default function AporteScreen() {
 
   const result = useMemo(() => {
     if (!profile || !activeWallet || numeric < 1) return null;
-    return suggestAporte(numeric, activeWallet.assets, prices, profile);
-  }, [numeric, activeWallet, prices, profile]);
+    // Combina preços da carteira + preços do universo pra filtrar por orçamento
+    const combinedPrices = { ...universePrices, ...prices };
+    return suggestAporte(numeric, activeWallet.assets, combinedPrices, profile);
+  }, [numeric, activeWallet, prices, universePrices, profile]);
 
   const current = useMemo(
     () => computeAllocation(activeWallet?.assets || [], prices),
     [activeWallet, prices],
   );
 
-  const handleSimulate = () => {
+  const handleSimulate = async () => {
     if (numeric < 1) return;
     setShowSuggestions(true);
     setAiResult(null);
     setAiError(null);
+    setBought(new Set());
+
+    // Pré-busca preços dos top candidatos pra filtrar sugestões por orçamento
+    if (profile) {
+      const candidates = new Set<string>();
+      (['renda_variavel', 'internacional'] as const).forEach((cls) => {
+        const top = getCandidatesForProfile(profile.type, cls, 0, profile.preference);
+        top.slice(0, 15).forEach((c) => candidates.add(c.asset.symbol));
+      });
+      const symbols = Array.from(candidates).filter(
+        (s) => !(s in prices) && !(s in universePrices),
+      );
+      if (symbols.length > 0) {
+        const fetched = await fetchQuotes(symbols);
+        const map: Record<string, number> = {};
+        fetched.forEach((q) => (map[q.symbol] = q.regularMarketPrice));
+        setUniversePrices((prev) => ({ ...prev, ...map }));
+      }
+    }
   };
 
   const handleAi = async () => {
@@ -592,36 +617,71 @@ function PickCard({
 
   return (
     <Card style={styles.pickCard}>
-      <View style={styles.pickHeader}>
+      {/* HEADER limpo */}
+      <View style={styles.pickHeaderClean}>
+        <Text style={styles.roleLabel}>{pick.roleLabel}</Text>
+        <Text style={styles.pickAmountClean}>{fmtBRL(pick.amount, privacyMode)}</Text>
+      </View>
+
+      <View style={styles.pickTitleRow}>
         <View style={{ flex: 1 }}>
-          <View style={styles.roleRow}>
-            <Text style={styles.roleLabel}>{pick.roleLabel}</Text>
-            <Text style={styles.pickAmount}>{fmtBRL(pick.amount, privacyMode)}</Text>
-          </View>
           <Text style={styles.pickedSymbol}>{pick.symbol}</Text>
-          {pick.name !== pick.symbol && <Text style={styles.pickedName}>{pick.name}</Text>}
+          {pick.name !== pick.symbol && (
+            <Text style={styles.pickedName} numberOfLines={1}>
+              {pick.name}
+            </Text>
+          )}
         </View>
         {livePrice !== null && (
-          <View style={{ alignItems: 'flex-end' }}>
-            <Text style={styles.livePriceLabel}>cotação</Text>
-            <Text style={styles.livePriceValue}>{fmtBRL(livePrice)}</Text>
+          <View style={styles.pickPriceBox}>
+            <Text style={styles.livePriceLabelClean}>Cotação</Text>
+            <Text style={styles.livePriceValueClean}>{fmtBRL(livePrice)}</Text>
           </View>
         )}
       </View>
 
-      {/* Quantidade calculada */}
-      {livePrice !== null && pick.isTradeable && (
-        <View style={styles.quantityBox}>
-          <Text style={styles.quantityLabel}>Com {fmtBRL(pick.amount, privacyMode)} você compra:</Text>
-          <Text style={styles.quantityValue}>
-            {Math.floor(pick.amount / livePrice)} cota{Math.floor(pick.amount / livePrice) === 1 ? '' : 's'}
-            <Text style={styles.quantitySub}>
-              {' '}
-              (sobra {fmtBRL(pick.amount - Math.floor(pick.amount / livePrice) * livePrice, privacyMode)})
+      {/* Quantidade — mostra cotas inteiras OU "R$ X de ATIVO" se for fracionário */}
+      {livePrice !== null && pick.isTradeable && (() => {
+        const cotas = Math.floor(pick.amount / livePrice);
+        const isFractional = brokerHint.broker?.features.internacional_direto && cotas === 0;
+        if (cotas >= 1) {
+          const sobra = pick.amount - cotas * livePrice;
+          return (
+            <View style={styles.quantityBox}>
+              <Text style={styles.quantityLabel}>Com {fmtBRL(pick.amount, privacyMode)} você compra:</Text>
+              <Text style={styles.quantityValue}>
+                {cotas} cota{cotas === 1 ? '' : 's'}
+              </Text>
+              <Text style={styles.quantitySub}>
+                Total: {fmtBRL(cotas * livePrice, privacyMode)} · sobra {fmtBRL(sobra, privacyMode)}
+              </Text>
+            </View>
+          );
+        }
+        if (isFractional) {
+          return (
+            <View style={styles.quantityBox}>
+              <Text style={styles.quantityLabel}>Como sua corretora aceita fracionário:</Text>
+              <Text style={styles.quantityValue}>
+                Compre {fmtBRL(pick.amount, privacyMode)} de {pick.symbol}
+              </Text>
+              <Text style={styles.quantitySub}>
+                Equivalente a ~{(pick.amount / livePrice).toFixed(3)} cota da fração
+              </Text>
+            </View>
+          );
+        }
+        return (
+          <View style={[styles.quantityBox, { backgroundColor: colors.warningLight }]}>
+            <Text style={[styles.quantityLabel, { color: colors.warning }]}>
+              ⚠️ Valor insuficiente
             </Text>
-          </Text>
-        </View>
-      )}
+            <Text style={[styles.quantityValue, { color: colors.warning }]}>
+              {pick.symbol} custa {fmtBRL(livePrice)} · falta {fmtBRL(livePrice - pick.amount, privacyMode)}
+            </Text>
+          </View>
+        );
+      })()}
 
       <Text style={styles.pickReason}>{pick.reason}</Text>
 
@@ -699,16 +759,32 @@ function PickCard({
 
       {/* Broker hint */}
       {userBrokerIds.length > 0 && (
-        <View style={styles.brokerHintBox}>
-          <Ionicons name="business-outline" size={14} color={colors.primary} />
+        <>
           {brokerHint.broker ? (
-            <Text style={styles.brokerHintText}>
-              Compre na <Text style={styles.brokerHintBold}>{brokerHint.broker.name}</Text> · {brokerHint.reason}
-            </Text>
+            <View style={styles.brokerHintBox}>
+              <Ionicons name="business-outline" size={14} color={colors.primary} />
+              <Text style={styles.brokerHintText}>
+                Compre na <Text style={styles.brokerHintBold}>{brokerHint.broker.name}</Text>
+                <Text style={styles.brokerHintReason}> · {brokerHint.reason}</Text>
+              </Text>
+            </View>
           ) : (
-            <Text style={styles.brokerHintTextWarn}>⚠️ {brokerHint.reason}</Text>
+            <View style={styles.brokerHintBoxWarn}>
+              <Ionicons name="warning-outline" size={14} color={colors.warning} />
+              <View style={{ flex: 1, marginLeft: 6 }}>
+                <Text style={styles.brokerHintTextWarn}>{brokerHint.reason}</Text>
+                {brokerHint.externalSuggestion && brokerHint.externalSuggestion.length > 0 && (
+                  <Text style={styles.brokerHintExternal}>
+                    Considere abrir conta em{' '}
+                    <Text style={styles.brokerHintBold}>
+                      {brokerHint.externalSuggestion.map((b) => b.name).join(', ')}
+                    </Text>
+                  </Text>
+                )}
+              </View>
+            </View>
           )}
-        </View>
+        </>
       )}
 
       <TouchableOpacity style={styles.buyBtn} onPress={() => onBuy(pick.symbol, pick.name, pick.amount)}>
@@ -945,9 +1021,28 @@ const styles = StyleSheet.create({
     borderRadius: radius.md,
     marginTop: spacing.sm,
   },
-  brokerHintText: { flex: 1, fontSize: fontSize.small, color: colors.text, marginLeft: 6, lineHeight: 16 },
-  brokerHintTextWarn: { flex: 1, fontSize: fontSize.small, color: colors.warning, marginLeft: 6, lineHeight: 16 },
+  brokerHintBoxWarn: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    backgroundColor: colors.warningLight,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 8,
+    borderRadius: radius.md,
+    marginTop: spacing.sm,
+  },
+  brokerHintText: { flex: 1, fontSize: fontSize.small, color: colors.text, marginLeft: 6, lineHeight: 18 },
+  brokerHintReason: { color: colors.textSecondary },
+  brokerHintTextWarn: { fontSize: fontSize.small, color: colors.text, lineHeight: 18, fontWeight: '600' },
+  brokerHintExternal: { fontSize: fontSize.small, color: colors.textSecondary, marginTop: 2, lineHeight: 16 },
   brokerHintBold: { fontWeight: '700', color: colors.primary },
+
+  // Layout limpo do pick
+  pickHeaderClean: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline' },
+  pickAmountClean: { fontSize: fontSize.title, fontWeight: 'bold', color: colors.text },
+  pickTitleRow: { flexDirection: 'row', alignItems: 'flex-start', marginTop: 6 },
+  pickPriceBox: { alignItems: 'flex-end', marginLeft: spacing.sm },
+  livePriceLabelClean: { fontSize: fontSize.tiny, color: colors.textTertiary, textTransform: 'uppercase' },
+  livePriceValueClean: { fontSize: fontSize.body, fontWeight: '700', color: colors.text },
 
   allBoughtBox: {
     backgroundColor: colors.successLight,

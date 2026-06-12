@@ -1,6 +1,6 @@
 // Decide qual das corretoras do usuário é melhor pra cada ativo.
 
-import { Broker, getBrokerById } from '../data/brokers';
+import { Broker, BROKERS, getBrokerById } from '../data/brokers';
 
 export type AssetCategory =
   | 'tesouro'
@@ -51,38 +51,70 @@ function supports(broker: Broker, cat: AssetCategory): boolean {
   }
 }
 
+// Sugestões externas recomendadas por categoria de ativo (quando nenhuma das
+// corretoras do usuário oferece)
+const EXTERNAL_RECOMMENDATIONS: Record<AssetCategory, string[]> = {
+  acao_us: ['avenue', 'nomad', 'inter_us'],
+  bdr: ['xp', 'btg', 'inter', 'rico'],
+  fii: ['nubank', 'xp', 'inter', 'rico'],
+  acao_br: ['nubank', 'xp', 'inter', 'rico'],
+  etf_br: ['nubank', 'xp', 'inter', 'rico'],
+  etf_intl: ['nubank', 'xp', 'inter', 'rico'],
+  cripto: ['xp', 'btg'],
+  tesouro: ['nubank', 'xp', 'inter', 'rico'],
+  cdb: ['nubank', 'xp', 'inter', 'rico'],
+  lci_lca: ['xp', 'inter', 'rico'],
+  fundo: ['xp', 'btg', 'orama'],
+};
+
+export type BrokerHint = {
+  broker: Broker | null;
+  reason: string;
+  // Sugestão externa quando nenhuma das corretoras do usuário serve
+  externalSuggestion?: Broker[];
+};
+
 export function bestBrokerForAsset(
   symbol: string,
   type: string | undefined,
   userBrokerIds: string[],
-): { broker: Broker | null; reason: string } {
+): BrokerHint {
   const cat = categorizeAsset(symbol, type);
   const brokers = userBrokerIds.map(getBrokerById).filter((b): b is Broker => !!b);
   if (brokers.length === 0) {
     return { broker: null, reason: 'sem corretora cadastrada' };
   }
   const candidates = brokers.filter((b) => supports(b, cat));
+
+  // ============ Nenhuma das suas corretoras serve ============
   if (candidates.length === 0) {
+    const recommendedIds = EXTERNAL_RECOMMENDATIONS[cat] || [];
+    const externalCandidates = recommendedIds
+      .map((id) => BROKERS.find((b) => b.id === id))
+      .filter((b): b is Broker => !!b && supports(b, cat))
+      .slice(0, 3);
     return {
       broker: null,
-      reason: `nenhuma das suas corretoras oferece ${categoryLabel(cat)}`,
+      reason: `Nenhuma das suas corretoras oferece ${categoryLabel(cat)}`,
+      externalSuggestion: externalCandidates,
     };
   }
 
-  // Especialização: pra ativos internacionais diretos, preferir corretora internacional
+  // ============ Especialização ============
+  // Ações americanas diretas → corretora internacional
   if (cat === 'acao_us') {
     const intl = candidates.find((b) => b.category === 'internacional');
     if (intl) return { broker: intl, reason: 'acesso direto ao mercado dos EUA' };
   }
-  // Pra ativos BR, preferir banco digital / corretora BR
+  // Ativos BR → corretora brasileira
   if (cat === 'fii' || cat === 'acao_br' || cat === 'tesouro' || cat === 'cdb' || cat === 'lci_lca') {
     const br = candidates.find((b) => b.category !== 'internacional');
-    if (br) return { broker: br, reason: 'corretora brasileira' };
+    if (br) return { broker: br, reason: 'oferece esse ativo' };
   }
-  // ETFs intl podem usar BR (via ETF BR como IVVB11)
-  if (cat === 'etf_intl') {
+  // ETFs intl → preferência por corretora BR (ETF brasileiro)
+  if (cat === 'etf_intl' || cat === 'etf_br') {
     const br = candidates.find((b) => b.category !== 'internacional');
-    if (br) return { broker: br, reason: 'ETF internacional disponível na B3' };
+    if (br) return { broker: br, reason: 'tem esse ETF na plataforma' };
   }
   return { broker: candidates[0], reason: 'corretora compatível' };
 }

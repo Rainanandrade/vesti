@@ -89,6 +89,7 @@ export const KEYS = {
   ACTIVE_WALLET: 'active_wallet',
   GOALS_REACHED: 'goals_reached',
   PRIVACY_MODE: 'privacy_mode',
+  LAST_SEEN_VERSION: 'last_seen_version',
 };
 
 export const SECURE_KEYS = {

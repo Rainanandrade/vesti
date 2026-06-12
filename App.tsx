@@ -5,9 +5,12 @@ import { useFonts } from 'expo-font';
 import { Ionicons } from '@expo/vector-icons';
 import { ActivityIndicator, View } from 'react-native';
 import * as SplashScreen from 'expo-splash-screen';
-import { AppProvider } from './src/context/AppContext';
+import { AppProvider, useApp } from './src/context/AppContext';
 import RootNavigator from './src/navigation/RootNavigator';
 import { colors } from './src/theme/colors';
+import ReleaseNotesModal from './src/components/ReleaseNotesModal';
+import { CURRENT_VERSION, getUnseenNotes } from './src/data/releaseNotes';
+import { navigate } from './src/navigation/RootNavigator';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
@@ -34,8 +37,42 @@ export default function App() {
     <SafeAreaProvider>
       <AppProvider>
         <RootNavigator />
+        <ReleaseNotesGate />
         <StatusBar style="auto" />
       </AppProvider>
     </SafeAreaProvider>
+  );
+}
+
+// Mostra popup de novidades quando há versão nova vs última vista
+function ReleaseNotesGate() {
+  const { loading, user, profile, lastSeenVersion, markVersionSeen } = useApp();
+  const [visible, setVisible] = useState(false);
+  const [notes, setNotes] = useState<ReturnType<typeof getUnseenNotes>>([]);
+
+  useEffect(() => {
+    // Só mostra depois do app estar pronto + usuário logado + perfil setado
+    if (loading || !user || !profile) return;
+    const unseen = getUnseenNotes(lastSeenVersion);
+    if (unseen.length > 0) {
+      setNotes(unseen);
+      // Pequeno delay pra não brigar com navegação inicial
+      const t = setTimeout(() => setVisible(true), 800);
+      return () => clearTimeout(t);
+    }
+  }, [loading, user, profile, lastSeenVersion]);
+
+  const handleClose = async () => {
+    setVisible(false);
+    await markVersionSeen(CURRENT_VERSION);
+  };
+
+  return (
+    <ReleaseNotesModal
+      visible={visible}
+      notes={notes}
+      onClose={handleClose}
+      onNavigate={(route, params) => navigate(route, params)}
+    />
   );
 }

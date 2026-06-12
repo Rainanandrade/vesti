@@ -3,12 +3,12 @@ import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, fontSize, radius, spacing } from '../theme/colors';
-import { computeProfile, QUIZ } from '../data/profileQuiz';
+import { computeProfile, QUIZ, Preference, PREFERENCE_INFO } from '../data/profileQuiz';
 import { BROKERS, Broker, getBrokerById, brokerLimitations } from '../data/brokers';
 import Button from '../components/Button';
 import { useApp } from '../context/AppContext';
 
-type Phase = 'quiz' | 'broker' | 'result';
+type Phase = 'quiz' | 'broker' | 'preference' | 'result';
 
 export default function ProfileQuizScreen() {
   const { setProfile, createWallet, wallets } = useApp();
@@ -17,6 +17,7 @@ export default function ProfileQuizScreen() {
   const [answers, setAnswers] = useState<Record<string, number>>({});
   const [brokerIds, setBrokerIds] = useState<string[]>([]);
   const [brokerSearch, setBrokerSearch] = useState('');
+  const [preference, setPreferenceState] = useState<Preference | null>(null);
 
   const toggleBroker = (id: string) =>
     setBrokerIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
@@ -36,6 +37,7 @@ export default function ProfileQuizScreen() {
   const finalize = async () => {
     const profile = computeProfile(answers);
     profile.brokerIds = brokerIds;
+    profile.preference = preference || 'sem_preferencia';
     await setProfile(profile);
     if (wallets.length === 0) {
       await createWallet('Minha carteira');
@@ -123,9 +125,57 @@ export default function ProfileQuizScreen() {
           )}
 
           <View style={{ marginTop: spacing.lg }}>
-            <Button title="Ver meu perfil" onPress={() => setPhase('result')} />
-            <Button title="Pular por enquanto" variant="ghost" onPress={() => { setBrokerIds([]); setPhase('result'); }} style={{ marginTop: spacing.sm }} />
+            <Button title="Continuar" onPress={() => setPhase('preference')} />
+            <Button title="Pular por enquanto" variant="ghost" onPress={() => { setBrokerIds([]); setPhase('preference'); }} style={{ marginTop: spacing.sm }} />
           </View>
+        </ScrollView>
+      </SafeAreaView>
+    );
+  }
+
+  // FASE: Preferência (estilo)
+  if (phase === 'preference') {
+    const prefOptions: Preference[] = ['dividendos', 'crescimento', 'equilibrado', 'sem_preferencia'];
+    const tempProfile = computeProfile(answers);
+    return (
+      <SafeAreaView style={styles.safe} edges={['top']}>
+        <View style={styles.progress}>
+          <View style={[styles.progressFill, { width: '98%' }]} />
+        </View>
+        <ScrollView contentContainerStyle={styles.scroll}>
+          <Text style={styles.question}>O que você prefere no longo prazo?</Text>
+          <Text style={styles.helper}>
+            Você é perfil {tempProfile.type} — isso diz quanto risco você aguenta. Agora me diz o que você BUSCA com seus investimentos.
+          </Text>
+          {prefOptions.map((opt) => {
+            const info = PREFERENCE_INFO[opt];
+            const isActive = preference === opt;
+            return (
+              <TouchableOpacity
+                key={opt}
+                style={[styles.prefOption, isActive && styles.prefOptionActive]}
+                onPress={() => setPreferenceState(opt)}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.prefEmoji}>{info.emoji}</Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.prefLabel, isActive && styles.prefLabelActive]}>{info.label}</Text>
+                  <Text style={styles.prefDesc}>{info.description}</Text>
+                </View>
+                <Ionicons
+                  name={isActive ? 'radio-button-on' : 'radio-button-off'}
+                  size={22}
+                  color={isActive ? colors.primary : colors.textTertiary}
+                />
+              </TouchableOpacity>
+            );
+          })}
+          <Button
+            title="Ver meu perfil"
+            onPress={() => setPhase('result')}
+            disabled={!preference}
+            style={{ marginTop: spacing.lg }}
+          />
         </ScrollView>
       </SafeAreaView>
     );
@@ -330,4 +380,21 @@ const styles = StyleSheet.create({
   limitsBox: { marginTop: spacing.md, padding: spacing.sm, backgroundColor: colors.warningLight, borderRadius: radius.md },
   limitsLabel: { fontSize: fontSize.small, fontWeight: '700', color: colors.text },
   limitsText: { fontSize: fontSize.body, color: colors.text, marginTop: 2 },
+
+  // Preference phase
+  prefOption: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    padding: spacing.md,
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    borderWidth: 2,
+    borderColor: colors.border,
+    marginTop: spacing.sm,
+  },
+  prefOptionActive: { borderColor: colors.primary, backgroundColor: colors.primaryLight },
+  prefEmoji: { fontSize: 28, marginRight: spacing.md, marginTop: 2 },
+  prefLabel: { fontSize: fontSize.bodyLarge, fontWeight: '700', color: colors.text, marginBottom: 4 },
+  prefLabelActive: { color: colors.primaryDark },
+  prefDesc: { fontSize: fontSize.body, color: colors.textSecondary, lineHeight: 18 },
 });

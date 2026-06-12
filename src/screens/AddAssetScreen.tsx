@@ -17,6 +17,7 @@ import { colors, fontSize, radius, spacing } from '../theme/colors';
 import Button from '../components/Button';
 import AssetAnalysis from '../components/AssetAnalysis';
 import { useApp, Asset } from '../context/AppContext';
+import PriceChart from '../components/PriceChart';
 import { searchTickers, TickerInfo, TICKERS } from '../data/tickers';
 import { fetchQuotes } from '../api/brapi';
 import { fetchAssetDetails, AssetDetails } from '../api/yahooDetails';
@@ -231,6 +232,13 @@ export default function AddAssetScreen({ navigation, route }: any) {
                   ) : (
                     <Text style={styles.livePriceUnknown}>Cotação indisponível.</Text>
                   )}
+                </View>
+              )}
+
+              {/* Gráfico histórico */}
+              {selectedTicker && (
+                <View style={{ marginTop: spacing.md, backgroundColor: colors.surface, padding: spacing.md, borderRadius: radius.lg }}>
+                  <PriceChart symbol={selectedTicker.symbol} />
                 </View>
               )}
 

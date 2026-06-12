@@ -15,6 +15,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { colors, fontSize, radius, spacing } from '../theme/colors';
 import Button from '../components/Button';
 import { useApp } from '../context/AppContext';
+import PriceChart from '../components/PriceChart';
+import { TICKERS } from '../data/tickers';
 
 export default function EditAssetScreen({ navigation, route }: any) {
   const { activeWallet, updateAsset, removeAsset } = useApp();
@@ -110,6 +112,13 @@ export default function EditAssetScreen({ navigation, route }: any) {
             <Text style={styles.name}>{asset.name}</Text>
           </View>
 
+          {/* Gráfico histórico (apenas pra ativos tradeáveis na B3) */}
+          {TICKERS.some((t) => t.symbol === asset.symbol) && (
+            <View style={styles.chartBox}>
+              <PriceChart symbol={asset.symbol} />
+            </View>
+          )}
+
           <Text style={styles.label}>Quantidade</Text>
           <TextInput
             style={styles.input}
@@ -164,6 +173,7 @@ const styles = StyleSheet.create({
   assetHeader: { marginBottom: spacing.lg },
   symbol: { fontSize: fontSize.hero, fontWeight: 'bold', color: colors.primary },
   name: { fontSize: fontSize.body, color: colors.textSecondary },
+  chartBox: { marginBottom: spacing.lg, backgroundColor: colors.surface, padding: spacing.md, borderRadius: radius.lg },
   label: { fontSize: fontSize.body, color: colors.textSecondary, marginTop: spacing.md, marginBottom: 6 },
   helper: { fontSize: fontSize.small, color: colors.textTertiary, marginTop: 4 },
   input: {

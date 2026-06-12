@@ -1,4 +1,4 @@
-import { NavigationContainer } from '@react-navigation/native';
+import { createNavigationContainerRef, NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
@@ -14,11 +14,26 @@ import DashboardScreen from '../screens/DashboardScreen';
 import PortfolioScreen from '../screens/PortfolioScreen';
 import AddAssetScreen from '../screens/AddAssetScreen';
 import EditAssetScreen from '../screens/EditAssetScreen';
+import WatchlistScreen from '../screens/WatchlistScreen';
+import CompareAssetsScreen from '../screens/CompareAssetsScreen';
+import IRCalculatorScreen from '../screens/IRCalculatorScreen';
+import AporteCalculatorScreen from '../screens/AporteCalculatorScreen';
 import AporteScreen from '../screens/AporteScreen';
 import GoalsScreen from '../screens/GoalsScreen';
 import LearnScreen from '../screens/LearnScreen';
 import SettingsScreen from '../screens/SettingsScreen';
 import LegalDocScreen from '../screens/LegalDocScreen';
+import PreferenceScreen from '../screens/PreferenceScreen';
+
+// Ref de navegação global pra que o modal de release notes possa navegar fora
+// da árvore React Navigation (App.tsx).
+export const navigationRef = createNavigationContainerRef();
+
+export function navigate(name: string, params?: any) {
+  if (navigationRef.isReady()) {
+    (navigationRef.navigate as any)(name, params);
+  }
+}
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -36,6 +51,26 @@ function PortfolioStackNavigator() {
       <PortfolioStack.Screen
         name="EditAsset"
         component={EditAssetScreen}
+        options={{ presentation: 'modal' }}
+      />
+      <PortfolioStack.Screen
+        name="Watchlist"
+        component={WatchlistScreen}
+        options={{ presentation: 'modal' }}
+      />
+      <PortfolioStack.Screen
+        name="Compare"
+        component={CompareAssetsScreen}
+        options={{ presentation: 'modal' }}
+      />
+      <PortfolioStack.Screen
+        name="IRCalculator"
+        component={IRCalculatorScreen}
+        options={{ presentation: 'modal' }}
+      />
+      <PortfolioStack.Screen
+        name="AporteCalc"
+        component={AporteCalculatorScreen}
         options={{ presentation: 'modal' }}
       />
     </PortfolioStack.Navigator>
@@ -90,6 +125,11 @@ function MainStack() {
       <Stack.Screen name="Tabs" component={MainTabs} />
       <Stack.Screen name="Settings" component={SettingsScreen} options={{ presentation: 'modal' }} />
       <Stack.Screen name="Legal" component={LegalDocScreen} options={{ presentation: 'modal' }} />
+      <Stack.Screen
+        name="Preference"
+        component={PreferenceScreen}
+        options={{ presentation: 'modal' }}
+      />
     </Stack.Navigator>
   );
 }
@@ -106,7 +146,7 @@ export default function RootNavigator() {
   }
 
   return (
-    <NavigationContainer>
+    <NavigationContainer ref={navigationRef}>
       <Stack.Navigator screenOptions={{ headerShown: false }}>
         {!onboardingDone ? (
           <Stack.Screen name="Onboarding" component={OnboardingScreen} />
@@ -118,6 +158,11 @@ export default function RootNavigator() {
           <Stack.Screen name="PinEnter" component={PinScreen} />
         ) : !profile ? (
           <Stack.Screen name="Quiz" component={ProfileQuizScreen} />
+        ) : !profile.preference ? (
+          // Usuário antigo sem preferência: força a escolher antes de continuar
+          <Stack.Screen name="ForcePreference">
+            {() => <PreferenceScreen forced />}
+          </Stack.Screen>
         ) : (
           <Stack.Screen name="Main" component={MainStack} />
         )}

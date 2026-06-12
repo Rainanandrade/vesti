@@ -20,6 +20,7 @@ export default function SettingsScreen({ navigation }: any) {
     user,
     profile,
     setProfile,
+    resetProfile,
     signOut,
     privacyMode,
     togglePrivacy,
@@ -29,6 +30,22 @@ export default function SettingsScreen({ navigation }: any) {
     createWallet,
     deleteWallet,
   } = useApp();
+
+  const handleRedoProfile = () => {
+    confirmAction(
+      'Refazer perfil',
+      'Você vai responder o quiz de perfil de novo. Sua carteira, metas e conquistas são preservadas.',
+      async () => {
+        try {
+          await resetProfile();
+          navigation?.goBack?.();
+        } catch (err) {
+          console.warn('resetProfile error', err);
+        }
+      },
+      { confirmLabel: 'Refazer', destructive: false },
+    );
+  };
   const [brokerModalOpen, setBrokerModalOpen] = useState(false);
   // Suporta multi-corretora: lê brokerIds, com fallback pro legado brokerId
   const currentBrokerIds: string[] =
@@ -136,6 +153,38 @@ export default function SettingsScreen({ navigation }: any) {
             </View>
           )}
         </Card>
+
+        <Text style={styles.sectionTitle}>Perfil financeiro</Text>
+        <TouchableOpacity onPress={() => navigation?.navigate('Preference')}>
+          <Card style={{ marginBottom: spacing.sm }}>
+            <View style={styles.row}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.rowTitle}>Preferência de longo prazo</Text>
+                <Text style={styles.rowSub}>
+                  {profile?.preference
+                    ? `${profile.preference === 'sem_preferencia' ? 'Sem preferência (padrão)' : `Foco em ${profile.preference}`}`
+                    : 'Não definida'}
+                </Text>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color={colors.textTertiary} />
+            </View>
+          </Card>
+        </TouchableOpacity>
+
+        <TouchableOpacity onPress={handleRedoProfile}>
+          <Card>
+            <View style={styles.row}>
+              <Ionicons name="refresh-circle-outline" size={22} color={colors.primary} />
+              <View style={{ flex: 1, marginLeft: spacing.md }}>
+                <Text style={styles.rowTitle}>Refazer perfil financeiro</Text>
+                <Text style={styles.rowSub}>
+                  Recalcular tipo de perfil (conservador/moderado/arrojado/agressivo) refazendo o quiz
+                </Text>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color={colors.textTertiary} />
+            </View>
+          </Card>
+        </TouchableOpacity>
 
         <Text style={styles.sectionTitle}>Corretoras</Text>
         <TouchableOpacity onPress={() => setBrokerModalOpen(true)}>

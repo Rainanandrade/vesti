@@ -17,6 +17,27 @@ import { Lesson, LESSONS, TRAILS, getTipOfWeek } from '../data/lessons';
 import Card from '../components/Card';
 import Button from '../components/Button';
 import { useApp } from '../context/AppContext';
+import { Preference } from '../data/profileQuiz';
+
+// Reordena os trilhos com base na preferência: pra dividendos coloca FIIs/RV
+// dividend payers primeiro; pra crescimento, RV growth primeiro
+function reorderTrails(
+  keys: (keyof typeof TRAILS)[],
+  preference?: Preference,
+): (keyof typeof TRAILS)[] {
+  if (!preference || preference === 'sem_preferencia') return keys;
+  if (preference === 'dividendos') {
+    return ['fiis', 'rendaVariavel', 'estrategia', 'rendaFixa', 'iniciante'].filter((k) =>
+      keys.includes(k as keyof typeof TRAILS),
+    ) as (keyof typeof TRAILS)[];
+  }
+  if (preference === 'crescimento') {
+    return ['rendaVariavel', 'estrategia', 'iniciante', 'fiis', 'rendaFixa'].filter((k) =>
+      keys.includes(k as keyof typeof TRAILS),
+    ) as (keyof typeof TRAILS)[];
+  }
+  return keys;
+}
 
 type Tab = 'aulas' | 'glossario';
 
@@ -86,8 +107,11 @@ function AulasTab({
   onSelectLesson: (l: Lesson) => void;
   completedLessons: Record<string, number>;
 }) {
+  const { profile } = useApp();
   const tip = getTipOfWeek();
-  const trailKeys = Object.keys(TRAILS) as (keyof typeof TRAILS)[];
+  // Ordem dos trilhos: padrão do iniciante OU adaptada por preferência do usuário
+  const allKeys = Object.keys(TRAILS) as (keyof typeof TRAILS)[];
+  const trailKeys = reorderTrails(allKeys, profile?.preference);
   const totalCompleted = Object.keys(completedLessons).length;
   const allLessonsDone = totalCompleted >= LESSONS.length;
 

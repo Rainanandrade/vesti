@@ -7,7 +7,17 @@ import {
   Text,
   TouchableOpacity,
   View,
+  ViewStyle,
 } from 'react-native';
+
+function ToolChip({ icon, label, onPress }: { icon: any; label: string; onPress: () => void }) {
+  return (
+    <TouchableOpacity style={toolStyles.chip} onPress={onPress} activeOpacity={0.7}>
+      <Ionicons name={icon} size={16} color={colors.primary} />
+      <Text style={toolStyles.label}>{label}</Text>
+    </TouchableOpacity>
+  );
+}
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, fontSize, radius, spacing } from '../theme/colors';
@@ -70,14 +80,34 @@ export default function PortfolioScreen({ navigation }: any) {
     <SafeAreaView style={styles.safe} edges={['top']}>
       <View style={styles.header}>
         <Text style={styles.title}>{activeWallet?.name || 'Carteira'}</Text>
-        <TouchableOpacity
-          style={styles.addBtn}
-          onPress={() => navigation.navigate('AddAsset')}
-        >
-          <Ionicons name="add" size={22} color={colors.textLight} />
-          <Text style={styles.addBtnText}>Adicionar</Text>
-        </TouchableOpacity>
+        <View style={{ flexDirection: 'row' }}>
+          <TouchableOpacity
+            style={[styles.addBtn, styles.watchBtn]}
+            onPress={() => navigation.navigate('Watchlist')}
+          >
+            <Ionicons name="eye-outline" size={18} color={colors.primary} />
+            <Text style={[styles.addBtnText, { color: colors.primary }]}>Acompanho</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.addBtn}
+            onPress={() => navigation.navigate('AddAsset')}
+          >
+            <Ionicons name="add" size={22} color={colors.textLight} />
+            <Text style={styles.addBtnText}>Adicionar</Text>
+          </TouchableOpacity>
+        </View>
       </View>
+
+      {/* Atalhos pra ferramentas */}
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.toolsRow}
+      >
+        <ToolChip icon="git-compare-outline" label="Comparar" onPress={() => navigation.navigate('Compare')} />
+        <ToolChip icon="calculator-outline" label="Aporte" onPress={() => navigation.navigate('AporteCalc')} />
+        <ToolChip icon="receipt-outline" label="IR/DARF" onPress={() => navigation.navigate('IRCalculator')} />
+      </ScrollView>
 
       <ScrollView
         contentContainerStyle={styles.scroll}
@@ -201,8 +231,22 @@ function typePillColor(t: string) {
   return colorsMap[t] || { backgroundColor: colors.surface };
 }
 
+const toolStyles = StyleSheet.create({
+  chip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.primaryLight,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 6,
+    borderRadius: radius.pill,
+    marginRight: spacing.sm,
+  },
+  label: { color: colors.primary, fontWeight: '700', fontSize: fontSize.small, marginLeft: 4 },
+});
+
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.surface },
+  toolsRow: { paddingHorizontal: spacing.md, paddingBottom: spacing.sm },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -218,6 +262,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
     borderRadius: radius.pill,
+  },
+  watchBtn: {
+    backgroundColor: colors.background,
+    borderWidth: 1,
+    borderColor: colors.primary,
+    marginRight: spacing.sm,
   },
   addBtnText: { color: colors.textLight, fontWeight: '600', marginLeft: 4 },
   scroll: { padding: spacing.md },

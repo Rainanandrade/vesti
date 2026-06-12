@@ -76,6 +76,43 @@ export const QUIZ: QuizQuestion[] = [
 
 export type ProfileType = 'conservador' | 'moderado' | 'arrojado' | 'agressivo';
 
+export type Preference = 'dividendos' | 'crescimento' | 'equilibrado' | 'sem_preferencia';
+
+export const PREFERENCE_INFO: Record<
+  Preference,
+  { emoji: string; label: string; description: string; tagline: string }
+> = {
+  dividendos: {
+    emoji: '💸',
+    label: 'Foco em dividendos',
+    description: 'Quero renda mensal/trimestral pra reinvestir ou complementar minha renda. Prefiro FIIs e empresas pagadoras de dividendos.',
+    tagline: 'Foco em dividendos',
+  },
+  crescimento: {
+    emoji: '📈',
+    label: 'Foco em crescimento',
+    description: 'Quero valorização do patrimônio no longo prazo. Não preciso de renda agora — prefiro empresas em expansão.',
+    tagline: 'Foco em crescimento',
+  },
+  equilibrado: {
+    emoji: '⚖️',
+    label: 'Equilibrado',
+    description: 'Quero um pouco dos dois — algum fluxo de renda combinado com crescimento de patrimônio.',
+    tagline: 'Equilibrado',
+  },
+  sem_preferencia: {
+    emoji: '🤔',
+    label: 'Sem preferência',
+    description: 'Deixa o app decidir pelo meu perfil de risco — não tenho preferência específica.',
+    tagline: '',
+  },
+};
+
+export function preferenceLabel(p?: Preference): string {
+  if (!p || p === 'sem_preferencia') return '';
+  return PREFERENCE_INFO[p].tagline;
+}
+
 export type Profile = {
   type: ProfileType;
   score: number;
@@ -85,6 +122,7 @@ export type Profile = {
   recommendations: string[];
   brokerId?: string;        // legado (será migrado pra brokerIds)
   brokerIds?: string[];     // múltiplas corretoras
+  preference?: Preference;  // estilo de investimento — null pra usuários antigos
 };
 
 export function computeProfile(answers: Record<string, number>): Profile {

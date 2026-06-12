@@ -1,4 +1,4 @@
-import { Profile, ProfileType } from '../data/profileQuiz';
+import { Profile, ProfileType, Preference } from '../data/profileQuiz';
 import { AssetDetails } from '../api/yahooDetails';
 import { TickerInfo } from '../data/tickers';
 
@@ -158,6 +158,66 @@ export function evaluateAssetForProfile(
     // Setor
     if (details.sector) {
       reasons.push(`Setor: ${details.sector}${details.industry ? ` (${details.industry})` : ''}`);
+    }
+  }
+
+  // ============ AJUSTE POR PREFERÊNCIA ============
+  const pref: Preference | undefined = profile.preference;
+  if (pref === 'dividendos') {
+    if (details?.dividendYield != null && details.dividendYield > 0) {
+      if (details.dividendYield >= 6) {
+        positives.push(
+          `DY ${details.dividendYield.toFixed(1)}% combina perfeitamente com seu foco em dividendos`,
+        );
+        score += 10;
+      } else if (details.dividendYield >= 3) {
+        positives.push(`DY ${details.dividendYield.toFixed(1)}% — paga dividendos consistentes`);
+        score += 3;
+      } else {
+        warnings.push(
+          `DY ${details.dividendYield.toFixed(1)}% baixo — não casa com seu foco em dividendos`,
+        );
+        score -= 12;
+      }
+    }
+    if (ticker.type === 'fii') {
+      positives.push('FII paga rendimento mensal — alinhado com foco em dividendos');
+      score += 6;
+    }
+    if (ticker.type === 'acao' && (!details?.dividendYield || details.dividendYield < 2)) {
+      warnings.push(
+        'Ação com DY baixo/nulo — geralmente reinveste em vez de pagar. Confere com seu foco?',
+      );
+      score -= 8;
+    }
+  } else if (pref === 'crescimento') {
+    if (details?.earningsGrowth != null && details.earningsGrowth > 15) {
+      positives.push(
+        `Crescimento de lucros ${details.earningsGrowth.toFixed(1)}% — alinhado com seu foco em crescimento`,
+      );
+      score += 8;
+    }
+    if (details?.revenueGrowth != null && details.revenueGrowth > 15) {
+      positives.push(`Receita crescendo ${details.revenueGrowth.toFixed(1)}% ao ano`);
+      score += 5;
+    }
+    if (ticker.type === 'fii') {
+      warnings.push(
+        'FIIs entregam renda, não crescimento de patrimônio. Avalie se faz sentido pro seu foco.',
+      );
+      score -= 5;
+    }
+    if (details?.dividendYield != null && details.dividendYield > 10) {
+      warnings.push('DY muito alto pode indicar empresa madura, com menos potencial de valorização');
+    }
+  } else if (pref === 'equilibrado') {
+    if (details?.dividendYield != null && details.dividendYield >= 4) {
+      positives.push(`DY ${details.dividendYield.toFixed(1)}% — bom componente de renda`);
+      score += 3;
+    }
+    if (details?.earningsGrowth != null && details.earningsGrowth > 10) {
+      positives.push('Empresa em crescimento — bom componente de valorização');
+      score += 3;
     }
   }
 

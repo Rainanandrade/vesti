@@ -73,8 +73,13 @@ export function computeDividendForecast(
 ): DividendForecast {
   const currentYear = now.getFullYear();
   const currentMonth = now.getMonth() + 1;
+  const todayIso = now.toISOString().slice(0, 10); // YYYY-MM-DD
   const monthlyDist = new Array(12).fill(0);
   const thisMonthBySymbol: Record<string, number> = {};
+  // Separamos por data exata: ytd = entradas com data <= hoje (já recebido)
+  // remaining = entradas com data > hoje (a receber neste ano)
+  let ytdReceivedSum = 0;
+  let remainingThisYearSum = 0;
   let totalAnnualPotential = 0;
   let totalValue = 0;
 
@@ -94,71 +99,79 @@ export function computeDividendForecast(
 
     // ============ PREFERE DADO REAL DO STATUS INVEST ============
     if (realInfo && realInfo.history && realInfo.history.length > 0) {
-      // Regra de elegibilidade: o usuário precisa ter comprado pelo menos 5 dias
-      // antes da data do pagamento pra ser considerado holder (cobre o ex-dividendo)
+      // Regra de elegibilidade: usuário precisa ter sido holder antes do ex-dividendo
+      // (usamos 5 dias como margem segura)
       const MIN_HOLD_DAYS = 5;
       const yearStart = `${currentYear}-01-01`;
       const yearEnd = `${currentYear}-12-31`;
-      const todayIso = now.toISOString().slice(0, 10);
       const addedAtMs = asset.addedAt;
       const addedIsoDate = new Date(addedAtMs).toISOString().slice(0, 10);
 
-      // Soma POR MÊS (evita duplicação de JCP + dividendo na mesma data)
-      const sumByMonth = new Map<number, number>();
-      const knownMonths = new Set<number>();
+      // Cada entrada tratada por data exata (não por mês)
+      type Entry = { date: string; amount: number };
+      const entries: Entry[] = [];
+      const knownByDate = new Set<string>();
+      const sumByMonth = new Map<number, number>(); // pra agregar mesmo dia
 
-      for (const entry of realInfo.history) {
-        if (entry.date < yearStart || entry.date > yearEnd) continue;
-        const entryMs = new Date(entry.date).getTime();
-        // Pagamento passado/atual: precisa ter sido holder por X dias antes
-        if (entry.date <= todayIso) {
-          if (entryMs - addedAtMs < MIN_HOLD_DAYS * 24 * 60 * 60 * 1000) continue;
+      for (const e of realInfo.history) {
+        if (e.date < yearStart || e.date > yearEnd) continue;
+        const eMs = new Date(e.date).getTime();
+        if (e.date <= todayIso) {
+          // Pagamento passado/atual: precisa ter sido holder por MIN_HOLD_DAYS antes
+          if (eMs - addedAtMs < MIN_HOLD_DAYS * 24 * 60 * 60 * 1000) continue;
         } else {
-          // Futuro: precisa ter sido adicionado antes dessa data
-          if (entry.date < addedIsoDate) continue;
+          // Futuro: precisa ter sido holder antes dessa data
+          if (e.date < addedIsoDate) continue;
         }
-        const m = parseInt(entry.date.slice(5, 7), 10);
-        sumByMonth.set(m, (sumByMonth.get(m) || 0) + entry.amount);
-        knownMonths.add(m);
+        entries.push({ date: e.date, amount: e.amount });
+        knownByDate.add(e.date);
       }
 
       // Projeta meses futuros do ano (não cobertos pelo histórico)
       const avgPerPayment = realInfo.averageAmount > 0 ? realInfo.averageAmount : realInfo.lastAmount;
       const freq = realInfo.frequency;
-      if (freq === 'monthly') {
-        for (let m = startMonth; m <= 12; m++) {
-          if (knownMonths.has(m)) continue;
-          // Só projeta se for mês futuro
-          if (m >= currentMonth) sumByMonth.set(m, (sumByMonth.get(m) || 0) + avgPerPayment);
-        }
-      } else if (realInfo.averageInterval > 0) {
+      if (realInfo.averageInterval > 0) {
         const sortedDates = realInfo.history.map((h) => h.date).sort();
         const lastKnown = sortedDates[sortedDates.length - 1];
         if (lastKnown) {
           const cursor = new Date(lastKnown);
           while (cursor.getFullYear() <= currentYear) {
             cursor.setDate(cursor.getDate() + realInfo.averageInterval);
-            const cy = cursor.getFullYear();
-            const cm = cursor.getMonth() + 1;
             const cursorIso = cursor.toISOString().slice(0, 10);
-            if (cy > currentYear) break;
+            if (cursor.getFullYear() > currentYear) break;
             if (cursorIso < addedIsoDate) continue;
             if (cursorIso <= todayIso) continue; // só projeta no futuro
-            if (knownMonths.has(cm)) continue;
-            if (cm < startMonth) continue;
-            sumByMonth.set(cm, (sumByMonth.get(cm) || 0) + avgPerPayment);
+            // Evita duplicar com data conhecida no mesmo mês
+            const cMonth = cursor.getMonth() + 1;
+            const hasKnownInMonth = Array.from(knownByDate).some(
+              (d) => parseInt(d.slice(5, 7), 10) === cMonth,
+            );
+            if (hasKnownInMonth) continue;
+            if (cMonth < startMonth) continue;
+            entries.push({ date: cursorIso, amount: avgPerPayment });
+            knownByDate.add(cursorIso);
           }
         }
       }
 
-      // Aplica ao monthlyDist e thisMonth
-      sumByMonth.forEach((sumPerCota, m) => {
-        const total = sumPerCota * asset.quantity;
+      // Classifica cada entrada por data
+      for (const e of entries) {
+        const total = e.amount * asset.quantity;
+        const m = parseInt(e.date.slice(5, 7), 10);
         monthlyDist[m - 1] += total;
+        sumByMonth.set(m, (sumByMonth.get(m) || 0) + total);
+
+        if (e.date <= todayIso) {
+          ytdReceivedSum += total; // já recebido
+        } else {
+          remainingThisYearSum += total; // ainda vai receber
+        }
+
+        // ThisMonth: mostra TUDO do mês corrente (recebido + a receber)
         if (m === currentMonth) {
           thisMonthBySymbol[asset.symbol] = (thisMonthBySymbol[asset.symbol] || 0) + total;
         }
-      });
+      }
 
       // Soma anual potencial pra DY
       const monthsPerYear = freq === 'monthly' ? 12 : freq === 'quarterly' ? 4 : freq === 'semestral' ? 2 : 1;
@@ -181,24 +194,23 @@ export function computeDividendForecast(
 
     for (const m of eligibleMonths) {
       monthlyDist[m - 1] += perPayment;
-    }
-    if (eligibleMonths.includes(currentMonth)) {
-      thisMonthBySymbol[asset.symbol] = (thisMonthBySymbol[asset.symbol] || 0) + perPayment;
+      // Fallback distribui por mês — meses < currentMonth são "recebido", >= são "a receber"
+      if (m < currentMonth) ytdReceivedSum += perPayment;
+      else if (m === currentMonth) {
+        thisMonthBySymbol[asset.symbol] = (thisMonthBySymbol[asset.symbol] || 0) + perPayment;
+        remainingThisYearSum += perPayment;
+      } else {
+        remainingThisYearSum += perPayment;
+      }
     }
   }
 
   const weightedDY = totalValue > 0 ? (totalAnnualPotential / totalValue) * 100 : 0;
 
-  // YTD: meses já passados deste ano (jan até mês_atual - 1)
-  let ytdReceived = 0;
-  for (let m = 0; m < currentMonth - 1; m++) ytdReceived += monthlyDist[m];
-
-  // A receber: mês atual + futuros até dezembro
-  let remainingThisYear = 0;
-  for (let m = currentMonth - 1; m < 12; m++) remainingThisYear += monthlyDist[m];
-
-  // Total esperado neste ano = só o que realmente caberá receber (pós-compra)
-  const totalThisYear = monthlyDist.reduce((s, v) => s + v, 0);
+  // YTD e remaining vêm direto do tracking por data exata
+  const ytdReceived = ytdReceivedSum;
+  const remainingThisYear = remainingThisYearSum;
+  const totalThisYear = ytdReceived + remainingThisYear;
 
   return {
     thisMonth: monthlyDist[currentMonth - 1],
