@@ -13,6 +13,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, fontSize, radius, spacing } from '../theme/colors';
 import { fmtBRL } from '../utils/format';
+import { formatCurrencyInput, parseFormattedNumber } from '../utils/numberFormat';
 import Card from '../components/Card';
 
 type Mode = 'pmt' | 'fv';
@@ -34,27 +35,25 @@ export default function AporteCalculatorScreen({ navigation }: any) {
 
   const calculation = useMemo(() => {
     if (mode === 'pmt') {
-      const fv = parseFloat(metaValor.replace(/\./g, '').replace(',', '.')) || 0;
+      const fv = parseFormattedNumber(metaValor);
       const years = parseFloat(prazoAnos.replace(',', '.')) || 0;
       const rateAnnual = (parseFloat(taxaAnual.replace(',', '.')) || 0) / 100;
-      const pv = parseFloat(valorInicial.replace(/\./g, '').replace(',', '.')) || 0;
+      const pv = parseFormattedNumber(valorInicial);
       if (fv <= 0 || years <= 0) return null;
       const monthlyRate = Math.pow(1 + rateAnnual, 1 / 12) - 1;
       const n = years * 12;
-      // FV de valor inicial após n meses
       const fvOfPv = pv * Math.pow(1 + monthlyRate, n);
       const remaining = fv - fvOfPv;
-      // PMT pra alcançar o restante
       const pmt =
         monthlyRate === 0
           ? remaining / n
           : (remaining * monthlyRate) / (Math.pow(1 + monthlyRate, n) - 1);
       return { type: 'pmt', monthly: Math.max(0, pmt), totalInvested: pmt * n + pv, fv };
     } else {
-      const pmt = parseFloat(aporteMensal.replace(/\./g, '').replace(',', '.')) || 0;
+      const pmt = parseFormattedNumber(aporteMensal);
       const years = parseFloat(prazoAnos2.replace(',', '.')) || 0;
       const rateAnnual = (parseFloat(taxaAnual2.replace(',', '.')) || 0) / 100;
-      const pv = parseFloat(valorInicial2.replace(/\./g, '').replace(',', '.')) || 0;
+      const pv = parseFormattedNumber(valorInicial2);
       if (pmt <= 0 || years <= 0) return null;
       const monthlyRate = Math.pow(1 + rateAnnual, 1 / 12) - 1;
       const n = years * 12;
@@ -193,7 +192,7 @@ function CurrencyInput({
       <TextInput
         style={[styles.input, { flex: 1, marginLeft: spacing.sm }]}
         value={value}
-        onChangeText={onChange}
+        onChangeText={(t) => onChange(formatCurrencyInput(t))}
         placeholder={placeholder}
         keyboardType="decimal-pad"
       />

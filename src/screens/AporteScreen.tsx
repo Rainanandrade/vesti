@@ -26,6 +26,7 @@ import { fetchAiSuggestion, AiSuggestion } from '../api/ai';
 import { getBrokerById, brokerLimitations } from '../data/brokers';
 import { bestBrokerForAsset } from '../utils/brokerMatch';
 import Toast from '../components/Toast';
+import { formatCurrencyInput, parseFormattedNumber } from '../utils/numberFormat';
 import Card from '../components/Card';
 import Button from '../components/Button';
 import { TICKERS, TickerInfo } from '../data/tickers';
@@ -79,7 +80,7 @@ export default function AporteScreen() {
     loadPrices();
   }, [loadPrices]);
 
-  const numeric = parseFloat(value.replace(/\./g, '').replace(',', '.')) || 0;
+  const numeric = parseFormattedNumber(value);
 
   const result = useMemo(() => {
     if (!profile || !activeWallet || numeric < 1) return null;
@@ -186,7 +187,7 @@ export default function AporteScreen() {
   const confirmBuy = async () => {
     if (!buying || !activeWallet) return;
     const qty = parseFloat(buyQty.replace(',', '.'));
-    const pr = parseFloat(buyPrice.replace(',', '.'));
+    const pr = parseFormattedNumber(buyPrice);
     if (!isFinite(qty) || qty <= 0) {
       Alert.alert('Atenção', 'Quantidade inválida');
       return;
@@ -258,7 +259,7 @@ export default function AporteScreen() {
                 placeholder="0,00"
                 value={value}
                 onChangeText={(t) => {
-                  setValue(t);
+                  setValue(formatCurrencyInput(t));
                   setShowSuggestions(false);
                   setAiResult(null);
                 }}
@@ -272,7 +273,8 @@ export default function AporteScreen() {
                   key={v}
                   style={styles.quickChip}
                   onPress={() => {
-                    setValue(String(v));
+                    // Converte pra centavos pra reusar a função de formatação
+                    setValue(formatCurrencyInput((v * 100).toString()));
                     setShowSuggestions(false);
                     setAiResult(null);
                   }}
@@ -487,7 +489,7 @@ export default function AporteScreen() {
             <TextInput
               style={styles.modalInput}
               value={buyPrice}
-              onChangeText={setBuyPrice}
+              onChangeText={(t) => setBuyPrice(formatCurrencyInput(t))}
               keyboardType="decimal-pad"
               placeholder="0,00"
             />
@@ -496,8 +498,7 @@ export default function AporteScreen() {
               <Text style={styles.totalLabel}>Total investido:</Text>
               <Text style={styles.totalValue}>
                 {fmtBRL(
-                  (parseFloat(buyQty.replace(',', '.')) || 0) *
-                    (parseFloat(buyPrice.replace(',', '.')) || 0),
+                  (parseFloat(buyQty.replace(',', '.')) || 0) * parseFormattedNumber(buyPrice),
                 )}
               </Text>
             </View>

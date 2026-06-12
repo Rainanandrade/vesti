@@ -18,6 +18,7 @@ import { useApp } from '../context/AppContext';
 import PriceChart from '../components/PriceChart';
 import AssetAnalysis from '../components/AssetAnalysis';
 import { TICKERS } from '../data/tickers';
+import { formatCurrencyInput, parseFormattedNumber } from '../utils/numberFormat';
 import { fetchAssetDetails, AssetDetails } from '../api/yahooDetails';
 import { fetchQuotes, Quote } from '../api/brapi';
 import { fetchDividendInfo, DividendInfo, formatNextPayment, frequencyLabel } from '../api/dividends';
@@ -29,10 +30,23 @@ export default function EditAssetScreen({ navigation, route }: any) {
   const { activeWallet, updateAsset, removeAsset, profile, privacyMode } = useApp();
   const symbol: string = route?.params?.symbol;
   const asset = activeWallet?.assets.find((a) => a.symbol === symbol);
-  const tickerInfo = TICKERS.find((t) => t.symbol === asset?.symbol);
+  // Pra TODOS os tradeables (ação/FII/ETF), criamos um TickerInfo "virtual" se
+  // o ativo não estiver na nossa lista — assim charts e análises aparecem
+  // mesmo pra tickers customizados que o usuário cadastrou
+  const isTradeable = asset && (asset.type === 'acao' || asset.type === 'fii' || asset.type === 'etf');
+  const tickerInfo = asset && isTradeable
+    ? (TICKERS.find((t) => t.symbol === asset.symbol) || {
+        symbol: asset.symbol,
+        name: asset.name,
+        type: asset.type as 'acao' | 'fii' | 'etf',
+      })
+    : null;
 
   const [quantity, setQuantity] = useState(asset?.quantity.toString().replace('.', ',') || '');
-  const [price, setPrice] = useState(asset?.avgPrice.toFixed(2).replace('.', ',') || '');
+  // Preço já vem formatado pra ter ponto de milhar + 2 casas decimais
+  const [price, setPrice] = useState(
+    asset ? formatCurrencyInput(Math.round(asset.avgPrice * 100).toString()) : '',
+  );
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
@@ -80,7 +94,7 @@ export default function EditAssetScreen({ navigation, route }: any) {
 
   const handleSave = async () => {
     const qty = parseFloat(quantity.replace(',', '.'));
-    const pr = parseFloat(price.replace(',', '.'));
+    const pr = parseFormattedNumber(price);
     if (!isFinite(qty) || qty <= 0) {
       Alert.alert('Atenção', 'Quantidade inválida');
       return;
@@ -163,8 +177,8 @@ export default function EditAssetScreen({ navigation, route }: any) {
             </View>
           </View>
 
-          {/* Gráfico histórico (apenas pra ativos tradeáveis na B3) */}
-          {tickerInfo && (
+          {/* Gráfico histórico pra qualquer tradeable */}
+          {isTradeable && (
             <View style={styles.chartBox}>
               <PriceChart symbol={asset.symbol} />
             </View>
@@ -278,7 +292,7 @@ export default function EditAssetScreen({ navigation, route }: any) {
           <TextInput
             style={styles.input}
             value={price}
-            onChangeText={setPrice}
+            onChangeText={(t) => setPrice(formatCurrencyInput(t))}
             keyboardType="decimal-pad"
           />
           <Text style={styles.helper}>

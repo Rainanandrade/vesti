@@ -18,6 +18,7 @@ import Button from '../components/Button';
 import AssetAnalysis from '../components/AssetAnalysis';
 import { useApp, Asset } from '../context/AppContext';
 import PriceChart from '../components/PriceChart';
+import { formatCurrencyInput, parseFormattedNumber } from '../utils/numberFormat';
 import { searchTickers, TickerInfo, TICKERS } from '../data/tickers';
 import { fetchQuotes } from '../api/brapi';
 import { fetchAssetDetails, AssetDetails } from '../api/yahooDetails';
@@ -95,12 +96,15 @@ export default function AddAssetScreen({ navigation, route }: any) {
   };
 
   const useLivePrice = () => {
-    if (livePrice !== null) setPrice(livePrice.toFixed(2).replace('.', ','));
+    if (livePrice !== null) {
+      const cents = Math.round(livePrice * 100).toString();
+      setPrice(formatCurrencyInput(cents));
+    }
   };
 
   const handleSave = async () => {
     const qty = parseFloat(quantity.replace(',', '.'));
-    const pr = parseFloat(price.replace(',', '.'));
+    const pr = parseFormattedNumber(price);
     if (typeMeta.needsSymbol && symbol.trim().length < 3) {
       Alert.alert('Atenção', 'Digite o código do ativo (ex: PETR4)');
       return;
@@ -277,9 +281,9 @@ export default function AddAssetScreen({ navigation, route }: any) {
           <Text style={styles.label}>Preço médio (R$)</Text>
           <TextInput
             style={styles.input}
-            placeholder="35,50"
+            placeholder="0,00"
             value={price}
-            onChangeText={setPrice}
+            onChangeText={(t) => setPrice(formatCurrencyInput(t))}
             keyboardType="decimal-pad"
           />
 

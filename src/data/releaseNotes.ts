@@ -27,10 +27,43 @@ export type ReleaseNote = {
 };
 
 // ATUAL versão do app — bumpa a cada release.
-export const CURRENT_VERSION = '1.7.0';
+export const CURRENT_VERSION = '1.8.0';
 
 // Notas em ordem cronológica DESCENDENTE (mais recente primeiro)
 export const RELEASE_NOTES: ReleaseNote[] = [
+  {
+    version: '1.8.0',
+    date: '2026-06-04',
+    title: 'IR sobre dividendos & inputs inteligentes',
+    subtitle: 'Mais clareza no IR + formatação automática + análises em tudo',
+    highlights: [
+      {
+        emoji: '💸',
+        title: 'IR sobre dividendos e JCP',
+        description:
+          'Calculadora IR agora tem aba "Dividendos / JCP": mostra que dividendos são isentos, JCP tem 15% retido na fonte, e explica como declarar no IRPF anual.',
+        action: { label: 'Abrir calculadora', navigateTo: 'IRCalculator' },
+      },
+      {
+        emoji: '📋',
+        title: 'Indicador "Precisa emitir DARF?"',
+        description:
+          'Cada resultado agora mostra claramente SIM ou NÃO (em verde/laranja). Sem dúvida sobre se você precisa pagar guia ou não.',
+      },
+      {
+        emoji: '🔢',
+        title: 'Formatação automática de valores',
+        description:
+          'Em todos os campos de moeda: digite "12345" e vira "123,45" automaticamente. Com pontos de milhar (R$ 12.345,67) sem você fazer nada.',
+      },
+      {
+        emoji: '📈',
+        title: 'Análise em TODOS os ativos',
+        description:
+          'Antes: só ações da nossa lista curada tinham análise/gráfico. Agora: qualquer ativo da sua carteira (ação/FII/ETF) tem fit score, indicadores e gráfico — mesmo se for um ticker pouco comum.',
+      },
+    ],
+  },
   {
     version: '1.7.0',
     date: '2026-06-04',
