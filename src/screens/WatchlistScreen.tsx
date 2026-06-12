@@ -21,6 +21,7 @@ import Card from '../components/Card';
 import Button from '../components/Button';
 import { searchTickers, TICKERS } from '../data/tickers';
 import { confirmAction } from '../utils/confirm';
+import PriceChart from '../components/PriceChart';
 
 export default function WatchlistScreen({ navigation }: any) {
   const { watchlist, removeFromWatchlist, addToWatchlist, setWatchlistTarget, privacyMode } = useApp();
@@ -101,6 +102,9 @@ export default function WatchlistScreen({ navigation }: any) {
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       <View style={styles.header}>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn} hitSlop={10}>
+          <Ionicons name="chevron-back" size={26} color={colors.text} />
+        </TouchableOpacity>
         <View style={{ flex: 1 }}>
           <Text style={styles.title}>Acompanho</Text>
           <Text style={styles.subtitle}>Ativos que você está de olho</Text>
@@ -253,26 +257,35 @@ export default function WatchlistScreen({ navigation }: any) {
         </SafeAreaView>
       </Modal>
 
-      {/* Modal de definir alvo */}
+      {/* Modal de definir alvo (com gráfico pra contexto) */}
       <Modal visible={targetOpen} transparent animationType="slide" onRequestClose={() => setTargetOpen(false)}>
         <Pressable style={styles.backdrop} onPress={() => setTargetOpen(false)}>
           <Pressable style={styles.targetModal} onPress={(e) => e.stopPropagation()}>
-            <Text style={styles.targetModalTitle}>Preço-alvo {targetSymbol}</Text>
-            <Text style={styles.targetModalSub}>
-              Notifico quando o preço chegar nesse valor (compra). Deixe vazio pra remover.
-            </Text>
-            <TextInput
-              style={styles.targetInput}
-              value={targetValue}
-              onChangeText={setTargetValue}
-              keyboardType="decimal-pad"
-              placeholder="0,00"
-              autoFocus
-            />
-            <View style={{ flexDirection: 'row', marginTop: spacing.md }}>
-              <Button title="Cancelar" variant="ghost" onPress={() => setTargetOpen(false)} style={{ flex: 1 }} />
-              <Button title="Salvar" onPress={saveTarget} style={{ flex: 1 }} />
-            </View>
+            <ScrollView keyboardShouldPersistTaps="handled">
+              <Text style={styles.targetModalTitle}>Preço-alvo {targetSymbol}</Text>
+              <Text style={styles.targetModalSub}>
+                Notifico quando o preço chegar nesse valor (compra). Deixe vazio pra remover.
+              </Text>
+
+              {/* Gráfico histórico pra contexto */}
+              {targetSymbol && (
+                <View style={{ marginTop: spacing.md, backgroundColor: colors.surface, padding: spacing.md, borderRadius: radius.md }}>
+                  <PriceChart symbol={targetSymbol} />
+                </View>
+              )}
+
+              <TextInput
+                style={styles.targetInput}
+                value={targetValue}
+                onChangeText={setTargetValue}
+                keyboardType="decimal-pad"
+                placeholder="0,00"
+              />
+              <View style={{ flexDirection: 'row', marginTop: spacing.md }}>
+                <Button title="Cancelar" variant="ghost" onPress={() => setTargetOpen(false)} style={{ flex: 1 }} />
+                <Button title="Salvar" onPress={saveTarget} style={{ flex: 1 }} />
+              </View>
+            </ScrollView>
           </Pressable>
         </Pressable>
       </Modal>
@@ -288,6 +301,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.md,
   },
+  backBtn: { padding: spacing.xs, marginRight: spacing.sm },
   title: { fontSize: fontSize.heading, fontWeight: 'bold', color: colors.text },
   subtitle: { fontSize: fontSize.body, color: colors.textSecondary, marginTop: 2 },
   addBtn: {
@@ -363,6 +377,7 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: radius.xl,
     borderTopRightRadius: radius.xl,
     padding: spacing.lg,
+    maxHeight: '85%',
   },
   targetModalTitle: { fontSize: fontSize.title, fontWeight: 'bold', color: colors.text },
   targetModalSub: { fontSize: fontSize.body, color: colors.textSecondary, marginTop: spacing.xs, lineHeight: 18 },

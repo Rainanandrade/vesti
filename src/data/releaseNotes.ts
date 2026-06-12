@@ -27,10 +27,48 @@ export type ReleaseNote = {
 };
 
 // ATUAL versão do app — bumpa a cada release.
-export const CURRENT_VERSION = '1.6.0';
+export const CURRENT_VERSION = '1.7.0';
 
 // Notas em ordem cronológica DESCENDENTE (mais recente primeiro)
 export const RELEASE_NOTES: ReleaseNote[] = [
+  {
+    version: '1.7.0',
+    date: '2026-06-04',
+    title: 'Sua carteira mais detalhada',
+    subtitle: 'Análise completa por ativo + correções importantes',
+    highlights: [
+      {
+        emoji: '🔍',
+        title: 'Análise exclusiva ao clicar no ativo',
+        description:
+          'Toca em qualquer ativo da sua carteira e vê: cotação ao vivo, sua posição com lucro/prejuízo, gráfico histórico, próximo dividendo, análise fundamentalista (P/L, DY, ROE) e fit score com seu perfil.',
+      },
+      {
+        emoji: '📈',
+        title: 'Gráficos consertados',
+        description:
+          'Histórico de preços agora usa brapi.dev como fonte primária com 3 fallbacks. Ibovespa e ativos voltaram a aparecer com 1M/6M/1A/5A.',
+      },
+      {
+        emoji: '🎯',
+        title: 'Gráfico no preço-alvo',
+        description:
+          'Quando você define alvo na Watchlist, agora vê o gráfico do ativo ao lado pra decidir um valor que faça sentido.',
+      },
+      {
+        emoji: '🧮',
+        title: 'Dividendos calculados certo',
+        description:
+          'Reescrevi o forecast: agora cada mês tem só uma entrada por ativo (sem duplicar JCP + dividendo), projeção respeita o calendário real, e a regra dos 5 dias de posse funciona corretamente.',
+      },
+      {
+        emoji: '⬅️',
+        title: 'Botão voltar na Watchlist',
+        description:
+          'Adicionei botão de voltar no canto superior esquerdo da tela de acompanho. Sem precisar arrastar pra baixo.',
+      },
+    ],
+  },
   {
     version: '1.6.0',
     date: '2026-06-04',

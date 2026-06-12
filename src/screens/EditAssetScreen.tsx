@@ -16,17 +16,50 @@ import { colors, fontSize, radius, spacing } from '../theme/colors';
 import Button from '../components/Button';
 import { useApp } from '../context/AppContext';
 import PriceChart from '../components/PriceChart';
+import AssetAnalysis from '../components/AssetAnalysis';
 import { TICKERS } from '../data/tickers';
+import { fetchAssetDetails, AssetDetails } from '../api/yahooDetails';
+import { fetchQuotes, Quote } from '../api/brapi';
+import { fetchDividendInfo, DividendInfo, formatNextPayment, frequencyLabel } from '../api/dividends';
+import { useEffect } from 'react';
+import { fmtBRL, fmtPct } from '../utils/format';
+import Card from '../components/Card';
 
 export default function EditAssetScreen({ navigation, route }: any) {
-  const { activeWallet, updateAsset, removeAsset } = useApp();
+  const { activeWallet, updateAsset, removeAsset, profile, privacyMode } = useApp();
   const symbol: string = route?.params?.symbol;
   const asset = activeWallet?.assets.find((a) => a.symbol === symbol);
+  const tickerInfo = TICKERS.find((t) => t.symbol === asset?.symbol);
 
   const [quantity, setQuantity] = useState(asset?.quantity.toString().replace('.', ',') || '');
   const [price, setPrice] = useState(asset?.avgPrice.toFixed(2).replace('.', ',') || '');
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
+
+  const [quote, setQuote] = useState<Quote | null>(null);
+  const [details, setDetails] = useState<AssetDetails | null>(null);
+  const [dividendInfo, setDividendInfo] = useState<DividendInfo | null>(null);
+  const [loadingData, setLoadingData] = useState(false);
+
+  useEffect(() => {
+    if (!asset || !tickerInfo) return;
+    let cancelled = false;
+    setLoadingData(true);
+    Promise.all([
+      fetchQuotes([asset.symbol]),
+      fetchAssetDetails(asset.symbol),
+      fetchDividendInfo(asset.symbol),
+    ]).then(([qs, d, dv]) => {
+      if (cancelled) return;
+      setQuote(qs[0] || null);
+      setDetails(d);
+      setDividendInfo(dv);
+      setLoadingData(false);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [asset?.symbol, tickerInfo]);
 
   if (!asset || !activeWallet) {
     return (
@@ -108,15 +141,129 @@ export default function EditAssetScreen({ navigation, route }: any) {
 
         <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
           <View style={styles.assetHeader}>
-            <Text style={styles.symbol}>{asset.symbol}</Text>
-            <Text style={styles.name}>{asset.name}</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between' }}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.symbol}>{asset.symbol}</Text>
+                <Text style={styles.name}>{asset.name}</Text>
+              </View>
+              {quote && (
+                <View style={{ alignItems: 'flex-end' }}>
+                  <Text style={styles.cotacaoLabel}>cotação</Text>
+                  <Text style={styles.cotacaoValue}>{fmtBRL(quote.regularMarketPrice)}</Text>
+                  <Text
+                    style={[
+                      styles.cotacaoChange,
+                      { color: quote.regularMarketChangePercent >= 0 ? colors.success : colors.danger },
+                    ]}
+                  >
+                    {fmtPct(quote.regularMarketChangePercent)} hoje
+                  </Text>
+                </View>
+              )}
+            </View>
           </View>
 
           {/* Gráfico histórico (apenas pra ativos tradeáveis na B3) */}
-          {TICKERS.some((t) => t.symbol === asset.symbol) && (
+          {tickerInfo && (
             <View style={styles.chartBox}>
               <PriceChart symbol={asset.symbol} />
             </View>
+          )}
+
+          {/* Posição atual */}
+          {quote && (
+            <Card style={styles.positionCard}>
+              <Text style={styles.positionTitle}>Sua posição</Text>
+              <View style={styles.positionRow}>
+                <View>
+                  <Text style={styles.positionLabel}>Quantidade</Text>
+                  <Text style={styles.positionValue}>{asset.quantity}</Text>
+                </View>
+                <View>
+                  <Text style={styles.positionLabel}>Preço médio</Text>
+                  <Text style={styles.positionValue}>{fmtBRL(asset.avgPrice, privacyMode)}</Text>
+                </View>
+                <View>
+                  <Text style={styles.positionLabel}>Total atual</Text>
+                  <Text style={styles.positionValue}>
+                    {fmtBRL(quote.regularMarketPrice * asset.quantity, privacyMode)}
+                  </Text>
+                </View>
+              </View>
+              <View style={styles.positionDivider} />
+              <View style={styles.positionRow}>
+                <View>
+                  <Text style={styles.positionLabel}>Lucro/Prejuízo</Text>
+                  <Text
+                    style={[
+                      styles.positionValue,
+                      {
+                        color:
+                          quote.regularMarketPrice * asset.quantity - asset.avgPrice * asset.quantity >= 0
+                            ? colors.success
+                            : colors.danger,
+                      },
+                    ]}
+                  >
+                    {fmtBRL(
+                      quote.regularMarketPrice * asset.quantity - asset.avgPrice * asset.quantity,
+                      privacyMode,
+                    )}
+                  </Text>
+                </View>
+                <View>
+                  <Text style={styles.positionLabel}>Retorno</Text>
+                  <Text
+                    style={[
+                      styles.positionValue,
+                      {
+                        color:
+                          quote.regularMarketPrice >= asset.avgPrice ? colors.success : colors.danger,
+                      },
+                    ]}
+                  >
+                    {fmtPct(
+                      ((quote.regularMarketPrice - asset.avgPrice) / asset.avgPrice) * 100,
+                      privacyMode,
+                    )}
+                  </Text>
+                </View>
+              </View>
+            </Card>
+          )}
+
+          {/* Próximo pagamento */}
+          {dividendInfo && (
+            <Card style={styles.dividendCard}>
+              <View style={styles.dividendHeader}>
+                <Ionicons name="calendar" size={18} color={colors.primary} />
+                <Text style={styles.dividendTitle}>Próximo pagamento</Text>
+              </View>
+              <View style={styles.dividendRow}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.dividendLabel}>{frequencyLabel(dividendInfo.frequency)}</Text>
+                  <Text style={styles.dividendDate}>
+                    {formatNextPayment(dividendInfo).whenLabel}
+                  </Text>
+                </View>
+                <View style={{ alignItems: 'flex-end' }}>
+                  <Text style={styles.dividendLabel}>Valor estimado</Text>
+                  <Text style={styles.dividendAmount}>
+                    {fmtBRL(dividendInfo.nextEstimatedAmount * asset.quantity, privacyMode)}
+                  </Text>
+                </View>
+              </View>
+            </Card>
+          )}
+
+          {/* Análise fundamentalista completa */}
+          {tickerInfo && profile && (
+            <AssetAnalysis
+              ticker={tickerInfo}
+              details={details}
+              loading={loadingData}
+              profile={profile}
+            />
           )}
 
           <Text style={styles.label}>Quantidade</Text>
@@ -174,6 +321,22 @@ const styles = StyleSheet.create({
   symbol: { fontSize: fontSize.hero, fontWeight: 'bold', color: colors.primary },
   name: { fontSize: fontSize.body, color: colors.textSecondary },
   chartBox: { marginBottom: spacing.lg, backgroundColor: colors.surface, padding: spacing.md, borderRadius: radius.lg },
+  cotacaoLabel: { fontSize: fontSize.tiny, color: colors.textTertiary, textTransform: 'uppercase' },
+  cotacaoValue: { fontSize: fontSize.title, fontWeight: 'bold', color: colors.text },
+  cotacaoChange: { fontSize: fontSize.small, fontWeight: '600' },
+  positionCard: { marginBottom: spacing.md },
+  positionTitle: { fontSize: fontSize.bodyLarge, fontWeight: '700', color: colors.text, marginBottom: spacing.sm },
+  positionRow: { flexDirection: 'row', justifyContent: 'space-between' },
+  positionLabel: { fontSize: fontSize.small, color: colors.textSecondary },
+  positionValue: { fontSize: fontSize.bodyLarge, fontWeight: '700', color: colors.text, marginTop: 2 },
+  positionDivider: { height: 1, backgroundColor: colors.divider, marginVertical: spacing.md },
+  dividendCard: { marginBottom: spacing.md, backgroundColor: colors.primaryLight, borderColor: colors.primary },
+  dividendHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: spacing.sm },
+  dividendTitle: { fontSize: fontSize.bodyLarge, fontWeight: '700', color: colors.primaryDark, marginLeft: 6 },
+  dividendRow: { flexDirection: 'row', alignItems: 'center' },
+  dividendLabel: { fontSize: fontSize.small, color: colors.textSecondary },
+  dividendDate: { fontSize: fontSize.bodyLarge, fontWeight: '700', color: colors.text, marginTop: 2 },
+  dividendAmount: { fontSize: fontSize.bodyLarge, fontWeight: '700', color: colors.success, marginTop: 2 },
   label: { fontSize: fontSize.body, color: colors.textSecondary, marginTop: spacing.md, marginBottom: 6 },
   helper: { fontSize: fontSize.small, color: colors.textTertiary, marginTop: 4 },
   input: {
