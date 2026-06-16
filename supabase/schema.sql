@@ -76,6 +76,27 @@ drop policy if exists "watchlist_own" on public.watchlist;
 create policy "watchlist_own" on public.watchlist
   for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
+-- Operações (ledger de compras/vendas) — usado pra cálculo de IR e isentômetro
+create table if not exists public.operations (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  type text not null check (type in ('buy', 'sell')),
+  symbol text not null,
+  asset_type text default 'acao' check (asset_type in ('acao', 'fii', 'etf', 'daytrade')),
+  quantity numeric not null,
+  price numeric not null,
+  date date not null,
+  notes text,
+  created_at timestamptz default now()
+);
+
+alter table public.operations enable row level security;
+drop policy if exists "operations_own" on public.operations;
+create policy "operations_own" on public.operations
+  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+create index if not exists operations_user_date_idx on public.operations(user_id, date desc);
+
 -- =========================
 -- ROW LEVEL SECURITY (cada user só vê seus próprios dados)
 -- =========================

@@ -77,6 +77,22 @@ type AppContextType = {
 
   lastSeenVersion: string | null;
   markVersionSeen: (version: string) => Promise<void>;
+
+  operations: Operation[];
+  addOperation: (op: Omit<Operation, 'id' | 'createdAt'>) => Promise<void>;
+  removeOperation: (id: string) => Promise<void>;
+};
+
+export type Operation = {
+  id: string;
+  type: 'buy' | 'sell';
+  symbol: string;
+  assetType: 'acao' | 'fii' | 'etf' | 'daytrade';
+  quantity: number;
+  price: number;
+  date: string;          // YYYY-MM-DD
+  notes?: string;
+  createdAt: number;
 };
 
 export type WatchlistItem = {
@@ -104,6 +120,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [completedLessons, setCompletedLessons] = useState<Record<string, number>>({});
   const [watchlist, setWatchlist] = useState<WatchlistItem[]>([]);
   const [lastSeenVersion, setLastSeenVersion] = useState<string | null>(null);
+  const [operations, setOperations] = useState<Operation[]>([]);
 
   // Carrega dados do usuário a partir do Supabase
   const loadUserData = useCallback(async (uid: string, email: string) => {
@@ -190,6 +207,28 @@ export function AppProvider({ children }: { children: ReactNode }) {
           type: w.type,
           targetPrice: w.target_price != null ? Number(w.target_price) : undefined,
           addedAt: new Date(w.added_at).getTime(),
+        })),
+      );
+    }
+
+    // Operations (ledger pra IR)
+    const { data: ops } = await supabase
+      .from('operations')
+      .select('id, type, symbol, asset_type, quantity, price, date, notes, created_at')
+      .eq('user_id', uid)
+      .order('date', { ascending: false });
+    if (ops) {
+      setOperations(
+        ops.map((o: any) => ({
+          id: o.id,
+          type: o.type,
+          symbol: o.symbol,
+          assetType: o.asset_type,
+          quantity: Number(o.quantity),
+          price: Number(o.price),
+          date: o.date,
+          notes: o.notes,
+          createdAt: new Date(o.created_at).getTime(),
         })),
       );
     }
@@ -492,6 +531,50 @@ export function AppProvider({ children }: { children: ReactNode }) {
     [watchlist],
   );
 
+  const addOperation = useCallback(
+    async (op: Omit<Operation, 'id' | 'createdAt'>) => {
+      if (!userId) throw new Error('Não autenticado');
+      const { data, error } = await supabase
+        .from('operations')
+        .insert({
+          user_id: userId,
+          type: op.type,
+          symbol: op.symbol,
+          asset_type: op.assetType,
+          quantity: op.quantity,
+          price: op.price,
+          date: op.date,
+          notes: op.notes,
+        })
+        .select()
+        .single();
+      if (error || !data) throw new Error(translateDbError(error?.message || 'Erro'));
+      const newOp: Operation = {
+        id: data.id,
+        type: data.type,
+        symbol: data.symbol,
+        assetType: data.asset_type,
+        quantity: Number(data.quantity),
+        price: Number(data.price),
+        date: data.date,
+        notes: data.notes,
+        createdAt: new Date(data.created_at).getTime(),
+      };
+      setOperations((prev) => [newOp, ...prev]);
+    },
+    [userId],
+  );
+
+  const removeOperation = useCallback(
+    async (id: string) => {
+      setOperations((prev) => prev.filter((o) => o.id !== id));
+      if (userId) {
+        await supabase.from('operations').delete().eq('id', id);
+      }
+    },
+    [userId],
+  );
+
   const markVersionSeen = useCallback(
     async (version: string) => {
       await Storage.set(KEYS.LAST_SEEN_VERSION, version);
@@ -574,6 +657,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
         isInWatchlist,
         lastSeenVersion,
         markVersionSeen,
+        operations,
+        addOperation,
+        removeOperation,
       }}
     >
       {children}

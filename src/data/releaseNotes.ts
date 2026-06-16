@@ -27,10 +27,43 @@ export type ReleaseNote = {
 };
 
 // ATUAL versão do app — bumpa a cada release.
-export const CURRENT_VERSION = '1.8.0';
+export const CURRENT_VERSION = '1.9.0';
 
 // Notas em ordem cronológica DESCENDENTE (mais recente primeiro)
 export const RELEASE_NOTES: ReleaseNote[] = [
+  {
+    version: '1.9.0',
+    date: '2026-06-04',
+    title: 'Operações, Isentômetro e mais',
+    subtitle: 'Inspirado em apps líderes, mas com a cara do Vesti',
+    highlights: [
+      {
+        emoji: '📒',
+        title: 'Registro de operações (ledger)',
+        description:
+          'Nova tela "Operações" pra registrar suas compras e vendas com data e tipo. Filtra por mês, mostra resumo e detalhe operação a operação.',
+        action: { label: 'Abrir operações', navigateTo: 'Operacoes' },
+      },
+      {
+        emoji: '🛡️',
+        title: 'Isentômetro visual',
+        description:
+          'Barra de progresso de R$ 0 a R$ 20k mostra quanto você vendeu de ações no mês. Verde se isento, vermelho se ultrapassar. Aparece na calculadora IR e na tela de operações.',
+      },
+      {
+        emoji: '🧮',
+        title: 'IR baseado nas suas operações',
+        description:
+          'A calculadora agora usa as suas vendas registradas pra calcular o isentômetro automaticamente. Sem precisar lembrar quanto vendeu.',
+      },
+      {
+        emoji: '📊',
+        title: 'Resumo do mês por categoria',
+        description:
+          'Veja num só relance quanto vendeu em swing-trade, day-trade e FII/ETF. FII e ETF aparecem marcados como "isento de IR" automaticamente.',
+      },
+    ],
+  },
   {
     version: '1.8.0',
     date: '2026-06-04',

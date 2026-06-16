@@ -18,6 +18,7 @@ import WatchlistScreen from '../screens/WatchlistScreen';
 import CompareAssetsScreen from '../screens/CompareAssetsScreen';
 import IRCalculatorScreen from '../screens/IRCalculatorScreen';
 import AporteCalculatorScreen from '../screens/AporteCalculatorScreen';
+import OperacoesScreen from '../screens/OperacoesScreen';
 import AporteScreen from '../screens/AporteScreen';
 import GoalsScreen from '../screens/GoalsScreen';
 import LearnScreen from '../screens/LearnScreen';
@@ -71,6 +72,11 @@ function PortfolioStackNavigator() {
       <PortfolioStack.Screen
         name="AporteCalc"
         component={AporteCalculatorScreen}
+        options={{ presentation: 'modal' }}
+      />
+      <PortfolioStack.Screen
+        name="Operacoes"
+        component={OperacoesScreen}
         options={{ presentation: 'modal' }}
       />
     </PortfolioStack.Navigator>

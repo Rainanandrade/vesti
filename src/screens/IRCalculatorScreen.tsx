@@ -15,6 +15,8 @@ import { colors, fontSize, radius, spacing } from '../theme/colors';
 import { fmtBRL } from '../utils/format';
 import { formatCurrencyInput, parseFormattedNumber } from '../utils/numberFormat';
 import Card from '../components/Card';
+import Isentometro from '../components/Isentometro';
+import { useApp } from '../context/AppContext';
 
 type Mode = 'acao' | 'fii' | 'daytrade' | 'dividendos';
 
@@ -49,11 +51,18 @@ const MODE_INFO: Record<
 };
 
 export default function IRCalculatorScreen({ navigation }: any) {
+  const { operations, privacyMode } = useApp();
   const [mode, setMode] = useState<Mode>('acao');
   const [totalVendido, setTotalVendido] = useState('');
   const [lucro, setLucro] = useState('');
   const [dividendoTipo, setDividendoTipo] = useState<'dividendo' | 'jcp'>('dividendo');
   const [valorRecebido, setValorRecebido] = useState('');
+
+  // Total vendido em ações no mês corrente (das operações registradas)
+  const currentMonth = new Date().toISOString().slice(0, 7);
+  const totalVendidoMesAtual = operations
+    .filter((o) => o.type === 'sell' && o.assetType === 'acao' && o.date.startsWith(currentMonth))
+    .reduce((s, o) => s + o.quantity * o.price, 0);
 
   const totalSold = parseFormattedNumber(totalVendido);
   const profit = parseFormattedNumber(lucro);
@@ -90,6 +99,18 @@ export default function IRCalculatorScreen({ navigation }: any) {
           <Text style={styles.intro}>
             Calcule o IR sobre vendas e veja a tributação de dividendos/JCP. Você apura, gera o DARF (quando necessário) e paga até o último dia útil do mês seguinte.
           </Text>
+
+          {/* Isentômetro com dados das operações registradas */}
+          <View style={{ marginBottom: spacing.md }}>
+            <Isentometro totalVendidoNoMes={totalVendidoMesAtual} privacyMode={privacyMode} />
+            <TouchableOpacity
+              style={styles.opLink}
+              onPress={() => navigation.navigate('Operacoes')}
+            >
+              <Ionicons name="add-circle-outline" size={16} color={colors.primary} />
+              <Text style={styles.opLinkText}>Registrar operações pra atualizar</Text>
+            </TouchableOpacity>
+          </View>
 
           {/* Tipo de operação */}
           <Text style={styles.sectionLabel}>Tipo de operação</Text>
@@ -425,4 +446,6 @@ const styles = StyleSheet.create({
     marginTop: spacing.lg,
   },
   disclaimerText: { flex: 1, fontSize: fontSize.small, color: colors.textSecondary, marginLeft: spacing.sm, lineHeight: 16 },
+  opLink: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: spacing.sm, padding: spacing.sm },
+  opLinkText: { color: colors.primary, fontWeight: '600', marginLeft: 4, fontSize: fontSize.body },
 });

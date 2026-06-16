@@ -107,6 +107,7 @@ export default function PortfolioScreen({ navigation }: any) {
         <ToolChip icon="git-compare-outline" label="Comparar" onPress={() => navigation.navigate('Compare')} />
         <ToolChip icon="calculator-outline" label="Aporte" onPress={() => navigation.navigate('AporteCalc')} />
         <ToolChip icon="receipt-outline" label="IR/DARF" onPress={() => navigation.navigate('IRCalculator')} />
+        <ToolChip icon="swap-vertical-outline" label="Operações" onPress={() => navigation.navigate('Operacoes')} />
       </ScrollView>
 
       <ScrollView
