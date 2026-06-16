@@ -21,6 +21,7 @@ import AporteCalculatorScreen from '../screens/AporteCalculatorScreen';
 import OperacoesScreen from '../screens/OperacoesScreen';
 import ProventosScreen from '../screens/ProventosScreen';
 import AIHubScreen from '../screens/AIHubScreen';
+import DeclaracaoScreen from '../screens/DeclaracaoScreen';
 import AporteScreen from '../screens/AporteScreen';
 import GoalsScreen from '../screens/GoalsScreen';
 import LearnScreen from '../screens/LearnScreen';
@@ -84,6 +85,11 @@ function PortfolioStackNavigator() {
       <PortfolioStack.Screen
         name="Proventos"
         component={ProventosScreen}
+        options={{ presentation: 'modal' }}
+      />
+      <PortfolioStack.Screen
+        name="Declaracao"
+        component={DeclaracaoScreen}
         options={{ presentation: 'modal' }}
       />
     </PortfolioStack.Navigator>

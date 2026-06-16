@@ -34,15 +34,14 @@ export default function AIHubScreen({ navigation }: any) {
   const [diagnostic, setDiagnostic] = useState<string | null>(null);
   const [question, setQuestion] = useState('');
   const [loading, setLoading] = useState(false);
+  const [suggestionSeed, setSuggestionSeed] = useState(0);
 
   const rotativeSuggestions = useMemo(() => {
-    // Pega 4 sugestões aleatórias (mas estáveis nessa sessão)
-    const seed = new Date().getDate();
-    const shuffled = [...SUGGESTIONS].sort((a, b) => {
-      return ((a.charCodeAt(0) + seed) % 7) - ((b.charCodeAt(0) + seed) % 7);
-    });
+    // 4 sugestões aleatórias — embaralha quando seed muda (Recarregar)
+    const shuffled = [...SUGGESTIONS].sort(() => Math.random() - 0.5);
     return shuffled.slice(0, 4);
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [suggestionSeed]);
 
   const tickerChips = useMemo(
     () => (activeWallet?.assets || []).filter((a) => a.type === 'acao' || a.type === 'fii' || a.type === 'etf'),
@@ -147,7 +146,18 @@ export default function AIHubScreen({ navigation }: any) {
             </Card>
 
             <Card style={{ marginTop: spacing.md }}>
-              <Text style={styles.sectionTitle}>💬 Sugestões de conversa</Text>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.sm }}>
+                <Text style={[styles.sectionTitle, { marginBottom: 0 }]}>💬 Sugestões de conversa</Text>
+                <TouchableOpacity
+                  onPress={() => setSuggestionSeed((s) => s + 1)}
+                  style={{ flexDirection: 'row', alignItems: 'center' }}
+                >
+                  <Ionicons name="refresh" size={14} color={colors.primary} />
+                  <Text style={{ color: colors.primary, fontWeight: '700', marginLeft: 4 }}>
+                    Recarregar
+                  </Text>
+                </TouchableOpacity>
+              </View>
               {rotativeSuggestions.map((s, i) => (
                 <TouchableOpacity
                   key={i}

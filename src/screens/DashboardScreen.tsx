@@ -22,9 +22,10 @@ import { computeDividendForecast } from '../utils/dividendForecast';
 import { MONTH_NAMES_PT } from '../data/dividends';
 import { fetchDividendInfoBatch, DividendInfo, formatNextPayment, formatDateBR, frequencyLabel, clearDividendCache } from '../api/dividends';
 import PortfolioChart from '../components/PortfolioChart';
+import ProventosBarChart from '../components/ProventosBarChart';
 
 export default function DashboardScreen({ navigation }: any) {
-  const { user, activeWallet, privacyMode, togglePrivacy, profile, recordGoal, wallets, setActiveWalletId, goalsReached, watchlist, snapshots, recordSnapshot } = useApp();
+  const { user, activeWallet, privacyMode, togglePrivacy, profile, recordGoal, wallets, setActiveWalletId, goalsReached, watchlist, snapshots, recordSnapshot, operations, proventos } = useApp();
   const [quotes, setQuotes] = useState<Record<string, Quote>>({});
   const [detailsMap, setDetailsMap] = useState<Record<string, AssetDetails | null>>({});
   const [dividendInfoMap, setDividendInfoMap] = useState<Record<string, DividendInfo | null>>({});
@@ -121,6 +122,22 @@ export default function DashboardScreen({ navigation }: any) {
     dividendInfoMap,
   );
   const currentMonthName = MONTH_NAMES_PT[new Date().getMonth()];
+
+  // Alerta DARF: detecta se no mês passado vendeu acima de R$ 20k em ações
+  // (precisa pagar IR até último dia útil do mês corrente)
+  const darfAlert = (() => {
+    const now = new Date();
+    const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const lmKey = `${lastMonth.getFullYear()}-${String(lastMonth.getMonth() + 1).padStart(2, '0')}`;
+    const sold = operations
+      .filter((o) => o.type === 'sell' && o.assetType === 'acao' && o.date.startsWith(lmKey))
+      .reduce((s, o) => s + o.price * o.quantity, 0);
+    if (sold > 20000) {
+      const monthName = MONTH_NAMES_PT[lastMonth.getMonth()];
+      return { sold, monthName };
+    }
+    return null;
+  })();
 
   // Próximos pagamentos: APENAS do mês corrente. Vira automaticamente quando
   // muda o mês (pois usa new Date().getMonth()).
@@ -287,6 +304,25 @@ export default function DashboardScreen({ navigation }: any) {
           </ScrollView>
         )}
 
+        {/* Alerta DARF: vendeu > 20k mês passado, paga IR até último dia útil */}
+        {darfAlert && (
+          <TouchableOpacity
+            onPress={() => navigation.navigate('Carteira', { screen: 'IRCalculator' })}
+          >
+            <Card style={styles.darfAlertCard}>
+              <Text style={styles.darfEmoji}>⚠️</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.darfTitle}>Atenção: você precisa pagar DARF</Text>
+                <Text style={styles.darfDesc}>
+                  Você vendeu {fmtBRL(darfAlert.sold, privacyMode)} em ações em {darfAlert.monthName}.
+                  Como passou de R$ 20 mil, paga IR 15% sobre o lucro até o último dia útil deste mês.
+                </Text>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color={colors.warning} />
+            </Card>
+          </TouchableOpacity>
+        )}
+
         {/* Market status */}
         <View style={styles.marketRow}>
           <View style={[styles.dot, { backgroundColor: marketStatus.isOpen ? colors.success : colors.danger }]} />
@@ -403,6 +439,25 @@ export default function DashboardScreen({ navigation }: any) {
             </>
           )}
         </Card>
+
+        {/* Bar chart Recebidos vs A receber */}
+        {(proventos.length > 0 || upcomingPayments.length > 0) && (
+          <Card style={{ marginTop: spacing.md }}>
+            <View style={styles.cardHeader}>
+              <Text style={styles.cardTitle}>📊 Seus proventos</Text>
+              <TouchableOpacity
+                onPress={() => navigation.navigate('Carteira', { screen: 'Proventos' })}
+              >
+                <Text style={{ color: colors.primary, fontWeight: '700' }}>Ver tudo</Text>
+              </TouchableOpacity>
+            </View>
+            <ProventosBarChart
+              proventos={proventos}
+              upcoming={upcomingPayments.map((p) => ({ date: p.date, amount: p.amount }))}
+              privacyMode={privacyMode}
+            />
+          </Card>
+        )}
 
         {/* Dividendos & Rentabilidade */}
         {(activeWallet?.assets.length || 0) > 0 && (
@@ -775,4 +830,14 @@ const styles = StyleSheet.create({
     borderRadius: radius.pill,
   },
   emptyBtnText: { color: colors.textLight, fontWeight: '600' },
+  darfAlertCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.warningLight,
+    borderColor: colors.warning,
+    marginBottom: spacing.md,
+  },
+  darfEmoji: { fontSize: 28, marginRight: spacing.sm },
+  darfTitle: { fontSize: fontSize.bodyLarge, fontWeight: '700', color: colors.text },
+  darfDesc: { fontSize: fontSize.small, color: colors.textSecondary, marginTop: 2, lineHeight: 18 },
 });

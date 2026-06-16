@@ -27,10 +27,43 @@ export type ReleaseNote = {
 };
 
 // ATUAL versão do app — bumpa a cada release.
-export const CURRENT_VERSION = '2.1.0';
+export const CURRENT_VERSION = '2.2.0';
 
 // Notas em ordem cronológica DESCENDENTE (mais recente primeiro)
 export const RELEASE_NOTES: ReleaseNote[] = [
+  {
+    version: '2.2.0',
+    date: '2026-06-16',
+    title: 'Declaração, alerta DARF e bar chart',
+    subtitle: 'Mais alguns que vi no Grana — todos com a cara do Vesti',
+    highlights: [
+      {
+        emoji: '📑',
+        title: 'Tela Declaração com Relatório Copia & Cola',
+        description:
+          'Gera um relatório do ano-base pronto pra colar no programa da Receita: bens e direitos com código DIRPF, dividendos isentos (09), JCP (10) e operações mês a mês.',
+        action: { label: 'Abrir Declaração', navigateTo: 'Declaracao' },
+      },
+      {
+        emoji: '⚠️',
+        title: 'Alerta DARF no Dashboard',
+        description:
+          'Quando você vende mais de R$ 20k em ações num mês, aparece um aviso laranja no topo do Dashboard lembrando do prazo de pagamento.',
+      },
+      {
+        emoji: '📊',
+        title: 'Gráfico de proventos mês a mês',
+        description:
+          'Barras lado a lado mostrando o que você já recebeu (verde) vs o que ainda está a receber (verde claro) nos últimos 12 meses + próximo mês.',
+      },
+      {
+        emoji: '🔄',
+        title: 'Sugestões de conversa recarregáveis',
+        description:
+          'Botão "Recarregar" nas sugestões da IA pra trocar as 4 perguntas sugeridas quando nenhuma te agradar.',
+      },
+    ],
+  },
   {
     version: '2.1.0',
     date: '2026-06-16',
