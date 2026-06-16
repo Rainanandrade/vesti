@@ -17,6 +17,8 @@ import { fetchQuotes, Quote } from '../api/brapi';
 import { computePortfolioStats } from '../utils/portfolio';
 import { fetchAiDiagnostic } from '../api/ai';
 import Card from '../components/Card';
+import { fetchDividendInfoBatch } from '../api/dividends';
+import { computeReceivedProventos } from '../utils/receivedProventos';
 
 const SUGGESTIONS = [
   'Minha carteira tá bem diversificada?',
@@ -30,7 +32,7 @@ const SUGGESTIONS = [
 ];
 
 export default function AIHubScreen({ navigation }: any) {
-  const { activeWallet, profile, proventos } = useApp();
+  const { activeWallet, profile } = useApp();
   const [diagnostic, setDiagnostic] = useState<string | null>(null);
   const [question, setQuestion] = useState('');
   const [loading, setLoading] = useState(false);
@@ -82,8 +84,11 @@ export default function AIHubScreen({ navigation }: any) {
         };
       });
 
+      // Lê dividendos automaticamente do histórico (sem registro manual)
+      const dividendMap = await fetchDividendInfoBatch(symbols);
+      const received = computeReceivedProventos(activeWallet.assets, dividendMap);
       const year = new Date().getFullYear();
-      const ytd = proventos
+      const ytd = received
         .filter((p) => p.date.startsWith(String(year)))
         .reduce((s, p) => s + p.amount, 0);
 

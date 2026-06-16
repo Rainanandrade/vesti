@@ -3,10 +3,9 @@ import { View, Text, StyleSheet, Dimensions } from 'react-native';
 import Svg, { Rect, Line, Text as SvgText } from 'react-native-svg';
 import { colors, fontSize, spacing } from '../theme/colors';
 import { fmtCompactBRL } from '../utils/format';
-import { Provento } from '../context/AppContext';
 
 type Props = {
-  proventos: Provento[];
+  received: { date: string; amount: number }[];
   upcoming: { date: string; amount: number }[];
   privacyMode?: boolean;
   height?: number;
@@ -14,7 +13,7 @@ type Props = {
 
 const MONTHS_PT = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
 
-export default function ProventosBarChart({ proventos, upcoming, privacyMode, height = 220 }: Props) {
+export default function ProventosBarChart({ received, upcoming, privacyMode, height = 220 }: Props) {
   const data = useMemo(() => {
     // Últimos 12 meses + próximos 1 mês
     const months: { key: string; label: string; received: number; expected: number }[] = [];
@@ -31,7 +30,7 @@ export default function ProventosBarChart({ proventos, upcoming, privacyMode, he
       cur.setMonth(cur.getMonth() + 1);
     }
 
-    proventos.forEach((p) => {
+    received.forEach((p) => {
       const key = p.date.slice(0, 7);
       const m = months.find((mm) => mm.key === key);
       if (m) m.received += p.amount;
@@ -44,7 +43,7 @@ export default function ProventosBarChart({ proventos, upcoming, privacyMode, he
     });
 
     return months;
-  }, [proventos, upcoming]);
+  }, [received, upcoming]);
 
   const w = Dimensions.get('window').width - 64;
   const h = height;

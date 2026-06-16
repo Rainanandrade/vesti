@@ -15,6 +15,9 @@ import { colors, fontSize, radius, spacing } from '../theme/colors';
 import { useApp } from '../context/AppContext';
 import { fmtBRL } from '../utils/format';
 import Card from '../components/Card';
+import { fetchDividendInfoBatch, DividendInfo } from '../api/dividends';
+import { computeReceivedProventos } from '../utils/receivedProventos';
+import { useEffect } from 'react';
 
 const MONTHS_PT = [
   'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
@@ -22,15 +25,28 @@ const MONTHS_PT = [
 ];
 
 export default function DeclaracaoScreen({ navigation }: any) {
-  const { activeWallet, operations, proventos, privacyMode } = useApp();
+  const { activeWallet, operations, privacyMode } = useApp();
   const currentYear = new Date().getFullYear();
   const [year, setYear] = useState(currentYear - 1); // por padrão: ano-base anterior (DIRPF)
+  const [dividendInfoMap, setDividendInfoMap] = useState<Record<string, DividendInfo | null>>({});
 
   const years = [currentYear - 2, currentYear - 1, currentYear];
 
+  useEffect(() => {
+    const symbols = (activeWallet?.assets || [])
+      .filter((a) => a.type === 'acao' || a.type === 'fii' || a.type === 'etf')
+      .map((a) => a.symbol);
+    if (symbols.length > 0) fetchDividendInfoBatch(symbols).then(setDividendInfoMap);
+  }, [activeWallet?.id, activeWallet?.assets.length]);
+
+  const allReceived = useMemo(
+    () => computeReceivedProventos(activeWallet?.assets || [], dividendInfoMap),
+    [activeWallet, dividendInfoMap],
+  );
+
   const yearStr = String(year);
   const opsYear = operations.filter((o) => o.date.startsWith(yearStr));
-  const pvsYear = proventos.filter((p) => p.date.startsWith(yearStr));
+  const pvsYear = allReceived.filter((p) => p.date.startsWith(yearStr));
 
   const totalDividendosIsentos = useMemo(
     () => pvsYear.filter((p) => p.kind === 'dividendo' || p.kind === 'rendimento').reduce((s, p) => s + p.amount, 0),
