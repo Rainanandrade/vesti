@@ -4,7 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, fontSize, radius, spacing } from '../theme/colors';
 import { useApp } from '../context/AppContext';
-import { fetchQuotes, IPCA_12M, Quote } from '../api/brapi';
+import { fetchQuotes, getCachedQuotes, IPCA_12M, Quote } from '../api/brapi';
 import { fmtBRL, fmtPct, fmtCompactBRL } from '../utils/format';
 import { getMarketStatus } from '../utils/market';
 import { getGoals } from '../utils/goals';
@@ -41,7 +41,18 @@ export default function DashboardScreen({ navigation }: any) {
     const symbols = activeWallet.assets
       .filter((a) => a.type === 'acao' || a.type === 'fii' || a.type === 'etf')
       .map((a) => a.symbol);
-    const data = await fetchQuotes(symbols);
+
+    // Cotações cacheadas viram primeiro pra pintar a tela na hora
+    if (!force) {
+      const cached = await getCachedQuotes(symbols);
+      if (cached.length > 0) {
+        const cmap: Record<string, Quote> = {};
+        cached.forEach((q) => (cmap[q.symbol] = q));
+        setQuotes(cmap);
+      }
+    }
+
+    const data = await fetchQuotes(symbols, { force });
     const map: Record<string, Quote> = {};
     data.forEach((q) => (map[q.symbol] = q));
     setQuotes(map);
@@ -60,17 +71,17 @@ export default function DashboardScreen({ navigation }: any) {
       watchData.forEach((q) => (watchPrices[q.symbol] = q.regularMarketPrice));
       await checkWatchlistAlerts(watchlist, watchPrices);
     }
-    // Detalhes pra previsão de dividendos (em paralelo)
-    const detailsResults = await Promise.all(
-      symbols.map((s) => fetchAssetDetails(s).then((d) => [s, d] as const)),
-    );
-    const detailsMapNew: Record<string, AssetDetails | null> = {};
-    detailsResults.forEach(([s, d]) => (detailsMapNew[s] = d));
-    setDetailsMap(detailsMapNew);
-
-    // Histórico de dividendos reais (force=true ignora cache no refresh)
-    const dividendMap = await fetchDividendInfoBatch(symbols, force);
-    setDividendInfoMap(dividendMap);
+    // Detalhes + dividendos rodam em background pra não atrasar o primeiro paint
+    setTimeout(() => {
+      Promise.all(
+        symbols.map((s) => fetchAssetDetails(s).then((d) => [s, d] as const)),
+      ).then((detailsResults) => {
+        const detailsMapNew: Record<string, AssetDetails | null> = {};
+        detailsResults.forEach(([s, d]) => (detailsMapNew[s] = d));
+        setDetailsMap(detailsMapNew);
+      });
+      fetchDividendInfoBatch(symbols, force).then(setDividendInfoMap);
+    }, 0);
   }, [activeWallet]);
 
   useEffect(() => {

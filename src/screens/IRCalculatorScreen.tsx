@@ -100,6 +100,18 @@ export default function IRCalculatorScreen({ navigation }: any) {
             Calcule o IR sobre vendas e veja a tributação de dividendos/JCP. Você apura, gera o DARF (quando necessário) e paga até o último dia útil do mês seguinte.
           </Text>
 
+          {/* Chips dos últimos 3 meses com indicador de pendência de DARF */}
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: spacing.md }}>
+            {buildMonthChips(operations).map((mc) => (
+              <View key={mc.key} style={[styles.monthChip, mc.current && styles.monthChipCurrent]}>
+                {mc.pending && <View style={styles.pendingDot} />}
+                <Text style={[styles.monthChipText, mc.current && styles.monthChipTextCurrent]}>
+                  {mc.label}
+                </Text>
+              </View>
+            ))}
+          </ScrollView>
+
           {/* Isentômetro com dados das operações registradas */}
           <View style={{ marginBottom: spacing.md }}>
             <Isentometro totalVendidoNoMes={totalVendidoMesAtual} privacyMode={privacyMode} />
@@ -358,8 +370,50 @@ export default function IRCalculatorScreen({ navigation }: any) {
   );
 }
 
+const MES_PT = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+
+function buildMonthChips(operations: { type: string; assetType: string; quantity: number; price: number; date: string }[]) {
+  const chips: { key: string; label: string; pending: boolean; current: boolean }[] = [];
+  const now = new Date();
+  for (let i = 2; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    const sold = operations
+      .filter((o) => o.type === 'sell' && o.assetType === 'acao' && o.date.startsWith(key))
+      .reduce((s, o) => s + o.quantity * o.price, 0);
+    chips.push({
+      key,
+      label: `${MES_PT[d.getMonth()]}/${String(d.getFullYear()).slice(2)}`,
+      pending: sold > 20000,
+      current: i === 0,
+    });
+  }
+  return chips;
+}
+
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.background },
+  monthChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: spacing.md,
+    paddingVertical: 8,
+    backgroundColor: colors.surface,
+    borderRadius: radius.pill,
+    marginRight: spacing.sm,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  monthChipCurrent: { borderColor: colors.primary, borderWidth: 2 },
+  monthChipText: { color: colors.textSecondary, fontWeight: '600' },
+  monthChipTextCurrent: { color: colors.primary, fontWeight: '700' },
+  pendingDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: colors.danger,
+    marginRight: 6,
+  },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',

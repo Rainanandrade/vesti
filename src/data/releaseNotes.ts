@@ -27,10 +27,42 @@ export type ReleaseNote = {
 };
 
 // ATUAL versão do app — bumpa a cada release.
-export const CURRENT_VERSION = '2.2.0';
+export const CURRENT_VERSION = '2.3.0';
 
 // Notas em ordem cronológica DESCENDENTE (mais recente primeiro)
 export const RELEASE_NOTES: ReleaseNote[] = [
+  {
+    version: '2.3.0',
+    date: '2026-06-16',
+    title: 'Boot mais rápido + IBOV ok',
+    subtitle: 'Performance, comparação com Ibovespa e mais detalhes do Grana',
+    highlights: [
+      {
+        emoji: '⚡',
+        title: 'Dashboard abre em segundos',
+        description:
+          'Cotações ficam guardadas no celular por 5 minutos. Quando você abre o app, a tela aparece pronta com o último valor visto e atualiza em segundo plano. Dividendos e detalhes também carregam depois do primeiro paint.',
+      },
+      {
+        emoji: '📈',
+        title: 'Ibovespa funcionando',
+        description:
+          'A comparação com IBOV estava quebrada (Yahoo bloqueia Vercel). Agora puxa direto da brapi.dev — mais estável e rápido.',
+      },
+      {
+        emoji: '🔴',
+        title: 'Indicador de DARF pendente',
+        description:
+          'Na calculadora IR, chips dos últimos 3 meses com bolinha vermelha mostram quais meses precisam de DARF (vendas > R$ 20k em ações).',
+      },
+      {
+        emoji: '👨‍💼',
+        title: 'Compartilhar com contador',
+        description:
+          'Botão novo na tela Conta gera um resumo formatado do ano anterior pra mandar pro contador via WhatsApp/email com 1 toque.',
+      },
+    ],
+  },
   {
     version: '2.2.0',
     date: '2026-06-16',

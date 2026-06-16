@@ -1,7 +1,8 @@
 // Cotações via nosso próprio endpoint na Vercel (/api/quote).
-// Funciona em qualquer plataforma (web/iOS/Android), sem CORS, sem proxy externo.
+// Cache em memória + AsyncStorage pra render imediato em reaberturas (5 min TTL).
 
 import { Platform } from 'react-native';
+import { Storage } from '../storage/storage';
 
 export type Quote = {
   symbol: string;
@@ -14,9 +15,37 @@ export type Quote = {
   currency?: string;
 };
 
-// Em web usa caminho relativo (mesmo domínio Vercel). Em app nativo, hardcode o domínio.
 const API_BASE =
   Platform.OS === 'web' ? '/api' : 'https://vesti-nine.vercel.app/api';
+
+const CACHE_KEY = 'quotes_cache_v1';
+const CACHE_TTL_MS = 5 * 60 * 1000;
+
+type CacheEntry = { ts: number; quote: Quote };
+const memCache: Record<string, CacheEntry> = {};
+let diskHydrated = false;
+
+async function hydrate(): Promise<void> {
+  if (diskHydrated) return;
+  diskHydrated = true;
+  try {
+    const stored = await Storage.get<Record<string, CacheEntry>>(CACHE_KEY);
+    if (stored && typeof stored === 'object') {
+      const now = Date.now();
+      for (const k of Object.keys(stored)) {
+        if (stored[k] && now - stored[k].ts < CACHE_TTL_MS * 6) {
+          memCache[k] = stored[k];
+        }
+      }
+    }
+  } catch {}
+}
+
+async function persist(): Promise<void> {
+  try {
+    await Storage.set(CACHE_KEY, memCache);
+  } catch {}
+}
 
 async function fetchOne(symbol: string): Promise<Quote | null> {
   try {
@@ -31,11 +60,45 @@ async function fetchOne(symbol: string): Promise<Quote | null> {
   }
 }
 
-export async function fetchQuotes(symbols: string[]): Promise<Quote[]> {
+/**
+ * Estratégia: devolve cache imediatamente se válido + faz refresh em background.
+ * Para aceleração de boot, chame `getCachedQuotes` antes de await em `fetchQuotes`.
+ */
+export async function getCachedQuotes(symbols: string[]): Promise<Quote[]> {
+  await hydrate();
+  const out: Quote[] = [];
+  for (const s of symbols.map((x) => x.toUpperCase())) {
+    const e = memCache[s];
+    if (e) out.push(e.quote);
+  }
+  return out;
+}
+
+export async function fetchQuotes(symbols: string[], opts?: { force?: boolean }): Promise<Quote[]> {
   if (symbols.length === 0) return [];
+  await hydrate();
   const unique = Array.from(new Set(symbols.map((s) => s.toUpperCase())));
-  const results = await Promise.all(unique.map(fetchOne));
-  return results.filter((q): q is Quote => q !== null);
+  const now = Date.now();
+  const stale: string[] = [];
+  const fresh: Quote[] = [];
+  for (const s of unique) {
+    const e = memCache[s];
+    if (!opts?.force && e && now - e.ts < CACHE_TTL_MS) {
+      fresh.push(e.quote);
+    } else {
+      stale.push(s);
+    }
+  }
+  if (stale.length === 0) return fresh;
+  const results = await Promise.all(stale.map(fetchOne));
+  results.forEach((q, i) => {
+    if (q) {
+      memCache[stale[i]] = { ts: now, quote: q };
+      fresh.push(q);
+    }
+  });
+  persist();
+  return fresh;
 }
 
 export const IPCA_12M = 4.5;

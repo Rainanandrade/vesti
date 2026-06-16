@@ -34,6 +34,7 @@ export default function SettingsScreen({ navigation }: any) {
     snapshots,
     watchlist,
     goalsReached,
+    activeWallet,
     updateUserName,
     clearAllUserData,
   } = useApp();
@@ -80,6 +81,52 @@ export default function SettingsScreen({ navigation }: any) {
       }
     } catch (e: any) {
       Alert.alert('Ops', e?.message || 'Não foi possível exportar.');
+    }
+  };
+
+  const handleShareWithAccountant = async () => {
+    const year = new Date().getFullYear() - 1;
+    const yearStr = String(year);
+    const ops = operations.filter((o) => o.date.startsWith(yearStr));
+    const pvs = proventos.filter((p) => p.date.startsWith(yearStr));
+    const divs = pvs.filter((p) => p.kind !== 'jcp').reduce((s, p) => s + p.amount, 0);
+    const jcps = pvs.filter((p) => p.kind === 'jcp').reduce((s, p) => s + p.amount, 0);
+    const sold = ops.filter((o) => o.type === 'sell').reduce((s, o) => s + o.price * o.quantity, 0);
+    const bought = ops.filter((o) => o.type === 'buy').reduce((s, o) => s + o.price * o.quantity, 0);
+
+    const msg = `Olá, segue resumo da minha movimentação em ${year} pra Declaração IR ${year + 1} (gerado pelo Vesti):
+
+📦 BENS E DIREITOS (posição atual):
+${(activeWallet?.assets || [])
+  .map((a) => `• ${a.symbol} (${a.name}) — ${a.quantity} cotas a R$ ${a.avgPrice.toFixed(2)} = R$ ${(a.quantity * a.avgPrice).toFixed(2)}`)
+  .join('\n') || '(sem ativos)'}
+
+💰 DIVIDENDOS RECEBIDOS (isentos, cód. 09):
+Total: R$ ${divs.toFixed(2)}
+
+🏦 JCP RECEBIDOS (tributação exclusiva, cód. 10):
+Total: R$ ${jcps.toFixed(2)}
+
+📊 OPERAÇÕES ${year}:
+• Total comprado: R$ ${bought.toFixed(2)}
+• Total vendido: R$ ${sold.toFixed(2)}
+• Nº de operações: ${ops.length}
+
+Pra detalhe operação a operação, posso exportar o JSON completo no Vesti.`;
+
+    try {
+      if (Platform.OS === 'web') {
+        if (navigator.share) {
+          await navigator.share({ text: msg, title: 'Resumo IR pra contador' });
+        } else if (navigator.clipboard) {
+          await navigator.clipboard.writeText(msg);
+          Alert.alert('Copiado!', 'O resumo foi copiado pra área de transferência. Cola no email/WhatsApp do contador.');
+        }
+      } else {
+        await Share.share({ message: msg, title: 'Resumo IR pra contador' });
+      }
+    } catch (e: any) {
+      Alert.alert('Ops', e?.message || 'Não foi possível compartilhar.');
     }
   };
 
@@ -389,6 +436,21 @@ export default function SettingsScreen({ navigation }: any) {
         </TouchableOpacity>
 
         <Text style={styles.sectionTitle}>Dados</Text>
+        <TouchableOpacity onPress={handleShareWithAccountant}>
+          <Card style={{ marginBottom: spacing.sm }}>
+            <View style={styles.row}>
+              <Ionicons name="paper-plane-outline" size={22} color={colors.primary} />
+              <View style={{ flex: 1, marginLeft: spacing.md }}>
+                <Text style={styles.rowTitle}>Compartilhar com contador</Text>
+                <Text style={styles.rowSub}>
+                  Gera um resumo formatado do ano anterior pra mandar pro seu contador no WhatsApp/email
+                </Text>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color={colors.textTertiary} />
+            </View>
+          </Card>
+        </TouchableOpacity>
+
         <TouchableOpacity onPress={handleExport}>
           <Card style={{ marginBottom: spacing.sm }}>
             <View style={styles.row}>

@@ -22,11 +22,11 @@ const YAHOO_INTERVAL = {
 
 async function fromBrapi(symbol, range) {
   if (!BRAPI_TOKEN) return null;
-  // Brapi não oferece índices, apenas ações/FIIs/ETFs brasileiros
-  if (symbol.startsWith('^')) return null;
   try {
     const { range: r, interval } = BRAPI_RANGE[range] || BRAPI_RANGE['1y'];
-    const url = `https://brapi.dev/api/quote/${symbol}?range=${r}&interval=${interval}&token=${BRAPI_TOKEN}`;
+    // brapi.dev aceita ^BVSP e IBOV pra Ibovespa; usamos IBOV (mais estável)
+    const ticker = symbol === '^BVSP' || symbol === 'IBOV' ? 'IBOV' : symbol;
+    const url = `https://brapi.dev/api/quote/${ticker}?range=${r}&interval=${interval}&token=${BRAPI_TOKEN}`;
     const res = await fetch(url, { headers: { Accept: 'application/json' } });
     if (!res.ok) return null;
     const json = await res.json();
@@ -50,7 +50,12 @@ async function fromBrapi(symbol, range) {
 }
 
 async function fromYahoo(symbol, range, viaProxy = false) {
-  const sym = symbol.startsWith('^') ? symbol : `${symbol.toUpperCase()}.SA`;
+  // Yahoo usa ^BVSP pra IBOV (não aceita "IBOV.SA")
+  const sym = symbol.startsWith('^')
+    ? symbol
+    : symbol === 'IBOV'
+    ? '^BVSP'
+    : `${symbol.toUpperCase()}.SA`;
   const interval = YAHOO_INTERVAL[range] || '1d';
   const yahooUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(sym)}?range=${range}&interval=${interval}`;
   const url = viaProxy ? `https://corsproxy.io/?${encodeURIComponent(yahooUrl)}` : yahooUrl;
