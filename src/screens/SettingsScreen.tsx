@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Alert, ScrollView, StyleSheet, Switch, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Alert, Platform, ScrollView, Share, StyleSheet, Switch, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, fontSize, radius, spacing } from '../theme/colors';
@@ -29,7 +29,75 @@ export default function SettingsScreen({ navigation }: any) {
     setActiveWalletId,
     createWallet,
     deleteWallet,
+    operations,
+    proventos,
+    snapshots,
+    watchlist,
+    goalsReached,
+    updateUserName,
+    clearAllUserData,
   } = useApp();
+  const [nameModalOpen, setNameModalOpen] = useState(false);
+  const [editName, setEditName] = useState(user?.name || '');
+
+  const handleSaveName = async () => {
+    if (editName.trim().length < 2) {
+      Alert.alert('Atenção', 'Digite um nome válido.');
+      return;
+    }
+    try {
+      await updateUserName(editName.trim());
+      setNameModalOpen(false);
+    } catch (e: any) {
+      Alert.alert('Ops', e?.message || 'Não foi possível atualizar.');
+    }
+  };
+
+  const handleExport = async () => {
+    const payload = {
+      exportedAt: new Date().toISOString(),
+      user: { name: user?.name, email: user?.email },
+      profile,
+      wallets,
+      operations,
+      proventos,
+      snapshots,
+      watchlist,
+      goalsReached,
+    };
+    const json = JSON.stringify(payload, null, 2);
+    try {
+      if (Platform.OS === 'web') {
+        const blob = new Blob([json], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `vesti-backup-${new Date().toISOString().slice(0, 10)}.json`;
+        a.click();
+        URL.revokeObjectURL(url);
+      } else {
+        await Share.share({ message: json, title: 'Backup Vesti' });
+      }
+    } catch (e: any) {
+      Alert.alert('Ops', e?.message || 'Não foi possível exportar.');
+    }
+  };
+
+  const handleClearData = () => {
+    confirmAction(
+      'Limpar todos os dados',
+      'Vai apagar TODAS suas carteiras, operações, proventos, snapshots, watchlist e metas. Sua conta e perfil ficam. Essa ação é IRREVERSÍVEL.',
+      async () => {
+        try {
+          await clearAllUserData();
+          Alert.alert('Pronto', 'Seus dados foram apagados. Comece do zero.');
+        } catch (e: any) {
+          Alert.alert('Ops', e?.message || 'Falha ao limpar.');
+        }
+      },
+      { confirmLabel: 'Apagar tudo', destructive: true },
+    );
+  };
 
   const handleRedoProfile = () => {
     confirmAction(
@@ -135,11 +203,11 @@ export default function SettingsScreen({ navigation }: any) {
         <TouchableOpacity onPress={() => navigation?.goBack?.()} hitSlop={10}>
           <Ionicons name="close" size={26} color={colors.text} />
         </TouchableOpacity>
-        <Text style={styles.headerBarTitle}>Configurações</Text>
+        <Text style={styles.headerBarTitle}>Conta</Text>
         <View style={{ width: 26 }} />
       </View>
       <ScrollView contentContainerStyle={styles.scroll}>
-        <Text style={styles.title}>Configurações</Text>
+        <Text style={styles.title}>Conta</Text>
 
         <Card style={{ marginTop: spacing.md }}>
           <View style={styles.avatar}>
@@ -152,6 +220,16 @@ export default function SettingsScreen({ navigation }: any) {
               <Text style={styles.profileText}>Perfil {profile.type}</Text>
             </View>
           )}
+          <TouchableOpacity
+            style={styles.editNameBtn}
+            onPress={() => {
+              setEditName(user?.name || '');
+              setNameModalOpen(true);
+            }}
+          >
+            <Ionicons name="create-outline" size={16} color={colors.primary} />
+            <Text style={styles.editNameText}>Editar nome</Text>
+          </TouchableOpacity>
         </Card>
 
         <Text style={styles.sectionTitle}>Perfil financeiro</Text>
@@ -310,10 +388,41 @@ export default function SettingsScreen({ navigation }: any) {
           </Card>
         </TouchableOpacity>
 
+        <Text style={styles.sectionTitle}>Dados</Text>
+        <TouchableOpacity onPress={handleExport}>
+          <Card style={{ marginBottom: spacing.sm }}>
+            <View style={styles.row}>
+              <Ionicons name="cloud-download-outline" size={22} color={colors.primary} />
+              <View style={{ flex: 1, marginLeft: spacing.md }}>
+                <Text style={styles.rowTitle}>Exportar dados</Text>
+                <Text style={styles.rowSub}>
+                  Backup completo em JSON: carteiras, operações, proventos, snapshots e watchlist
+                </Text>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color={colors.textTertiary} />
+            </View>
+          </Card>
+        </TouchableOpacity>
+
+        <TouchableOpacity onPress={handleClearData}>
+          <Card>
+            <View style={styles.row}>
+              <Ionicons name="trash-bin-outline" size={22} color={colors.danger} />
+              <View style={{ flex: 1, marginLeft: spacing.md }}>
+                <Text style={[styles.rowTitle, { color: colors.danger }]}>Limpar todos os dados</Text>
+                <Text style={styles.rowSub}>
+                  Apaga carteiras, operações, proventos, metas e watchlist. Conta permanece.
+                </Text>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color={colors.textTertiary} />
+            </View>
+          </Card>
+        </TouchableOpacity>
+
         <Text style={styles.sectionTitle}>Sobre</Text>
         <Card>
           <Text style={styles.aboutText}>
-            Vesti v1.0{'\n\n'}
+            Vesti v2.0{'\n\n'}
             App educacional de acompanhamento de carteira. Não é corretora nem aconselhamento financeiro.
             {'\n\n'}
             Cotações por brapi.dev, dividendos por Status Invest, IA por Groq.
@@ -322,6 +431,26 @@ export default function SettingsScreen({ navigation }: any) {
 
         <Button title="Sair" variant="danger" onPress={handleSignOut} style={{ marginTop: spacing.lg }} />
       </ScrollView>
+
+      <Modal visible={nameModalOpen} transparent animationType="fade" onRequestClose={() => setNameModalOpen(false)}>
+        <Pressable style={styles.modalBackdrop} onPress={() => setNameModalOpen(false)}>
+          <Pressable style={styles.modalSheet} onPress={(e) => e.stopPropagation()}>
+            <Text style={styles.modalSheetTitle}>Editar nome</Text>
+            <TextInput
+              style={[styles.input, { marginTop: spacing.md }]}
+              value={editName}
+              onChangeText={setEditName}
+              placeholder="Seu nome"
+              autoFocus
+              autoCapitalize="words"
+            />
+            <View style={{ flexDirection: 'row', marginTop: spacing.md }}>
+              <Button title="Cancelar" variant="ghost" onPress={() => setNameModalOpen(false)} style={{ flex: 1 }} />
+              <Button title="Salvar" onPress={handleSaveName} style={{ flex: 1 }} />
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
 
       <Modal visible={brokerModalOpen} animationType="slide" onRequestClose={() => setBrokerModalOpen(false)}>
         <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
@@ -458,4 +587,27 @@ const styles = StyleSheet.create({
   brokerSelected: { borderColor: colors.primary, backgroundColor: colors.primaryLight, marginBottom: spacing.sm },
   brokerOptName: { fontSize: fontSize.bodyLarge, fontWeight: '700', color: colors.text },
   brokerOptNote: { fontSize: fontSize.small, color: colors.textSecondary, marginTop: 2, lineHeight: 16 },
+  editNameBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'center',
+    marginTop: spacing.sm,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 6,
+    borderRadius: radius.pill,
+    backgroundColor: colors.primaryLight,
+  },
+  editNameText: { color: colors.primary, fontWeight: '700', marginLeft: 4, fontSize: fontSize.small },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    justifyContent: 'center',
+    padding: spacing.lg,
+  },
+  modalSheet: {
+    backgroundColor: colors.background,
+    borderRadius: radius.lg,
+    padding: spacing.lg,
+  },
+  modalSheetTitle: { fontSize: fontSize.title, fontWeight: '700', color: colors.text },
 });

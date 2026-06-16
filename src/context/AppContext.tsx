@@ -88,6 +88,9 @@ type AppContextType = {
 
   snapshots: PatrimonySnapshot[];
   recordSnapshot: (total: number, invested: number) => Promise<void>;
+
+  updateUserName: (name: string) => Promise<void>;
+  clearAllUserData: () => Promise<void>;
 };
 
 export type Provento = {
@@ -687,6 +690,40 @@ export function AppProvider({ children }: { children: ReactNode }) {
     [userId],
   );
 
+  const updateUserName = useCallback(
+    async (name: string) => {
+      const trimmed = name.trim();
+      if (!trimmed || !userId) return;
+      setUser((prev) => (prev ? { ...prev, name: trimmed } : prev));
+      await supabase.from('profiles').update({ name: trimmed }).eq('id', userId);
+    },
+    [userId],
+  );
+
+  const clearAllUserData = useCallback(async () => {
+    if (!userId) return;
+    // Apaga tudo do usuário (carteiras, ativos, operações, proventos, snapshots,
+    // watchlist, metas, lições). O profile e auth.user permanecem.
+    await Promise.all([
+      supabase.from('assets').delete().eq('user_id', userId),
+      supabase.from('wallets').delete().eq('user_id', userId),
+      supabase.from('operations').delete().eq('user_id', userId),
+      supabase.from('proventos').delete().eq('user_id', userId),
+      supabase.from('patrimony_snapshots').delete().eq('user_id', userId),
+      supabase.from('watchlist').delete().eq('user_id', userId),
+      supabase.from('goals_reached').delete().eq('user_id', userId),
+      supabase.from('lessons_completed').delete().eq('user_id', userId),
+    ]);
+    setWallets([]);
+    setActiveWalletIdState(null);
+    setOperations([]);
+    setProventos([]);
+    setSnapshots([]);
+    setWatchlist([]);
+    setGoalsReached([]);
+    setCompletedLessons({});
+  }, [userId]);
+
   const recordSnapshot = useCallback(
     async (total: number, invested: number) => {
       if (!userId || total <= 0) return;
@@ -803,6 +840,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
         removeProvento,
         snapshots,
         recordSnapshot,
+        updateUserName,
+        clearAllUserData,
       }}
     >
       {children}

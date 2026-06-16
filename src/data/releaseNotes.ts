@@ -27,10 +27,36 @@ export type ReleaseNote = {
 };
 
 // ATUAL versão do app — bumpa a cada release.
-export const CURRENT_VERSION = '2.0.0';
+export const CURRENT_VERSION = '2.1.0';
 
 // Notas em ordem cronológica DESCENDENTE (mais recente primeiro)
 export const RELEASE_NOTES: ReleaseNote[] = [
+  {
+    version: '2.1.0',
+    date: '2026-06-16',
+    title: 'Tela Conta reformulada',
+    subtitle: 'Tudo da sua conta num só lugar, no estilo dos grandes apps',
+    highlights: [
+      {
+        emoji: '👤',
+        title: 'Editar nome direto na conta',
+        description:
+          'Toque em "Editar nome" no card do perfil pra renomear sua conta em segundos.',
+      },
+      {
+        emoji: '💾',
+        title: 'Exportar backup completo',
+        description:
+          'Botão "Exportar dados" gera um JSON com TUDO: carteiras, operações, proventos, snapshots e watchlist. No celular usa o compartilhamento nativo, no navegador baixa o arquivo.',
+      },
+      {
+        emoji: '🧹',
+        title: 'Limpar todos os dados',
+        description:
+          'Recomeço total com 1 toque. Apaga carteiras, operações, proventos e metas — mantém sua conta e perfil. Tem confirmação dupla pra evitar acidentes.',
+      },
+    ],
+  },
   {
     version: '2.0.0',
     date: '2026-06-16',
