@@ -27,10 +27,50 @@ export type ReleaseNote = {
 };
 
 // ATUAL versão do app — bumpa a cada release.
-export const CURRENT_VERSION = '1.9.0';
+export const CURRENT_VERSION = '2.0.0';
 
 // Notas em ordem cronológica DESCENDENTE (mais recente primeiro)
 export const RELEASE_NOTES: ReleaseNote[] = [
+  {
+    version: '2.0.0',
+    date: '2026-06-16',
+    title: 'Vesti 2.0 — Gestor IA, Proventos e Evolução',
+    subtitle: 'Tudo que faltava pra ser o app de carteira mais completo do BR',
+    highlights: [
+      {
+        emoji: '🧠',
+        title: 'Gestor IA com Diagnóstico',
+        description:
+          'Nova tela do Gestor IA com botão "Fazer diagnóstico da carteira": análise completa em segundos, pontos fortes, riscos e próximos passos. Toque num ticker pra IA analisar individualmente.',
+        action: { label: 'Abrir Gestor IA', navigateTo: 'AIHub' },
+      },
+      {
+        emoji: '💰',
+        title: 'Tela de Proventos completa',
+        description:
+          'Histórico mês a mês de dividendos, JCP e rendimentos recebidos. Totais por ano e últimos 12 meses. Registre proventos com 1 toque pra acompanhar sua renda passiva real.',
+        action: { label: 'Ver proventos', navigateTo: 'Proventos' },
+      },
+      {
+        emoji: '📈',
+        title: 'Gráfico de evolução do patrimônio',
+        description:
+          'Linha do tempo do seu patrimônio direto no Dashboard. Salva 1 snapshot por dia automaticamente e mostra a variação no período com gradiente verde/vermelho.',
+      },
+      {
+        emoji: '💬',
+        title: 'Sugestões de conversa rotativas',
+        description:
+          'Cards com perguntas prontas pra IA. Não sabe o que perguntar? Toque numa e receba uma resposta personalizada baseada na sua carteira.',
+      },
+      {
+        emoji: '🔐',
+        title: 'Esqueci minha senha',
+        description:
+          'Recuperação de senha por email integrada ao login. Reset seguro via link mágico do Supabase.',
+      },
+    ],
+  },
   {
     version: '1.9.0',
     date: '2026-06-04',

@@ -19,6 +19,8 @@ import CompareAssetsScreen from '../screens/CompareAssetsScreen';
 import IRCalculatorScreen from '../screens/IRCalculatorScreen';
 import AporteCalculatorScreen from '../screens/AporteCalculatorScreen';
 import OperacoesScreen from '../screens/OperacoesScreen';
+import ProventosScreen from '../screens/ProventosScreen';
+import AIHubScreen from '../screens/AIHubScreen';
 import AporteScreen from '../screens/AporteScreen';
 import GoalsScreen from '../screens/GoalsScreen';
 import LearnScreen from '../screens/LearnScreen';
@@ -79,6 +81,11 @@ function PortfolioStackNavigator() {
         component={OperacoesScreen}
         options={{ presentation: 'modal' }}
       />
+      <PortfolioStack.Screen
+        name="Proventos"
+        component={ProventosScreen}
+        options={{ presentation: 'modal' }}
+      />
     </PortfolioStack.Navigator>
   );
 }
@@ -129,6 +136,7 @@ function MainStack() {
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       <Stack.Screen name="Tabs" component={MainTabs} />
+      <Stack.Screen name="AIHub" component={AIHubScreen} options={{ presentation: 'modal' }} />
       <Stack.Screen name="Settings" component={SettingsScreen} options={{ presentation: 'modal' }} />
       <Stack.Screen name="Legal" component={LegalDocScreen} options={{ presentation: 'modal' }} />
       <Stack.Screen

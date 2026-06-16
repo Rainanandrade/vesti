@@ -21,9 +21,10 @@ import { fetchAssetDetails, AssetDetails } from '../api/yahooDetails';
 import { computeDividendForecast } from '../utils/dividendForecast';
 import { MONTH_NAMES_PT } from '../data/dividends';
 import { fetchDividendInfoBatch, DividendInfo, formatNextPayment, formatDateBR, frequencyLabel, clearDividendCache } from '../api/dividends';
+import PortfolioChart from '../components/PortfolioChart';
 
 export default function DashboardScreen({ navigation }: any) {
-  const { user, activeWallet, privacyMode, togglePrivacy, profile, recordGoal, wallets, setActiveWalletId, goalsReached, watchlist } = useApp();
+  const { user, activeWallet, privacyMode, togglePrivacy, profile, recordGoal, wallets, setActiveWalletId, goalsReached, watchlist, snapshots, recordSnapshot } = useApp();
   const [quotes, setQuotes] = useState<Record<string, Quote>>({});
   const [detailsMap, setDetailsMap] = useState<Record<string, AssetDetails | null>>({});
   const [dividendInfoMap, setDividendInfoMap] = useState<Record<string, DividendInfo | null>>({});
@@ -100,6 +101,13 @@ export default function DashboardScreen({ navigation }: any) {
       setCelebrateGoal({ value: goals.current.value, label: goals.current.label });
     }
   }, [goals.current.value, goals.current.reached, goals.current.label, recordGoal, goalsReached]);
+
+  // Snapshot diário de patrimônio (1 por dia) — alimenta o gráfico de evolução
+  useEffect(() => {
+    if (totalCurrent > 0) {
+      recordSnapshot(totalCurrent, totalInvested);
+    }
+  }, [totalCurrent, totalInvested, recordSnapshot]);
 
   const healthData = computeHealthScoreDetailed(activeWallet?.assets || [], profitPct, profile, detailsMap);
   const healthScore = healthData.score;
@@ -243,6 +251,12 @@ export default function DashboardScreen({ navigation }: any) {
               <Ionicons name={privacyMode ? 'eye-off' : 'eye'} size={22} color={colors.textSecondary} />
             </TouchableOpacity>
             <TouchableOpacity
+              onPress={() => navigation.getParent()?.navigate('AIHub')}
+              style={[styles.eyeBtn, { marginLeft: spacing.sm, backgroundColor: colors.primaryLight }]}
+            >
+              <Ionicons name="sparkles" size={22} color={colors.primary} />
+            </TouchableOpacity>
+            <TouchableOpacity
               onPress={() => navigation.getParent()?.navigate('Settings')}
               style={[styles.eyeBtn, { marginLeft: spacing.sm }]}
             >
@@ -296,6 +310,19 @@ export default function DashboardScreen({ navigation }: any) {
           </View>
           <Text style={styles.heroInvested}>Investido: {fmtBRL(totalInvested, privacyMode)}</Text>
         </Card>
+
+        {/* Evolução do patrimônio (snapshots diários) */}
+        {(activeWallet?.assets.length || 0) > 0 && (
+          <Card style={{ marginTop: spacing.md }}>
+            <View style={styles.cardHeader}>
+              <Text style={styles.cardTitle}>📈 Evolução do patrimônio</Text>
+            </View>
+            <PortfolioChart
+              data={snapshots.map((s) => ({ date: s.date, total: s.total }))}
+              privacyMode={privacyMode}
+            />
+          </Card>
+        )}
 
         {/* Frase do dia */}
         <Card style={[styles.quoteCard, { marginTop: spacing.md }]}>

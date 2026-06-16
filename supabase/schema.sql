@@ -97,6 +97,43 @@ create policy "operations_own" on public.operations
 
 create index if not exists operations_user_date_idx on public.operations(user_id, date desc);
 
+-- Proventos recebidos (dividendos, JCP, rendimentos) — registrados manualmente
+create table if not exists public.proventos (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  symbol text not null,
+  kind text default 'dividendo' check (kind in ('dividendo', 'jcp', 'rendimento')),
+  amount numeric not null,             -- valor total recebido em R$
+  per_share numeric,                   -- valor por cota (opcional)
+  date date not null,
+  notes text,
+  created_at timestamptz default now()
+);
+
+alter table public.proventos enable row level security;
+drop policy if exists "proventos_own" on public.proventos;
+create policy "proventos_own" on public.proventos
+  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+create index if not exists proventos_user_date_idx on public.proventos(user_id, date desc);
+
+-- Snapshots de patrimônio (gráfico de evolução)
+create table if not exists public.patrimony_snapshots (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  total numeric not null,
+  invested numeric not null default 0,
+  taken_at timestamptz default now(),
+  date date not null                   -- 1 snapshot por dia (uniq abaixo)
+);
+
+alter table public.patrimony_snapshots enable row level security;
+drop policy if exists "snapshots_own" on public.patrimony_snapshots;
+create policy "snapshots_own" on public.patrimony_snapshots
+  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+create unique index if not exists snapshots_user_date_uniq on public.patrimony_snapshots(user_id, date);
+
 -- =========================
 -- ROW LEVEL SECURITY (cada user só vê seus próprios dados)
 -- =========================

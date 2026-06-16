@@ -104,6 +104,8 @@ export default function PortfolioScreen({ navigation }: any) {
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.toolsRow}
       >
+        <ToolChip icon="sparkles-outline" label="Gestor IA" onPress={() => navigation.getParent()?.getParent()?.navigate('AIHub')} />
+        <ToolChip icon="cash-outline" label="Proventos" onPress={() => navigation.navigate('Proventos')} />
         <ToolChip icon="git-compare-outline" label="Comparar" onPress={() => navigation.navigate('Compare')} />
         <ToolChip icon="calculator-outline" label="Aporte" onPress={() => navigation.navigate('AporteCalc')} />
         <ToolChip icon="receipt-outline" label="IR/DARF" onPress={() => navigation.navigate('IRCalculator')} />

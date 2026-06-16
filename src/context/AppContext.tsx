@@ -81,6 +81,31 @@ type AppContextType = {
   operations: Operation[];
   addOperation: (op: Omit<Operation, 'id' | 'createdAt'>) => Promise<void>;
   removeOperation: (id: string) => Promise<void>;
+
+  proventos: Provento[];
+  addProvento: (p: Omit<Provento, 'id' | 'createdAt'>) => Promise<void>;
+  removeProvento: (id: string) => Promise<void>;
+
+  snapshots: PatrimonySnapshot[];
+  recordSnapshot: (total: number, invested: number) => Promise<void>;
+};
+
+export type Provento = {
+  id: string;
+  symbol: string;
+  kind: 'dividendo' | 'jcp' | 'rendimento';
+  amount: number;
+  perShare?: number;
+  date: string;           // YYYY-MM-DD
+  notes?: string;
+  createdAt: number;
+};
+
+export type PatrimonySnapshot = {
+  id: string;
+  date: string;           // YYYY-MM-DD
+  total: number;
+  invested: number;
 };
 
 export type Operation = {
@@ -121,6 +146,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [watchlist, setWatchlist] = useState<WatchlistItem[]>([]);
   const [lastSeenVersion, setLastSeenVersion] = useState<string | null>(null);
   const [operations, setOperations] = useState<Operation[]>([]);
+  const [proventos, setProventos] = useState<Provento[]>([]);
+  const [snapshots, setSnapshots] = useState<PatrimonySnapshot[]>([]);
 
   // Carrega dados do usuário a partir do Supabase
   const loadUserData = useCallback(async (uid: string, email: string) => {
@@ -232,6 +259,44 @@ export function AppProvider({ children }: { children: ReactNode }) {
         })),
       );
     }
+
+    // Proventos recebidos
+    const { data: pvs } = await supabase
+      .from('proventos')
+      .select('id, symbol, kind, amount, per_share, date, notes, created_at')
+      .eq('user_id', uid)
+      .order('date', { ascending: false });
+    if (pvs) {
+      setProventos(
+        pvs.map((p: any) => ({
+          id: p.id,
+          symbol: p.symbol,
+          kind: p.kind,
+          amount: Number(p.amount),
+          perShare: p.per_share != null ? Number(p.per_share) : undefined,
+          date: p.date,
+          notes: p.notes,
+          createdAt: new Date(p.created_at).getTime(),
+        })),
+      );
+    }
+
+    // Snapshots de patrimônio (últimos 24 meses, basta isso pra gráfico)
+    const { data: snaps } = await supabase
+      .from('patrimony_snapshots')
+      .select('id, date, total, invested')
+      .eq('user_id', uid)
+      .order('date', { ascending: true });
+    if (snaps) {
+      setSnapshots(
+        snaps.map((s: any) => ({
+          id: s.id,
+          date: s.date,
+          total: Number(s.total),
+          invested: Number(s.invested),
+        })),
+      );
+    }
   }, []);
 
   // Init: detecta sessão existente e dados locais (PIN, onboarding)
@@ -270,6 +335,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
         setWallets([]);
         setActiveWalletIdState(null);
         setGoalsReached([]);
+        setOperations([]);
+        setProventos([]);
+        setSnapshots([]);
         setPinVerified(false);
       }
     });
@@ -575,6 +643,76 @@ export function AppProvider({ children }: { children: ReactNode }) {
     [userId],
   );
 
+  const addProvento = useCallback(
+    async (p: Omit<Provento, 'id' | 'createdAt'>) => {
+      if (!userId) throw new Error('Não autenticado');
+      const { data, error } = await supabase
+        .from('proventos')
+        .insert({
+          user_id: userId,
+          symbol: p.symbol,
+          kind: p.kind,
+          amount: p.amount,
+          per_share: p.perShare,
+          date: p.date,
+          notes: p.notes,
+        })
+        .select()
+        .single();
+      if (error || !data) throw new Error(translateDbError(error?.message || 'Erro'));
+      setProventos((prev) => [
+        {
+          id: data.id,
+          symbol: data.symbol,
+          kind: data.kind,
+          amount: Number(data.amount),
+          perShare: data.per_share != null ? Number(data.per_share) : undefined,
+          date: data.date,
+          notes: data.notes,
+          createdAt: new Date(data.created_at).getTime(),
+        },
+        ...prev,
+      ]);
+    },
+    [userId],
+  );
+
+  const removeProvento = useCallback(
+    async (id: string) => {
+      setProventos((prev) => prev.filter((p) => p.id !== id));
+      if (userId) {
+        await supabase.from('proventos').delete().eq('id', id);
+      }
+    },
+    [userId],
+  );
+
+  const recordSnapshot = useCallback(
+    async (total: number, invested: number) => {
+      if (!userId || total <= 0) return;
+      const today = new Date().toISOString().slice(0, 10);
+      // Evita gravar duas vezes no mesmo dia
+      if (snapshots.some((s) => s.date === today)) return;
+      const { data, error } = await supabase
+        .from('patrimony_snapshots')
+        .upsert(
+          { user_id: userId, date: today, total, invested },
+          { onConflict: 'user_id,date' },
+        )
+        .select()
+        .single();
+      if (error || !data) return;
+      setSnapshots((prev) => {
+        const without = prev.filter((s) => s.date !== today);
+        return [
+          ...without,
+          { id: data.id, date: data.date, total: Number(data.total), invested: Number(data.invested) },
+        ].sort((a, b) => a.date.localeCompare(b.date));
+      });
+    },
+    [userId, snapshots],
+  );
+
   const markVersionSeen = useCallback(
     async (version: string) => {
       await Storage.set(KEYS.LAST_SEEN_VERSION, version);
@@ -660,6 +798,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
         operations,
         addOperation,
         removeOperation,
+        proventos,
+        addProvento,
+        removeProvento,
+        snapshots,
+        recordSnapshot,
       }}
     >
       {children}
