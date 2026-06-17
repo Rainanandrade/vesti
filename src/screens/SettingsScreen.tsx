@@ -296,6 +296,27 @@ Pra detalhe operação a operação, posso exportar o JSON completo no Vesti.`;
           </Card>
         </TouchableOpacity>
 
+        <TouchableOpacity
+          onPress={() => navigation.getParent()?.navigate('DividendTarget')}
+        >
+          <Card style={{ marginBottom: spacing.sm }}>
+            <View style={styles.row}>
+              <Ionicons name="trophy-outline" size={22} color={colors.primary} />
+              <View style={{ flex: 1, marginLeft: spacing.md }}>
+                <Text style={styles.rowTitle}>Meta de renda passiva</Text>
+                <Text style={styles.rowSub}>
+                  {profile?.dividendTarget
+                    ? profile.dividendTarget.mode === 'monthly_amount'
+                      ? `R$ ${profile.dividendTarget.value.toFixed(0)}/mês em dividendos`
+                      : `DY de no mínimo ${profile.dividendTarget.value.toFixed(1)}% ao ano`
+                    : 'Não definida — toque pra criar'}
+                </Text>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color={colors.textTertiary} />
+            </View>
+          </Card>
+        </TouchableOpacity>
+
         <TouchableOpacity onPress={handleRedoProfile}>
           <Card>
             <View style={styles.row}>

@@ -123,6 +123,14 @@ export type Profile = {
   brokerId?: string;        // legado (será migrado pra brokerIds)
   brokerIds?: string[];     // múltiplas corretoras
   preference?: Preference;  // estilo de investimento — null pra usuários antigos
+  dividendTarget?: DividendTarget;  // meta de renda passiva opcional
+};
+
+export type DividendTarget = {
+  mode: 'monthly_amount' | 'annual_dy';
+  // monthly_amount: R$/mês desejados
+  // annual_dy: % ao ano desejado
+  value: number;
 };
 
 export function computeProfile(answers: Record<string, number>): Profile {

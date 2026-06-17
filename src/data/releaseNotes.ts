@@ -27,10 +27,37 @@ export type ReleaseNote = {
 };
 
 // ATUAL versão do app — bumpa a cada release.
-export const CURRENT_VERSION = '2.3.0';
+export const CURRENT_VERSION = '2.4.0';
 
 // Notas em ordem cronológica DESCENDENTE (mais recente primeiro)
 export const RELEASE_NOTES: ReleaseNote[] = [
+  {
+    version: '2.4.0',
+    date: '2026-06-17',
+    title: 'Meta de renda passiva + IBOV corrigido',
+    subtitle: 'Define quanto quer receber por mês e o app te guia até lá',
+    highlights: [
+      {
+        emoji: '🎯',
+        title: 'Meta de dividendos',
+        description:
+          'Defina quanto quer receber por mês (R$) OU qual DY mínimo ao ano você busca. O app mostra teu progresso, calcula quanto falta investir e te indica o caminho.',
+        action: { label: 'Definir meta', navigateTo: 'DividendTarget' },
+      },
+      {
+        emoji: '📊',
+        title: 'IBOV funcionando de verdade',
+        description:
+          'A comparação com Ibovespa estava quebrada (brapi free não libera o índice). Agora usamos BOVA11 (ETF que segue o IBOV) como proxy — funciona 100% no Vercel.',
+      },
+      {
+        emoji: '✨',
+        title: 'Barra inferior mais bonita',
+        description:
+          'Ícones maiores, fundo destacado na aba ativa e mais sombra. Pequeno detalhe, grande diferença.',
+      },
+    ],
+  },
   {
     version: '2.3.0',
     date: '2026-06-16',

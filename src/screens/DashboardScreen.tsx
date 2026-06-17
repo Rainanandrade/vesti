@@ -23,7 +23,9 @@ import { MONTH_NAMES_PT } from '../data/dividends';
 import { fetchDividendInfoBatch, DividendInfo, formatNextPayment, formatDateBR, frequencyLabel, clearDividendCache } from '../api/dividends';
 import PortfolioChart from '../components/PortfolioChart';
 import ProventosBarChart from '../components/ProventosBarChart';
+import DividendTargetCard from '../components/DividendTargetCard';
 import { computeReceivedProventos } from '../utils/receivedProventos';
+import { computeTargetProgress } from '../utils/dividendTarget';
 
 export default function DashboardScreen({ navigation }: any) {
   const { user, activeWallet, privacyMode, togglePrivacy, profile, recordGoal, wallets, setActiveWalletId, goalsReached, watchlist, snapshots, recordSnapshot, operations, proventos } = useApp();
@@ -627,6 +629,50 @@ export default function DashboardScreen({ navigation }: any) {
           </Card>
         )}
 
+        {/* Meta de Dividendos */}
+        {profile?.dividendTarget && totalCurrent > 0 && (() => {
+          const autoRec = computeReceivedProventos(activeWallet?.assets || [], dividendInfoMap);
+          const year = new Date().getFullYear();
+          const ytd = autoRec.filter((p) => p.date.startsWith(String(year))).reduce((s, p) => s + p.amount, 0);
+          const monthsElapsed = new Date().getMonth() + 1;
+          const progress = computeTargetProgress(
+            profile.dividendTarget,
+            totalCurrent,
+            dividendForecast.weightedDY || 8,
+            ytd,
+            monthsElapsed,
+          );
+          if (!progress) return null;
+          return (
+            <View style={{ marginTop: spacing.md }}>
+              <DividendTargetCard
+                target={profile.dividendTarget}
+                progress={progress}
+                privacyMode={privacyMode}
+                onPress={() => navigation.getParent()?.navigate('DividendTarget')}
+              />
+            </View>
+          );
+        })()}
+
+        {!profile?.dividendTarget && totalCurrent > 0 && (
+          <TouchableOpacity
+            onPress={() => navigation.getParent()?.navigate('DividendTarget')}
+            style={{ marginTop: spacing.md }}
+          >
+            <Card style={styles.targetEmptyCard}>
+              <Ionicons name="trophy-outline" size={20} color={colors.primary} />
+              <View style={{ flex: 1, marginLeft: spacing.sm }}>
+                <Text style={styles.targetEmptyTitle}>Defina uma meta de renda passiva</Text>
+                <Text style={styles.targetEmptyDesc}>
+                  Ex: receber R$ 2.000/mês em dividendos. Vou te mostrar quanto falta e quais ativos te ajudam a chegar lá.
+                </Text>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color={colors.textTertiary} />
+            </Card>
+          </TouchableOpacity>
+        )}
+
         {/* Próxima meta */}
         <Card style={{ marginTop: spacing.md }}>
           <Text style={styles.cardTitle}>Próxima meta</Text>
@@ -857,4 +903,12 @@ const styles = StyleSheet.create({
   darfEmoji: { fontSize: 28, marginRight: spacing.sm },
   darfTitle: { fontSize: fontSize.bodyLarge, fontWeight: '700', color: colors.text },
   darfDesc: { fontSize: fontSize.small, color: colors.textSecondary, marginTop: 2, lineHeight: 18 },
+  targetEmptyCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.primaryLight,
+    borderColor: colors.primaryAccent,
+  },
+  targetEmptyTitle: { fontSize: fontSize.body, fontWeight: '700', color: colors.text },
+  targetEmptyDesc: { fontSize: fontSize.small, color: colors.textSecondary, marginTop: 2, lineHeight: 18 },
 });

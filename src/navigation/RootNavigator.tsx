@@ -22,6 +22,7 @@ import OperacoesScreen from '../screens/OperacoesScreen';
 import ProventosScreen from '../screens/ProventosScreen';
 import AIHubScreen from '../screens/AIHubScreen';
 import DeclaracaoScreen from '../screens/DeclaracaoScreen';
+import DividendTargetScreen from '../screens/DividendTargetScreen';
 import AporteScreen from '../screens/AporteScreen';
 import GoalsScreen from '../screens/GoalsScreen';
 import LearnScreen from '../screens/LearnScreen';
@@ -111,17 +112,34 @@ function MainTabs() {
         headerShown: false,
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.textTertiary,
-        tabBarStyle: { borderTopColor: colors.divider, paddingTop: 4, height: 64, paddingBottom: 8 },
-        tabBarLabelStyle: { fontSize: 11 },
+        tabBarStyle: {
+          borderTopColor: colors.divider,
+          borderTopWidth: 1,
+          paddingTop: 6,
+          height: 72,
+          paddingBottom: 10,
+          elevation: 12,
+          shadowColor: '#000',
+          shadowOpacity: 0.06,
+          shadowOffset: { width: 0, height: -2 },
+          shadowRadius: 8,
+        },
+        tabBarLabelStyle: { fontSize: 10, fontWeight: '700', marginTop: -2 },
         tabBarIcon: ({ color, size, focused }) => {
           if (route.name === 'Aportar') return <CenterTabButton focused={focused} />;
-          const map: Record<string, any> = {
-            Início: 'home',
-            Carteira: 'wallet',
-            Metas: 'trophy',
-            Aprender: 'book',
+          const iconMap: Record<string, { active: any; inactive: any }> = {
+            Início: { active: 'home', inactive: 'home-outline' },
+            Carteira: { active: 'wallet', inactive: 'wallet-outline' },
+            Metas: { active: 'trophy', inactive: 'trophy-outline' },
+            Aprender: { active: 'book', inactive: 'book-outline' },
           };
-          return <Ionicons name={map[route.name] || 'ellipse'} size={size} color={color} />;
+          const icon = iconMap[route.name];
+          const name = icon ? (focused ? icon.active : icon.inactive) : 'ellipse';
+          return (
+            <View style={focused ? styles.activeIconBg : undefined}>
+              <Ionicons name={name} size={focused ? 24 : 22} color={color} />
+            </View>
+          );
         },
       })}
     >
@@ -143,6 +161,7 @@ function MainStack() {
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       <Stack.Screen name="Tabs" component={MainTabs} />
       <Stack.Screen name="AIHub" component={AIHubScreen} options={{ presentation: 'modal' }} />
+      <Stack.Screen name="DividendTarget" component={DividendTargetScreen} options={{ presentation: 'modal' }} />
       <Stack.Screen name="Settings" component={SettingsScreen} options={{ presentation: 'modal' }} />
       <Stack.Screen name="Legal" component={LegalDocScreen} options={{ presentation: 'modal' }} />
       <Stack.Screen
@@ -207,4 +226,10 @@ const styles = StyleSheet.create({
     elevation: 6,
   },
   centerBtnActive: { backgroundColor: colors.primaryDark },
+  activeIconBg: {
+    backgroundColor: colors.primaryLight,
+    paddingHorizontal: 14,
+    paddingVertical: 4,
+    borderRadius: 14,
+  },
 });

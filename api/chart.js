@@ -20,12 +20,18 @@ const YAHOO_INTERVAL = {
   '5y': '1mo',
 };
 
-async function fromBrapi(symbol, range) {
+async function fromBrapi(symbol, range, indexProxy = false) {
   if (!BRAPI_TOKEN) return null;
   try {
     const { range: r, interval } = BRAPI_RANGE[range] || BRAPI_RANGE['1y'];
-    // brapi.dev aceita ^BVSP e IBOV pra Ibovespa; usamos IBOV (mais estável)
-    const ticker = symbol === '^BVSP' || symbol === 'IBOV' ? 'IBOV' : symbol;
+    // brapi free não libera ^BVSP/IBOV. Usamos BOVA11 (ETF iShares Ibovespa)
+    // como proxy: segue o índice com erro insignificante no horizonte do app.
+    let ticker = symbol;
+    if (symbol === '^BVSP' || symbol === 'IBOV') {
+      ticker = 'BOVA11';
+    } else if (indexProxy && symbol.startsWith('^')) {
+      ticker = 'BOVA11';
+    }
     const url = `https://brapi.dev/api/quote/${ticker}?range=${r}&interval=${interval}&token=${BRAPI_TOKEN}`;
     const res = await fetch(url, { headers: { Accept: 'application/json' } });
     if (!res.ok) return null;

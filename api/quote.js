@@ -13,21 +13,25 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'symbol é obrigatório' });
   }
 
-  const clean = symbol.toUpperCase().replace(/[^A-Z0-9]/g, '');
+  const raw = symbol.toUpperCase();
+  const clean = raw.replace(/[^A-Z0-9]/g, '');
+  // brapi free não libera ^BVSP/IBOV; usamos BOVA11 (ETF) como proxy.
+  const isIbovIndex = raw === '^BVSP' || raw === 'IBOV' || clean === 'BVSP';
+  const brapiTicker = isIbovIndex ? 'BOVA11' : clean;
 
   // 1) brapi.dev (preferred)
   if (BRAPI_TOKEN) {
     try {
-      const url = `https://brapi.dev/api/quote/${clean}?token=${BRAPI_TOKEN}`;
+      const url = `https://brapi.dev/api/quote/${brapiTicker}?token=${BRAPI_TOKEN}`;
       const r = await fetch(url, { headers: { Accept: 'application/json' } });
       if (r.ok) {
         const json = await r.json();
         const q = json?.results?.[0];
         if (q && typeof q.regularMarketPrice === 'number') {
           return res.status(200).json({
-            symbol: clean,
-            shortName: q.shortName || q.symbol,
-            longName: q.longName || q.shortName,
+            symbol: isIbovIndex ? 'IBOV' : clean,
+            shortName: isIbovIndex ? 'Ibovespa' : (q.shortName || q.symbol),
+            longName: isIbovIndex ? 'Ibovespa (via BOVA11)' : (q.longName || q.shortName),
             regularMarketPrice: q.regularMarketPrice,
             regularMarketChange: q.regularMarketChange ?? 0,
             regularMarketChangePercent: q.regularMarketChangePercent ?? 0,
