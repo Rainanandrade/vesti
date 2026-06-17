@@ -26,6 +26,7 @@ import { fetchQuotes, Quote } from '../api/brapi';
 import { fmtBRL, fmtPct } from '../utils/format';
 import Card from '../components/Card';
 import { fetchDividendInfoBatch, DividendInfo, formatNextPayment, formatDateBR, frequencyLabel } from '../api/dividends';
+import AIFloatingButton from '../components/AIFloatingButton';
 
 export default function PortfolioScreen({ navigation }: any) {
   const { activeWallet, privacyMode, removeAsset } = useApp();
@@ -208,6 +209,7 @@ export default function PortfolioScreen({ navigation }: any) {
           );
         })}
       </ScrollView>
+      <AIFloatingButton />
     </SafeAreaView>
   );
 }

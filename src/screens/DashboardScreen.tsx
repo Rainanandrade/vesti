@@ -24,6 +24,7 @@ import { fetchDividendInfoBatch, DividendInfo, formatNextPayment, formatDateBR, 
 import PortfolioChart from '../components/PortfolioChart';
 import ProventosBarChart from '../components/ProventosBarChart';
 import DividendTargetCard from '../components/DividendTargetCard';
+import AIFloatingButton from '../components/AIFloatingButton';
 import { computeReceivedProventos } from '../utils/receivedProventos';
 import { computeTargetProgress } from '../utils/dividendTarget';
 
@@ -360,6 +361,46 @@ export default function DashboardScreen({ navigation }: any) {
           </View>
           <Text style={styles.heroInvested}>Investido: {fmtBRL(totalInvested, privacyMode)}</Text>
         </Card>
+
+        {/* Grid de atalhos visuais — tira features do esconderijo */}
+        <View style={styles.shortcutsGrid}>
+          <ShortcutTile
+            icon="cash-outline"
+            label="Proventos"
+            color={colors.success}
+            onPress={() => navigation.navigate('Carteira', { screen: 'Proventos' })}
+          />
+          <ShortcutTile
+            icon="receipt-outline"
+            label="IR / DARF"
+            color={colors.warning}
+            onPress={() => navigation.navigate('Carteira', { screen: 'IRCalculator' })}
+          />
+          <ShortcutTile
+            icon="document-text-outline"
+            label="Declaração"
+            color={colors.primary}
+            onPress={() => navigation.navigate('Carteira', { screen: 'Declaracao' })}
+          />
+          <ShortcutTile
+            icon="swap-vertical-outline"
+            label="Operações"
+            color={colors.text}
+            onPress={() => navigation.navigate('Carteira', { screen: 'Operacoes' })}
+          />
+          <ShortcutTile
+            icon="git-compare-outline"
+            label="Comparar"
+            color={colors.primaryDark}
+            onPress={() => navigation.navigate('Carteira', { screen: 'Compare' })}
+          />
+          <ShortcutTile
+            icon="eye-outline"
+            label="Acompanho"
+            color={colors.textSecondary}
+            onPress={() => navigation.navigate('Carteira', { screen: 'Watchlist' })}
+          />
+        </View>
 
         {/* Evolução do patrimônio (snapshots diários) */}
         {(activeWallet?.assets.length || 0) > 0 && (
@@ -725,7 +766,30 @@ export default function DashboardScreen({ navigation }: any) {
         variant="new"
         onClose={() => setCelebrateGoal(null)}
       />
+
+      <AIFloatingButton />
     </SafeAreaView>
+  );
+}
+
+function ShortcutTile({
+  icon,
+  label,
+  color,
+  onPress,
+}: {
+  icon: any;
+  label: string;
+  color: string;
+  onPress: () => void;
+}) {
+  return (
+    <TouchableOpacity style={shortcutStyles.tile} onPress={onPress} activeOpacity={0.7}>
+      <View style={[shortcutStyles.iconBox, { backgroundColor: color + '22' }]}>
+        <Ionicons name={icon} size={22} color={color} />
+      </View>
+      <Text style={shortcutStyles.label}>{label}</Text>
+    </TouchableOpacity>
   );
 }
 
@@ -748,6 +812,28 @@ function impactBadgeColor(impact: 'alto' | 'médio' | 'baixo') {
   if (impact === 'médio') return { backgroundColor: colors.warningLight };
   return { backgroundColor: colors.surface };
 }
+
+const shortcutStyles = StyleSheet.create({
+  tile: {
+    width: '31%',
+    backgroundColor: colors.background,
+    borderRadius: radius.lg,
+    padding: spacing.md,
+    alignItems: 'center',
+    marginBottom: spacing.sm,
+    borderWidth: 1,
+    borderColor: colors.divider,
+  },
+  iconBox: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 6,
+  },
+  label: { fontSize: 11, color: colors.text, fontWeight: '700', textAlign: 'center' },
+});
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.surface },
@@ -911,4 +997,10 @@ const styles = StyleSheet.create({
   },
   targetEmptyTitle: { fontSize: fontSize.body, fontWeight: '700', color: colors.text },
   targetEmptyDesc: { fontSize: fontSize.small, color: colors.textSecondary, marginTop: 2, lineHeight: 18 },
+  shortcutsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    marginTop: spacing.md,
+  },
 });

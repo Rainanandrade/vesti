@@ -14,7 +14,7 @@ import { colors, fontSize, radius, spacing } from '../theme/colors';
 import { useApp } from '../context/AppContext';
 import Card from '../components/Card';
 import { formatCurrencyInput, parseFormattedNumber } from '../utils/numberFormat';
-import { safeBackToCarteira } from '../utils/navigation';
+import { safeBackToTabs } from '../utils/navigation';
 
 type Mode = 'monthly_amount' | 'annual_dy';
 
@@ -49,7 +49,7 @@ export default function DividendTargetScreen({ navigation }: any) {
       }
       await setProfile({ ...profile, dividendTarget: { mode, value } });
       Alert.alert('Pronto!', 'Meta de dividendos salva.', [
-        { text: 'OK', onPress: () => safeBackToCarteira(navigation) },
+        { text: 'OK', onPress: () => safeBackToTabs(navigation) },
       ]);
     } finally {
       setSaving(false);
@@ -61,13 +61,13 @@ export default function DividendTargetScreen({ navigation }: any) {
     const updated = { ...profile };
     delete updated.dividendTarget;
     await setProfile(updated);
-    safeBackToCarteira(navigation);
+    safeBackToTabs(navigation);
   };
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => safeBackToCarteira(navigation)} style={styles.iconBtn}>
+        <TouchableOpacity onPress={() => safeBackToTabs(navigation)} style={styles.iconBtn}>
           <Ionicons name="chevron-back" size={24} color={colors.text} />
         </TouchableOpacity>
         <Text style={styles.title}>Meta de Dividendos</Text>

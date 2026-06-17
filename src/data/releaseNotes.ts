@@ -27,10 +27,36 @@ export type ReleaseNote = {
 };
 
 // ATUAL versão do app — bumpa a cada release.
-export const CURRENT_VERSION = '2.4.0';
+export const CURRENT_VERSION = '2.5.0';
 
 // Notas em ordem cronológica DESCENDENTE (mais recente primeiro)
 export const RELEASE_NOTES: ReleaseNote[] = [
+  {
+    version: '2.5.0',
+    date: '2026-06-17',
+    title: 'Layout repensado — nada mais escondido',
+    subtitle: 'IA flutuante, grid de atalhos no Início e bug do back resolvido',
+    highlights: [
+      {
+        emoji: '🧭',
+        title: 'Atalhos visuais no Início',
+        description:
+          'Grid de 6 botões com ícones coloridos: Proventos, IR/DARF, Declaração, Operações, Comparar e Acompanho. Tudo a um toque sem precisar entrar na Carteira.',
+      },
+      {
+        emoji: '🧠',
+        title: 'Gestor IA flutuante',
+        description:
+          'Botão "IA" flutuante no canto direito de qualquer tela. Diagnóstico, perguntas e análise de ativo sempre a 1 toque.',
+      },
+      {
+        emoji: '🔧',
+        title: 'Bug do voltar corrigido',
+        description:
+          'Quando entravas em "Meta de Dividendos" e tentavas voltar, ficava preso. Agora a seta volta certinho pra tela anterior.',
+      },
+    ],
+  },
   {
     version: '2.4.0',
     date: '2026-06-17',
