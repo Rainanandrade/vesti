@@ -27,10 +27,42 @@ export type ReleaseNote = {
 };
 
 // ATUAL versão do app — bumpa a cada release.
-export const CURRENT_VERSION = '2.5.0';
+export const CURRENT_VERSION = '2.6.0';
 
 // Notas em ordem cronológica DESCENDENTE (mais recente primeiro)
 export const RELEASE_NOTES: ReleaseNote[] = [
+  {
+    version: '2.6.0',
+    date: '2026-06-17',
+    title: 'Visual repensado, IA flutuante consertada',
+    subtitle: 'Hero card com gradiente, Carteira limpa e tela "Relatório pronto"',
+    highlights: [
+      {
+        emoji: '✨',
+        title: 'Hero card com gradiente',
+        description:
+          'Patrimônio agora aparece num card com gradiente roxo, badge de variação e sombra suave. Bem mais bonito.',
+      },
+      {
+        emoji: '🧹',
+        title: 'Carteira limpa',
+        description:
+          'Removidos os 7 atalhos que duplicavam o Dashboard. Carteira foca só em listar e gerir ativos. Atalhos ficam no Início.',
+      },
+      {
+        emoji: '📄',
+        title: 'Tela "Relatório pronto" estilo Grana',
+        description:
+          'Ao gerar o relatório de Declaração, abre uma tela full-screen com checkmarks pra cada categoria coberta (Bens, Dividendos, JCP, etc.).',
+      },
+      {
+        emoji: '🧠',
+        title: 'IA flutuante consertada',
+        description:
+          'Botão "IA" no canto inferior direito agora abre o Gestor IA de qualquer lugar do app. Antes ficava travado.',
+      },
+    ],
+  },
   {
     version: '2.5.0',
     date: '2026-06-17',

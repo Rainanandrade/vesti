@@ -1,19 +1,16 @@
 import { StyleSheet, TouchableOpacity, View, Text } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
 import { colors, spacing } from '../theme/colors';
+import { navigate } from '../navigation/RootNavigator';
 
 type Props = {
   bottom?: number;
 };
 
 export default function AIFloatingButton({ bottom = 84 }: Props) {
-  const navigation = useNavigation<any>();
-
   const handlePress = () => {
-    // Sobe na árvore até achar quem conhece a tela AIHub
-    const root = navigation.getParent?.()?.getParent?.() || navigation.getParent?.() || navigation;
-    root?.navigate?.('AIHub');
+    // Usa o ref global pra navegar pra qualquer rota independente da árvore
+    navigate('AIHub');
   };
 
   return (

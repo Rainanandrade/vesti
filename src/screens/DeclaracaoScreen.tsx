@@ -1,7 +1,9 @@
 import { useMemo, useState } from 'react';
 import {
   Alert,
+  Modal,
   Platform,
+  Pressable,
   ScrollView,
   Share,
   StyleSheet,
@@ -29,6 +31,7 @@ export default function DeclaracaoScreen({ navigation }: any) {
   const currentYear = new Date().getFullYear();
   const [year, setYear] = useState(currentYear - 1); // por padrão: ano-base anterior (DIRPF)
   const [dividendInfoMap, setDividendInfoMap] = useState<Record<string, DividendInfo | null>>({});
+  const [reportReady, setReportReady] = useState(false);
 
   const years = [currentYear - 2, currentYear - 1, currentYear];
 
@@ -146,6 +149,11 @@ export default function DeclaracaoScreen({ navigation }: any) {
     return lines.join('\n');
   };
 
+  const handleGenerate = () => {
+    // Mostra tela "Relatório pronto" estilo Grana
+    setReportReady(true);
+  };
+
   const handleCopyReport = async () => {
     const report = buildReport();
     try {
@@ -217,9 +225,9 @@ export default function DeclaracaoScreen({ navigation }: any) {
             Texto pronto com bens e direitos, dividendos isentos, JCP e operações
             mês a mês — copia e cola direto no programa da Receita.
           </Text>
-          <TouchableOpacity style={styles.heroBtn} onPress={handleCopyReport}>
-            <Ionicons name="copy-outline" size={18} color={colors.textLight} />
-            <Text style={styles.heroBtnText}>Gerar e copiar relatório</Text>
+          <TouchableOpacity style={styles.heroBtn} onPress={handleGenerate}>
+            <Ionicons name="sparkles" size={18} color={colors.textLight} />
+            <Text style={styles.heroBtnText}>Gerar meu relatório</Text>
           </TouchableOpacity>
         </Card>
 
@@ -265,6 +273,50 @@ export default function DeclaracaoScreen({ navigation }: any) {
           </Text>
         </Card>
       </ScrollView>
+
+      {/* Modal full-screen "Relatório Pronto" — estilo Grana */}
+      <Modal visible={reportReady} animationType="slide" onRequestClose={() => setReportReady(false)}>
+        <View style={styles.reportRoot}>
+          <View style={styles.reportTopBar}>
+            <TouchableOpacity onPress={() => setReportReady(false)} hitSlop={10}>
+              <Ionicons name="close" size={26} color={colors.textLight} />
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.reportSheet}>
+            <Text style={styles.reportTitle}>Seu Relatório está pronto</Text>
+            <View style={styles.reportTitleUnderline} />
+
+            {[
+              'Bens e Direitos',
+              'Rendimento Isento e Não Tributável',
+              'Rendimento Sujeito a Tributação Exclusiva',
+              'Operações Comuns / Day-Trade',
+              'Operações em FII ou FIAGRO',
+              'Dívidas e Ônus Reais',
+            ].map((item) => (
+              <View key={item} style={styles.checkRow}>
+                <View style={styles.checkCircle}>
+                  <Ionicons name="checkmark" size={16} color={colors.success} />
+                </View>
+                <Text style={styles.checkText}>{item}</Text>
+              </View>
+            ))}
+
+            <View style={styles.reportFooter}>
+              <Text style={styles.reportFooterTitle}>Completo e preciso</Text>
+              <Text style={styles.reportFooterDesc}>
+                Você recebe um Relatório personalizado com tudo que você precisa pra sua Declaração Anual de renda variável.
+              </Text>
+            </View>
+
+            <TouchableOpacity style={styles.reportCta} onPress={handleCopyReport}>
+              <Ionicons name="copy-outline" size={18} color={colors.textLight} />
+              <Text style={styles.reportCtaText}>Copiar e compartilhar</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -366,4 +418,59 @@ const styles = StyleSheet.create({
     marginLeft: spacing.sm,
     lineHeight: 18,
   },
+  // Modal "Relatório Pronto"
+  reportRoot: { flex: 1, backgroundColor: colors.primary },
+  reportTopBar: {
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.xxl,
+    alignItems: 'flex-end',
+  },
+  reportSheet: {
+    flex: 1,
+    backgroundColor: colors.background,
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    marginTop: spacing.xxl,
+    padding: spacing.lg,
+  },
+  reportTitle: { fontSize: 24, fontWeight: 'bold', color: colors.text, textAlign: 'center', marginTop: spacing.md },
+  reportTitleUnderline: {
+    height: 3,
+    width: 60,
+    backgroundColor: colors.primary,
+    borderRadius: 2,
+    alignSelf: 'center',
+    marginTop: spacing.sm,
+    marginBottom: spacing.lg,
+  },
+  checkRow: { flexDirection: 'row', alignItems: 'center', marginBottom: spacing.md },
+  checkCircle: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    borderWidth: 2,
+    borderColor: colors.success,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: spacing.sm,
+  },
+  checkText: { fontSize: fontSize.body, color: colors.text, flex: 1, fontWeight: '600' },
+  reportFooter: {
+    marginTop: spacing.lg,
+    padding: spacing.md,
+    backgroundColor: colors.text,
+    borderRadius: radius.md,
+  },
+  reportFooterTitle: { fontSize: fontSize.bodyLarge, fontWeight: '700', color: colors.textLight },
+  reportFooterDesc: { fontSize: fontSize.small, color: '#FFFFFFCC', marginTop: 4, lineHeight: 18 },
+  reportCta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.primary,
+    padding: spacing.md,
+    borderRadius: radius.md,
+    marginTop: spacing.md,
+  },
+  reportCtaText: { color: colors.textLight, fontWeight: '700', fontSize: fontSize.bodyLarge, marginLeft: 6 },
 });

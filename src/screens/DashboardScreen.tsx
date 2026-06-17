@@ -27,6 +27,7 @@ import DividendTargetCard from '../components/DividendTargetCard';
 import AIFloatingButton from '../components/AIFloatingButton';
 import { computeReceivedProventos } from '../utils/receivedProventos';
 import { computeTargetProgress } from '../utils/dividendTarget';
+import { LinearGradient } from 'expo-linear-gradient';
 
 export default function DashboardScreen({ navigation }: any) {
   const { user, activeWallet, privacyMode, togglePrivacy, profile, recordGoal, wallets, setActiveWalletId, goalsReached, watchlist, snapshots, recordSnapshot, operations, proventos } = useApp();
@@ -345,22 +346,29 @@ export default function DashboardScreen({ navigation }: any) {
           <Text style={styles.marketSub}> · {marketStatus.nextChange}</Text>
         </View>
 
-        {/* Patrimônio total */}
-        <Card style={styles.heroCard}>
+        {/* Patrimônio total — hero com gradiente */}
+        <LinearGradient
+          colors={[colors.primary, colors.primaryDark || '#5C0593']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.heroGradient}
+        >
           <Text style={styles.heroLabel}>Patrimônio atual</Text>
           <Text style={styles.heroValue}>{fmtBRL(totalCurrent, privacyMode)}</Text>
           <View style={styles.heroRow}>
-            <Text
-              style={[
-                styles.heroChange,
-                { color: profit >= 0 ? colors.success : colors.danger },
-              ]}
-            >
-              {profit >= 0 ? '↑' : '↓'} {fmtBRL(Math.abs(profit), privacyMode)} ({fmtPct(profitPct, privacyMode)})
-            </Text>
+            <View style={[styles.heroChangePill, { backgroundColor: profit >= 0 ? '#FFFFFF22' : '#FFFFFF22' }]}>
+              <Ionicons
+                name={profit >= 0 ? 'trending-up' : 'trending-down'}
+                size={14}
+                color={colors.textLight}
+              />
+              <Text style={styles.heroChange}>
+                {' '}{fmtBRL(Math.abs(profit), privacyMode)} ({fmtPct(profitPct, privacyMode)})
+              </Text>
+            </View>
           </View>
           <Text style={styles.heroInvested}>Investido: {fmtBRL(totalInvested, privacyMode)}</Text>
-        </Card>
+        </LinearGradient>
 
         {/* Grid de atalhos visuais — tira features do esconderijo */}
         <View style={styles.shortcutsGrid}>
@@ -865,7 +873,16 @@ const styles = StyleSheet.create({
   marketText: { fontSize: fontSize.body, fontWeight: '600', color: colors.text },
   marketSub: { fontSize: fontSize.body, color: colors.textSecondary },
   heroCard: { backgroundColor: colors.primary, borderColor: colors.primary },
-  heroLabel: { color: '#FFFFFFCC', fontSize: fontSize.body },
+  heroGradient: {
+    borderRadius: radius.lg,
+    padding: spacing.lg,
+    shadowColor: colors.primary,
+    shadowOpacity: 0.25,
+    shadowOffset: { width: 0, height: 8 },
+    shadowRadius: 16,
+    elevation: 6,
+  },
+  heroLabel: { color: '#FFFFFFCC', fontSize: fontSize.body, fontWeight: '600' },
   heroValue: {
     color: colors.textLight,
     fontSize: fontSize.hero,
@@ -873,8 +890,15 @@ const styles = StyleSheet.create({
     marginTop: spacing.xs,
   },
   heroRow: { flexDirection: 'row', alignItems: 'center', marginTop: spacing.sm },
-  heroChange: { fontSize: fontSize.bodyLarge, fontWeight: '600' },
-  heroInvested: { color: '#FFFFFFAA', fontSize: fontSize.body, marginTop: spacing.xs },
+  heroChangePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  heroChange: { fontSize: fontSize.body, fontWeight: '700', color: colors.textLight },
+  heroInvested: { color: '#FFFFFFAA', fontSize: fontSize.body, marginTop: spacing.sm },
   cardHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: spacing.sm },
   cardTitle: { fontSize: fontSize.title, fontWeight: '700', color: colors.text },
   healthRow: { flexDirection: 'row', alignItems: 'baseline', flexWrap: 'wrap' },
