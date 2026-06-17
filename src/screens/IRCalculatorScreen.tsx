@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { safeBackToCarteira } from '../utils/navigation';
 import {
   KeyboardAvoidingView,
   Platform,
@@ -84,7 +85,7 @@ export default function IRCalculatorScreen({ navigation }: any) {
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} hitSlop={10}>
+        <TouchableOpacity onPress={() => safeBackToCarteira(navigation)} hitSlop={10}>
           <Ionicons name="close" size={26} color={colors.text} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Calculadora IR</Text>

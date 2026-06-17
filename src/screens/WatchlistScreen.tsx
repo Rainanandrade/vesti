@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { safeBackToCarteira } from '../utils/navigation';
 import {
   Alert,
   RefreshControl,
@@ -102,7 +103,7 @@ export default function WatchlistScreen({ navigation }: any) {
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn} hitSlop={10}>
+        <TouchableOpacity onPress={() => safeBackToCarteira(navigation)} style={styles.backBtn} hitSlop={10}>
           <Ionicons name="chevron-back" size={26} color={colors.text} />
         </TouchableOpacity>
         <View style={{ flex: 1 }}>

@@ -175,7 +175,8 @@ export default function DeclaracaoScreen({ navigation }: any) {
       <View style={styles.header}>
         <TouchableOpacity
           onPress={() => {
-            if (navigation.canGoBack()) navigation.goBack();
+            const parent = navigation.getParent();
+            if (parent) parent.navigate('Carteira', { screen: 'PortfolioMain' });
             else navigation.navigate('PortfolioMain');
           }}
           style={styles.iconBtn}

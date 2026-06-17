@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { safeBackToCarteira } from '../utils/navigation';
 import {
   Alert,
   KeyboardAvoidingView,
@@ -79,7 +80,7 @@ export default function EditAssetScreen({ navigation, route }: any) {
     return (
       <SafeAreaView style={styles.safe}>
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => navigation.goBack()} hitSlop={10}>
+          <TouchableOpacity onPress={() => safeBackToCarteira(navigation)} hitSlop={10}>
             <Ionicons name="close" size={24} color={colors.text} />
           </TouchableOpacity>
           <Text style={styles.title}>Editar</Text>
@@ -106,7 +107,7 @@ export default function EditAssetScreen({ navigation, route }: any) {
     setSaving(true);
     try {
       await updateAsset(activeWallet.id, asset.symbol, { quantity: qty, avgPrice: pr });
-      navigation.goBack();
+      safeBackToCarteira(navigation);
     } catch (e: any) {
       Alert.alert('Não foi possível salvar', e?.message || 'Tente novamente.');
     } finally {
@@ -127,7 +128,7 @@ export default function EditAssetScreen({ navigation, route }: any) {
             setDeleting(true);
             try {
               await removeAsset(activeWallet.id, asset.symbol);
-              navigation.goBack();
+              safeBackToCarteira(navigation);
             } catch (e: any) {
               Alert.alert('Não foi possível excluir', e?.message || 'Tente novamente.');
             } finally {
@@ -146,7 +147,7 @@ export default function EditAssetScreen({ navigation, route }: any) {
         style={{ flex: 1 }}
       >
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => navigation.goBack()} hitSlop={10}>
+          <TouchableOpacity onPress={() => safeBackToCarteira(navigation)} hitSlop={10}>
             <Ionicons name="close" size={24} color={colors.text} />
           </TouchableOpacity>
           <Text style={styles.title}>Editar posição</Text>

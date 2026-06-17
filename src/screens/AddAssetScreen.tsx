@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { safeBackToCarteira } from '../utils/navigation';
 import {
   ActivityIndicator,
   Alert,
@@ -139,7 +140,7 @@ export default function AddAssetScreen({ navigation, route }: any) {
         avgPrice: pr,
         addedAt: Date.now(),
       });
-      navigation.goBack();
+      safeBackToCarteira(navigation);
     } catch (e: any) {
       Alert.alert('Não foi possível salvar', e?.message || 'Tente novamente.');
     } finally {
@@ -154,7 +155,7 @@ export default function AddAssetScreen({ navigation, route }: any) {
         style={{ flex: 1 }}
       >
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => navigation.goBack()} hitSlop={10}>
+          <TouchableOpacity onPress={() => safeBackToCarteira(navigation)} hitSlop={10}>
             <Ionicons name="close" size={24} color={colors.text} />
           </TouchableOpacity>
           <Text style={styles.title}>Adicionar ativo</Text>
