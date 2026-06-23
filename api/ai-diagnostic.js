@@ -5,6 +5,8 @@
 import { authOrReject } from './_lib/auth.js';
 import { setCors } from './_lib/cors.js';
 import { rateLimitOrReject } from './_lib/rateLimit.js';
+import { checkBodySize, sanitizeProfile, sanitizeAssets, sanitizeString, sanitizeNumber } from './_lib/validate.js';
+import { fetchWithTimeout } from './_lib/fetch.js';
 
 const GROQ_API_KEY = process.env.GROQ_API_KEY || '';
 
@@ -33,8 +35,7 @@ export default async function handler(req, res) {
 
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'Método não permitido' });
-
-  // Rate limit antes mesmo de validar auth (protege contra força bruta no JWT)
+  if (!checkBodySize(req, res)) return;
   if (!rateLimitOrReject(req, res, { limit: 10, windowMs: 60_000, prefix: 'ai-diag' })) return;
 
   const user = await authOrReject(req, res);
@@ -46,8 +47,20 @@ export default async function handler(req, res) {
     });
   }
 
-  const { profile, assets = [], totals = {}, dividendos = {}, question } = req.body || {};
-  if (!profile) return res.status(400).json({ error: 'profile é obrigatório' });
+  const rawBody = req.body || {};
+  const profile = sanitizeProfile(rawBody.profile);
+  if (!profile) return res.status(400).json({ error: 'profile inválido' });
+  const assets = sanitizeAssets(rawBody.assets);
+  const totals = {
+    totalCurrent: sanitizeNumber(rawBody.totals?.totalCurrent),
+    totalInvested: sanitizeNumber(rawBody.totals?.totalInvested),
+    profitPct: sanitizeNumber(rawBody.totals?.profitPct, { min: -100, max: 10000 }),
+  };
+  const dividendos = {
+    ytdReceived: sanitizeNumber(rawBody.dividendos?.ytdReceived),
+    weightedDY: sanitizeNumber(rawBody.dividendos?.weightedDY, { min: 0, max: 100 }),
+  };
+  const question = sanitizeString(rawBody.question, 600);
 
   const assetsLines = assets.length === 0
     ? '(carteira vazia)'
@@ -76,7 +89,7 @@ ${assetsLines}
 ${question ? `O usuário tem uma pergunta específica adicional: "${question}". Responda essa pergunta NO FINAL, depois do diagnóstico.` : 'Faça o diagnóstico completo da carteira seguindo a estrutura definida.'}`;
 
   try {
-    const r = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+    const r = await fetchWithTimeout('https://api.groq.com/openai/v1/chat/completions', {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${GROQ_API_KEY}`,

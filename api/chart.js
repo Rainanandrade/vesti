@@ -3,6 +3,8 @@
 
 import { setCors } from './_lib/cors.js';
 import { rateLimitOrReject } from './_lib/rateLimit.js';
+import { isValidSymbol, isValidRange } from './_lib/validate.js';
+import { fetchWithTimeout } from './_lib/fetch.js';
 
 const BRAPI_TOKEN = process.env.BRAPI_TOKEN || '';
 
@@ -36,7 +38,7 @@ async function fromBrapi(symbol, range, indexProxy = false) {
       ticker = 'BOVA11';
     }
     const url = `https://brapi.dev/api/quote/${ticker}?range=${r}&interval=${interval}&token=${BRAPI_TOKEN}`;
-    const res = await fetch(url, { headers: { Accept: 'application/json' } });
+    const res = await fetchWithTimeout(url, { headers: { Accept: 'application/json' } });
     if (!res.ok) return null;
     const json = await res.json();
     if (json.error) return null;
@@ -69,7 +71,7 @@ async function fromYahoo(symbol, range, viaProxy = false) {
   const yahooUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(sym)}?range=${range}&interval=${interval}`;
   const url = viaProxy ? `https://corsproxy.io/?${encodeURIComponent(yahooUrl)}` : yahooUrl;
   try {
-    const r = await fetch(url, {
+    const r = await fetchWithTimeout(url, {
       headers: {
         'User-Agent':
           'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126 Safari/537.36',
@@ -117,11 +119,12 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (!rateLimitOrReject(req, res, { limit: 60, windowMs: 60_000, prefix: 'chart' })) return;
 
+  if (req.method !== 'GET') return res.status(405).json({ error: 'Método não permitido' });
   const { symbol, range, debug } = req.query;
-  if (!symbol || typeof symbol !== 'string') {
-    return res.status(400).json({ error: 'symbol é obrigatório' });
+  if (!isValidSymbol(typeof symbol === 'string' ? symbol.toUpperCase() : '')) {
+    return res.status(400).json({ error: 'symbol inválido' });
   }
-  const r = VALID_RANGES.includes(range) ? range : '1y';
+  const r = isValidRange(range) ? range : '1y';
   const isIndex = symbol.startsWith('^');
   const cleanCore = symbol.toUpperCase().replace(/[^A-Z0-9]/g, '');
   const clean = isIndex ? `^${cleanCore}` : cleanCore;

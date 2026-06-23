@@ -27,10 +27,42 @@ export type ReleaseNote = {
 };
 
 // ATUAL versão do app — bumpa a cada release.
-export const CURRENT_VERSION = '2.7.0';
+export const CURRENT_VERSION = '2.8.0';
 
 // Notas em ordem cronológica DESCENDENTE (mais recente primeiro)
 export const RELEASE_NOTES: ReleaseNote[] = [
+  {
+    version: '2.8.0',
+    date: '2026-06-17',
+    title: 'Endurecimento máximo de segurança',
+    subtitle: 'Headers HTTP, sanitização rigorosa, timeouts e lockout de PIN',
+    highlights: [
+      {
+        emoji: '🛡️',
+        title: 'Security headers HTTP',
+        description:
+          'HSTS (2 anos), X-Frame-Options DENY, X-Content-Type-Options, Referrer-Policy estrita, Permissions-Policy bloqueando câmera/microfone/geolocalização e CSP completo. Bloqueia clickjacking, MIME sniffing e XSS de origem externa.',
+      },
+      {
+        emoji: '🧹',
+        title: 'Sanitização rigorosa de input',
+        description:
+          'Cada endpoint valida tipo, tamanho e formato dos dados recebidos. Símbolos só A-Z + dígitos (anti SSRF), body máximo 50KB, números clampeados, strings cortadas. Bloqueia injeção via campos extras.',
+      },
+      {
+        emoji: '⏱️',
+        title: 'Timeouts em todas as chamadas externas',
+        description:
+          'Requisições pra brapi/Yahoo/Status Invest/Groq agora têm timeout de 8s. Antes, uma fonte travada deixava o handler pendurado consumindo execução.',
+      },
+      {
+        emoji: '🔐',
+        title: 'Lockout de PIN após 5 tentativas',
+        description:
+          'Errou 5 vezes? PIN bloqueia por 60 segundos. Quem perdeu o celular não consegue tentar brute force.',
+      },
+    ],
+  },
   {
     version: '2.7.0',
     date: '2026-06-17',

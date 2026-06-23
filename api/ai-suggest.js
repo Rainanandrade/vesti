@@ -6,6 +6,8 @@
 import { authOrReject } from './_lib/auth.js';
 import { setCors } from './_lib/cors.js';
 import { rateLimitOrReject } from './_lib/rateLimit.js';
+import { checkBodySize, sanitizeProfile, sanitizeNumber } from './_lib/validate.js';
+import { fetchWithTimeout } from './_lib/fetch.js';
 
 const GROQ_API_KEY = process.env.GROQ_API_KEY || '';
 const BRAPI_TOKEN = process.env.BRAPI_TOKEN || '';
@@ -37,7 +39,7 @@ async function fetchQuoteAndFundamentals(symbol) {
   if (!BRAPI_TOKEN) return { symbol };
   try {
     const url = `https://brapi.dev/api/quote/${symbol}?token=${BRAPI_TOKEN}`;
-    const r = await fetch(url, { headers: { Accept: 'application/json' } });
+    const r = await fetchWithTimeout(url, { headers: { Accept: 'application/json' } });
     if (!r.ok) return { symbol };
     const json = await r.json();
     const q = json?.results?.[0];
@@ -130,7 +132,7 @@ export default async function handler(req, res) {
 
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'Método não permitido' });
-
+  if (!checkBodySize(req, res)) return;
   if (!rateLimitOrReject(req, res, { limit: 10, windowMs: 60_000, prefix: 'ai-sug' })) return;
   const user = await authOrReject(req, res);
   if (!user) return;
@@ -141,10 +143,14 @@ export default async function handler(req, res) {
     });
   }
 
-  const { amount, profile, currentAssets, brokers } = req.body || {};
+  const rawBody = req.body || {};
+  const amount = sanitizeNumber(rawBody.amount, { min: 1, max: 10_000_000 });
+  const profile = sanitizeProfile(rawBody.profile);
   if (!amount || !profile) {
     return res.status(400).json({ error: 'amount e profile são obrigatórios' });
   }
+  const currentAssets = Array.isArray(rawBody.currentAssets) ? rawBody.currentAssets.slice(0, 100) : [];
+  const brokers = Array.isArray(rawBody.brokers) ? rawBody.brokers.slice(0, 20) : [];
 
   // Pré-busca dados reais (rápido, em paralelo)
   const [rvData, intlData] = await Promise.all([
@@ -196,7 +202,7 @@ Distribua R$ ${amount} entre 3-6 ativos da lista acima. A soma dos amounts deve 
 Diversifique respeitando o perfil. Cite números reais (DY, P/L, preço) no reasoning quando disponíveis.`;
 
   try {
-    const r = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+    const r = await fetchWithTimeout('https://api.groq.com/openai/v1/chat/completions', {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${GROQ_API_KEY}`,

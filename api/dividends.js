@@ -34,7 +34,7 @@ function categoryGuess(symbol) {
 async function fromStatusInvest(symbol, category) {
   try {
     const url = `https://statusinvest.com.br/${category}/companytickerprovents?ticker=${symbol}&chartProventsType=2`;
-    const r = await fetch(url, { headers: SI_HEADERS });
+    const r = await fetchWithTimeout(url, { headers: SI_HEADERS });
     if (!r || !r.ok) return { ok: false, reason: `si-${category}-${r?.status}` };
     const txt = await r.text();
     let json;
@@ -65,7 +65,7 @@ async function fromStatusInvestProxied(symbol, category) {
   try {
     const target = `https://statusinvest.com.br/${category}/companytickerprovents?ticker=${symbol}&chartProventsType=2`;
     const url = `https://corsproxy.io/?${encodeURIComponent(target)}`;
-    const r = await fetch(url, { headers: SI_HEADERS });
+    const r = await fetchWithTimeout(url, { headers: SI_HEADERS });
     if (!r || !r.ok) return { ok: false, reason: `si-proxy-${category}-${r?.status}` };
     const txt = await r.text();
     let json;
@@ -179,16 +179,19 @@ function frequencyFromInterval(days) {
 
 import { setCors as _setCors } from './_lib/cors.js';
 import { rateLimitOrReject as _rl } from './_lib/rateLimit.js';
+import { isValidSymbol } from './_lib/validate.js';
+import { fetchWithTimeout } from './_lib/fetch.js';
 
 export default async function handler(req, res) {
   _setCors(req, res);
   res.setHeader('Cache-Control', 's-maxage=21600, stale-while-revalidate=86400');
   if (req.method === 'OPTIONS') return res.status(200).end();
+  if (req.method !== 'GET') return res.status(405).json({ error: 'Método não permitido' });
   if (!_rl(req, res, { limit: 60, windowMs: 60_000, prefix: 'div' })) return;
 
   const { symbol, debug } = req.query;
-  if (!symbol || typeof symbol !== 'string') {
-    return res.status(400).json({ error: 'symbol é obrigatório' });
+  if (!isValidSymbol(typeof symbol === 'string' ? symbol.toUpperCase() : '')) {
+    return res.status(400).json({ error: 'symbol inválido' });
   }
 
   const clean = symbol.toUpperCase().replace(/[^A-Z0-9]/g, '');

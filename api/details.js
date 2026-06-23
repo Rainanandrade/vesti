@@ -30,7 +30,7 @@ async function fromBrapi(symbol) {
   if (!BRAPI_TOKEN) return null;
   try {
     const url = `https://brapi.dev/api/quote/${symbol}?modules=summaryProfile,defaultKeyStatistics,financialData,balanceSheetHistory&token=${BRAPI_TOKEN}`;
-    const r = await fetch(url, { headers: { Accept: 'application/json' } });
+    const r = await fetchWithTimeout(url, { headers: { Accept: 'application/json' } });
     if (!r.ok) return null;
     const json = await r.json();
     const q = json?.results?.[0];
@@ -76,7 +76,7 @@ async function fromBrapi(symbol) {
 async function fromYahoo(symbol) {
   try {
     const url = `https://query2.finance.yahoo.com/v10/finance/quoteSummary/${symbol}.SA?modules=${YAHOO_MODULES}`;
-    const r = await fetch(url, {
+    const r = await fetchWithTimeout(url, {
       headers: {
         'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126 Safari/537.36',
         Accept: 'application/json',
@@ -128,16 +128,19 @@ async function fromYahoo(symbol) {
 
 import { setCors as _setCors } from './_lib/cors.js';
 import { rateLimitOrReject as _rl } from './_lib/rateLimit.js';
+import { isValidSymbol } from './_lib/validate.js';
+import { fetchWithTimeout } from './_lib/fetch.js';
 
 export default async function handler(req, res) {
   _setCors(req, res);
   res.setHeader('Cache-Control', 's-maxage=900, stale-while-revalidate=3600');
   if (req.method === 'OPTIONS') return res.status(200).end();
+  if (req.method !== 'GET') return res.status(405).json({ error: 'Método não permitido' });
   if (!_rl(req, res, { limit: 60, windowMs: 60_000, prefix: 'det' })) return;
 
   const { symbol } = req.query;
-  if (!symbol || typeof symbol !== 'string') {
-    return res.status(400).json({ error: 'symbol é obrigatório' });
+  if (!isValidSymbol(typeof symbol === 'string' ? symbol.toUpperCase() : '')) {
+    return res.status(400).json({ error: 'symbol inválido' });
   }
 
   const clean = symbol.toUpperCase().replace(/[^A-Z0-9]/g, '');

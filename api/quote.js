@@ -3,6 +3,8 @@
 
 import { setCors } from './_lib/cors.js';
 import { rateLimitOrReject } from './_lib/rateLimit.js';
+import { isValidSymbol } from './_lib/validate.js';
+import { fetchWithTimeout } from './_lib/fetch.js';
 
 const BRAPI_TOKEN = process.env.BRAPI_TOKEN || '';
 
@@ -12,9 +14,10 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (!rateLimitOrReject(req, res, { limit: 120, windowMs: 60_000, prefix: 'quote' })) return;
 
+  if (req.method !== 'GET') return res.status(405).json({ error: 'Método não permitido' });
   const { symbol } = req.query;
-  if (!symbol || typeof symbol !== 'string') {
-    return res.status(400).json({ error: 'symbol é obrigatório' });
+  if (!isValidSymbol(typeof symbol === 'string' ? symbol.toUpperCase() : '')) {
+    return res.status(400).json({ error: 'symbol inválido' });
   }
 
   const raw = symbol.toUpperCase();
@@ -27,7 +30,7 @@ export default async function handler(req, res) {
   if (BRAPI_TOKEN) {
     try {
       const url = `https://brapi.dev/api/quote/${brapiTicker}?token=${BRAPI_TOKEN}`;
-      const r = await fetch(url, { headers: { Accept: 'application/json' } });
+      const r = await fetchWithTimeout(url, { headers: { Accept: 'application/json' } });
       if (r.ok) {
         const json = await r.json();
         const q = json?.results?.[0];
@@ -54,7 +57,7 @@ export default async function handler(req, res) {
   try {
     const yahooSymbol = `${clean}.SA`;
     const url = `https://query1.finance.yahoo.com/v8/finance/chart/${yahooSymbol}`;
-    const r = await fetch(url, {
+    const r = await fetchWithTimeout(url, {
       headers: {
         'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126 Safari/537.36',
         Accept: 'application/json',

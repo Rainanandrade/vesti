@@ -8,6 +8,9 @@ import Logo from '../components/Logo';
 
 const PIN_LENGTH = 4;
 
+const MAX_ATTEMPTS = 5;
+const LOCKOUT_MS = 60_000;
+
 export default function PinScreen() {
   const { hasPin, setPin, verifyPin, markPinVerified, signOut, user } = useApp();
   const isSetup = !hasPin;
@@ -15,11 +18,25 @@ export default function PinScreen() {
   const [firstPin, setFirstPin] = useState('');
   const [pin, setPinState] = useState('');
   const [shake, setShake] = useState(false);
+  const [attempts, setAttempts] = useState(0);
+  const [lockedUntil, setLockedUntil] = useState<number | null>(null);
+  const [tick, setTick] = useState(0);
+
+  // Re-render por segundo enquanto está em lockout
+  useEffect(() => {
+    if (!lockedUntil) return;
+    const t = setInterval(() => setTick((x) => x + 1), 1000);
+    return () => clearInterval(t);
+  }, [lockedUntil]);
+
+  const isLocked = lockedUntil != null && Date.now() < lockedUntil;
+  const secondsLeft = isLocked ? Math.ceil((lockedUntil! - Date.now()) / 1000) : 0;
 
   useEffect(() => {
     if (pin.length === PIN_LENGTH) {
       handleComplete();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pin]);
 
   const handleComplete = async () => {
@@ -41,16 +58,28 @@ export default function PinScreen() {
     } else {
       const ok = await verifyPin(pin);
       if (ok) {
+        setAttempts(0);
+        setLockedUntil(null);
         markPinVerified();
       } else {
+        const next = attempts + 1;
+        setAttempts(next);
         setShake(true);
         setPinState('');
         setTimeout(() => setShake(false), 400);
+        if (next >= MAX_ATTEMPTS) {
+          setLockedUntil(Date.now() + LOCKOUT_MS);
+          Alert.alert(
+            'Muitas tentativas',
+            'Você errou 5 vezes. Espera 1 minuto antes de tentar novamente, ou faz logout pra recomeçar.',
+          );
+        }
       }
     }
   };
 
   const press = (digit: string) => {
+    if (isLocked) return;
     if (pin.length < PIN_LENGTH) setPinState(pin + digit);
   };
 
@@ -79,6 +108,13 @@ export default function PinScreen() {
           <View key={i} style={[styles.dot, i < pin.length && styles.dotFilled]} />
         ))}
       </View>
+
+      {isLocked && (
+        <View style={styles.lockoutBox}>
+          <Ionicons name="lock-closed-outline" size={20} color={colors.danger} />
+          <Text style={styles.lockoutText}>Bloqueado por mais {secondsLeft}s</Text>
+        </View>
+      )}
 
       <View style={styles.pad}>
         {[
@@ -144,4 +180,16 @@ const styles = StyleSheet.create({
   keyText: { fontSize: 28, fontWeight: '500', color: colors.text },
   logoutBtn: { alignItems: 'center', paddingBottom: spacing.xl },
   logoutText: { color: colors.primary, fontSize: fontSize.body },
+  lockoutBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FEE2E2',
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: radius.pill,
+    marginVertical: spacing.md,
+    alignSelf: 'center',
+  },
+  lockoutText: { color: colors.danger, marginLeft: 6, fontWeight: '700' },
 });
