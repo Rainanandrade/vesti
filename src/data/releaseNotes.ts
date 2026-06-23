@@ -27,10 +27,42 @@ export type ReleaseNote = {
 };
 
 // ATUAL versão do app — bumpa a cada release.
-export const CURRENT_VERSION = '2.6.0';
+export const CURRENT_VERSION = '2.7.0';
 
 // Notas em ordem cronológica DESCENDENTE (mais recente primeiro)
 export const RELEASE_NOTES: ReleaseNote[] = [
+  {
+    version: '2.7.0',
+    date: '2026-06-17',
+    title: 'Segurança reforçada',
+    subtitle: 'Auth nos endpoints, rate limit, CORS travado e política atualizada',
+    highlights: [
+      {
+        emoji: '🔒',
+        title: 'JWT obrigatório nas chamadas de IA',
+        description:
+          'Diagnóstico e sugestão de aporte agora exigem login válido. Sem JWT, retorna 401. Impossível abusar da quota Groq.',
+      },
+      {
+        emoji: '🚧',
+        title: 'Rate limit por IP',
+        description:
+          'Cada endpoint tem um limite de chamadas por minuto. IA: 10/min · Cotações: 120/min · Histórico: 60/min. Bloqueia força bruta.',
+      },
+      {
+        emoji: '🌐',
+        title: 'CORS restrito',
+        description:
+          'Antes qualquer site podia chamar a API. Agora só vesti-nine.vercel.app + apps nativos. Sem mais consumo invisível.',
+      },
+      {
+        emoji: '📜',
+        title: 'Política de Privacidade atualizada',
+        description:
+          'Nova seção "Segurança técnica" lista todas as camadas: RLS, JWT, rate limit, CORS, bcrypt, SecureStore. Tudo transparente.',
+      },
+    ],
+  },
   {
     version: '2.6.0',
     date: '2026-06-17',

@@ -177,10 +177,14 @@ function frequencyFromInterval(days) {
   return 'annual';
 }
 
+import { setCors as _setCors } from './_lib/cors.js';
+import { rateLimitOrReject as _rl } from './_lib/rateLimit.js';
+
 export default async function handler(req, res) {
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET');
+  _setCors(req, res);
   res.setHeader('Cache-Control', 's-maxage=21600, stale-while-revalidate=86400');
+  if (req.method === 'OPTIONS') return res.status(200).end();
+  if (!_rl(req, res, { limit: 60, windowMs: 60_000, prefix: 'div' })) return;
 
   const { symbol, debug } = req.query;
   if (!symbol || typeof symbol !== 'string') {

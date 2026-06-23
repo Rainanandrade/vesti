@@ -3,7 +3,7 @@
 
 export const APP_NAME = 'Vesti';
 export const SUPPORT_EMAIL = 'rainangleidson@protonmail.com';
-export const LEGAL_DATE = '03 de junho de 2026';
+export const LEGAL_DATE = '17 de junho de 2026';
 
 export const PRIVACY_POLICY = `
 # Política de Privacidade
@@ -72,19 +72,32 @@ Para exercer qualquer direito, envie um email para **${SUPPORT_EMAIL}** com o as
 
 Você pode excluir sua conta a qualquer momento dentro do app em **Ajustes → Excluir conta**. Ao confirmar, todos os seus dados são apagados em até 30 dias dos nossos servidores e backups.
 
-## 8. Cookies e analytics
+## 8. Segurança técnica
+
+Aplicamos as seguintes camadas pra proteger seus dados:
+
+- **Row Level Security (RLS)** no Supabase em 100% das tabelas — cada usuário só lê/escreve os próprios registros.
+- **JWT obrigatório** nos endpoints sensíveis (análises de IA, sugestão de aporte).
+- **Rate limit** nos endpoints públicos pra evitar abuso e proteção de quota.
+- **CORS restrito** ao domínio oficial do app.
+- **Senhas** hasheadas com bcrypt pelo Supabase Auth (nunca em texto puro).
+- **PIN** armazenado no SecureStore do iOS/Android (Keychain/Keystore).
+- **Tráfego** sempre por HTTPS.
+- Não enviamos seu **nome ou email** pra IA — apenas dados financeiros agregados (perfil, ativos, totais).
+
+## 9. Cookies e analytics
 
 Não usamos cookies de rastreamento de terceiros. Eventualmente podemos usar ferramentas de analytics próprias para entender uso agregado (anônimo) do app.
 
-## 9. Crianças
+## 10. Crianças
 
 O Vesti não é destinado a menores de 16 anos. Se você é responsável por um menor que está usando o app, entre em contato pra exclusão imediata.
 
-## 10. Mudanças nesta política
+## 11. Mudanças nesta política
 
 Podemos atualizar esta política. Mudanças relevantes são notificadas por email e dentro do app. A data no topo indica a última versão.
 
-## 11. Contato
+## 12. Contato
 
 Dúvidas? **${SUPPORT_EMAIL}**
 
@@ -175,7 +188,7 @@ Estes Termos são regidos pelas leis brasileiras quando aplicáveis aos usuário
 
 Para usuários brasileiros, fica preservada a aplicação da Lei Geral de Proteção de Dados (LGPD) e do Código de Defesa do Consumidor, sempre que mais favorável ao usuário.
 
-## 11. Contato
+## 12. Contato
 
 Dúvidas, sugestões ou denúncias: **${SUPPORT_EMAIL}**
 

@@ -1,8 +1,16 @@
 import { Platform } from 'react-native';
 import { Profile } from '../data/profileQuiz';
+import { supabase } from '../services/supabase';
 
 const API_BASE =
   Platform.OS === 'web' ? '/api' : 'https://vesti-nine.vercel.app/api';
+
+async function authHeaders(): Promise<Record<string, string>> {
+  const { data: { session } } = await supabase.auth.getSession();
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  if (session?.access_token) headers.Authorization = `Bearer ${session.access_token}`;
+  return headers;
+}
 
 export type AiPick = {
   classKey: 'renda_fixa' | 'renda_variavel' | 'internacional';
@@ -39,7 +47,7 @@ export type AiInput = {
 export async function fetchAiSuggestion(input: AiInput): Promise<AiSuggestion> {
   const res = await fetch(`${API_BASE}/ai-suggest`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: await authHeaders(),
     body: JSON.stringify(input),
   });
   if (!res.ok) {
@@ -73,7 +81,7 @@ export type AiDiagnosticInput = {
 export async function fetchAiDiagnostic(input: AiDiagnosticInput): Promise<string> {
   const res = await fetch(`${API_BASE}/ai-diagnostic`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: await authHeaders(),
     body: JSON.stringify(input),
   });
   if (!res.ok) {

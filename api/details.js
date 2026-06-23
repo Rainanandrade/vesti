@@ -126,10 +126,14 @@ async function fromYahoo(symbol) {
   }
 }
 
+import { setCors as _setCors } from './_lib/cors.js';
+import { rateLimitOrReject as _rl } from './_lib/rateLimit.js';
+
 export default async function handler(req, res) {
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET');
+  _setCors(req, res);
   res.setHeader('Cache-Control', 's-maxage=900, stale-while-revalidate=3600');
+  if (req.method === 'OPTIONS') return res.status(200).end();
+  if (!_rl(req, res, { limit: 60, windowMs: 60_000, prefix: 'det' })) return;
 
   const { symbol } = req.query;
   if (!symbol || typeof symbol !== 'string') {

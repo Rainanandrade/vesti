@@ -1,6 +1,9 @@
 // /api/chart?symbol=PETR4&range=1y
 // Histórico de preços com cascata de fontes (brapi.dev primeiro, Yahoo fallback).
 
+import { setCors } from './_lib/cors.js';
+import { rateLimitOrReject } from './_lib/rateLimit.js';
+
 const BRAPI_TOKEN = process.env.BRAPI_TOKEN || '';
 
 const VALID_RANGES = ['1mo', '6mo', '1y', '5y'];
@@ -109,9 +112,10 @@ function buildResult(symbol, range, interval, points, currency) {
 }
 
 export default async function handler(req, res) {
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET');
+  setCors(req, res);
   res.setHeader('Cache-Control', 's-maxage=3600, stale-while-revalidate=86400');
+  if (req.method === 'OPTIONS') return res.status(200).end();
+  if (!rateLimitOrReject(req, res, { limit: 60, windowMs: 60_000, prefix: 'chart' })) return;
 
   const { symbol, range, debug } = req.query;
   if (!symbol || typeof symbol !== 'string') {

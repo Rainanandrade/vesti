@@ -1,12 +1,16 @@
 // /api/quote?symbol=PETR4
 // Tenta brapi.dev (oficial BR) primeiro, Yahoo Finance como fallback.
 
+import { setCors } from './_lib/cors.js';
+import { rateLimitOrReject } from './_lib/rateLimit.js';
+
 const BRAPI_TOKEN = process.env.BRAPI_TOKEN || '';
 
 export default async function handler(req, res) {
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET');
+  setCors(req, res);
   res.setHeader('Cache-Control', 's-maxage=60, stale-while-revalidate=120');
+  if (req.method === 'OPTIONS') return res.status(200).end();
+  if (!rateLimitOrReject(req, res, { limit: 120, windowMs: 60_000, prefix: 'quote' })) return;
 
   const { symbol } = req.query;
   if (!symbol || typeof symbol !== 'string') {

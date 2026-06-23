@@ -2,6 +2,10 @@
 // Resposta em texto livre (markdown leve), análise diagnóstica da carteira
 // inteira: pontos fortes, fracos, concentração, sugestões.
 
+import { authOrReject } from './_lib/auth.js';
+import { setCors } from './_lib/cors.js';
+import { rateLimitOrReject } from './_lib/rateLimit.js';
+
 const GROQ_API_KEY = process.env.GROQ_API_KEY || '';
 
 const SYSTEM_PROMPT = `Você é um assessor financeiro brasileiro experiente, didático e direto.
@@ -25,12 +29,16 @@ REGRAS:
 - Lembre o usuário: você não é conselho de investimento; é uma análise educativa.`;
 
 export default async function handler(req, res) {
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  setCors(req, res);
 
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'Método não permitido' });
+
+  // Rate limit antes mesmo de validar auth (protege contra força bruta no JWT)
+  if (!rateLimitOrReject(req, res, { limit: 10, windowMs: 60_000, prefix: 'ai-diag' })) return;
+
+  const user = await authOrReject(req, res);
+  if (!user) return;
 
   if (!GROQ_API_KEY) {
     return res.status(503).json({

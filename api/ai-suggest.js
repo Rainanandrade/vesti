@@ -3,6 +3,10 @@
 // 2) Passa pra IA Groq (Llama 3.3 70B) como contexto curado
 // 3) IA escolhe dos tickers fornecidos (sem alucinar)
 
+import { authOrReject } from './_lib/auth.js';
+import { setCors } from './_lib/cors.js';
+import { rateLimitOrReject } from './_lib/rateLimit.js';
+
 const GROQ_API_KEY = process.env.GROQ_API_KEY || '';
 const BRAPI_TOKEN = process.env.BRAPI_TOKEN || '';
 
@@ -122,12 +126,14 @@ REGRAS OBRIGATÓRIAS:
 11. Use português do Brasil`;
 
 export default async function handler(req, res) {
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  setCors(req, res);
 
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'Método não permitido' });
+
+  if (!rateLimitOrReject(req, res, { limit: 10, windowMs: 60_000, prefix: 'ai-sug' })) return;
+  const user = await authOrReject(req, res);
+  if (!user) return;
 
   if (!GROQ_API_KEY) {
     return res.status(503).json({
