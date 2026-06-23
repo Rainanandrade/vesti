@@ -133,7 +133,7 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'Método não permitido' });
   if (!checkBodySize(req, res)) return;
-  if (!rateLimitOrReject(req, res, { limit: 10, windowMs: 60_000, prefix: 'ai-sug' })) return;
+  if (!(await rateLimitOrReject(req, res, { limit: 10, windowMs: 60_000, prefix: 'ai-sug' }))) return;
   const user = await authOrReject(req, res);
   if (!user) return;
 

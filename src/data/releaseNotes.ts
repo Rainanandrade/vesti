@@ -27,10 +27,30 @@ export type ReleaseNote = {
 };
 
 // ATUAL versão do app — bumpa a cada release.
-export const CURRENT_VERSION = '2.8.0';
+export const CURRENT_VERSION = '2.9.0';
 
 // Notas em ordem cronológica DESCENDENTE (mais recente primeiro)
 export const RELEASE_NOTES: ReleaseNote[] = [
+  {
+    version: '2.9.0',
+    date: '2026-06-17',
+    title: 'Rate limit distribuído (Upstash Redis)',
+    subtitle: 'Proteção contra abuso que sobrevive a cold starts',
+    highlights: [
+      {
+        emoji: '⚡',
+        title: 'Rate limit em Redis',
+        description:
+          'Trocamos o Map em memória por sliding window no @upstash/ratelimit. Agora o limite vale entre múltiplas instâncias da Vercel, sobrevive a cold starts e funciona globalmente.',
+      },
+      {
+        emoji: '🪂',
+        title: 'Fallback automático',
+        description:
+          'Se o Redis cair ou as envs não estiverem setadas, volta automático pro modo memória. Zero downtime.',
+      },
+    ],
+  },
   {
     version: '2.8.0',
     date: '2026-06-17',

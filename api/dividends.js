@@ -187,7 +187,7 @@ export default async function handler(req, res) {
   res.setHeader('Cache-Control', 's-maxage=21600, stale-while-revalidate=86400');
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'GET') return res.status(405).json({ error: 'Método não permitido' });
-  if (!_rl(req, res, { limit: 60, windowMs: 60_000, prefix: 'div' })) return;
+  if (!(await _rl(req, res, { limit: 60, windowMs: 60_000, prefix: 'div' }))) return;
 
   const { symbol, debug } = req.query;
   if (!isValidSymbol(typeof symbol === 'string' ? symbol.toUpperCase() : '')) {

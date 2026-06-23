@@ -117,7 +117,7 @@ export default async function handler(req, res) {
   setCors(req, res);
   res.setHeader('Cache-Control', 's-maxage=3600, stale-while-revalidate=86400');
   if (req.method === 'OPTIONS') return res.status(200).end();
-  if (!rateLimitOrReject(req, res, { limit: 60, windowMs: 60_000, prefix: 'chart' })) return;
+  if (!(await rateLimitOrReject(req, res, { limit: 60, windowMs: 60_000, prefix: 'chart' }))) return;
 
   if (req.method !== 'GET') return res.status(405).json({ error: 'Método não permitido' });
   const { symbol, range, debug } = req.query;
