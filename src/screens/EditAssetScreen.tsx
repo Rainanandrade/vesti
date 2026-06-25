@@ -18,6 +18,12 @@ import Button from '../components/Button';
 import { useApp } from '../context/AppContext';
 import PriceChart from '../components/PriceChart';
 import AssetAnalysis from '../components/AssetAnalysis';
+import AssetTabs, { TabKey } from '../components/AssetTabs';
+import AssetReturnsPanel from '../components/AssetReturnsPanel';
+import InvestorChecklist from '../components/InvestorChecklist';
+import AssetProventosHistory from '../components/AssetProventosHistory';
+import AssetAbout from '../components/AssetAbout';
+import TabPlaceholder from '../components/TabPlaceholder';
 import { TICKERS } from '../data/tickers';
 import { formatCurrencyInput, parseFormattedNumber } from '../utils/numberFormat';
 import { fetchAssetDetails, AssetDetails } from '../api/yahooDetails';
@@ -51,6 +57,7 @@ export default function EditAssetScreen({ navigation, route }: any) {
   );
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [tab, setTab] = useState<TabKey>('resumo');
 
   const [quote, setQuote] = useState<Quote | null>(null);
   const [details, setDetails] = useState<AssetDetails | null>(null);
@@ -149,7 +156,7 @@ export default function EditAssetScreen({ navigation, route }: any) {
           <View style={{ width: 24 }} />
         </View>
 
-        <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
+        <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled" stickyHeaderIndices={[1]}>
           <View style={styles.assetHeader}>
             <View style={{ flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between' }}>
               <View style={{ flex: 1 }}>
@@ -173,106 +180,142 @@ export default function EditAssetScreen({ navigation, route }: any) {
             </View>
           </View>
 
-          {/* Gráfico histórico pra qualquer tradeable */}
-          {isTradeable && (
-            <View style={styles.chartBox}>
-              <PriceChart symbol={asset.symbol} />
+          {/* Tabs (sticky) */}
+          {isTradeable && <AssetTabs active={tab} onChange={setTab} />}
+
+          {/* ============ RESUMO ============ */}
+          {(!isTradeable || tab === 'resumo') && (
+            <>
+              {isTradeable && (
+                <View style={styles.chartBox}>
+                  <PriceChart symbol={asset.symbol} />
+                </View>
+              )}
+              {quote && (
+                <Card style={styles.positionCard}>
+                  <Text style={styles.positionTitle}>Sua posição</Text>
+                  <View style={styles.positionRow}>
+                    <View>
+                      <Text style={styles.positionLabel}>Quantidade</Text>
+                      <Text style={styles.positionValue}>{asset.quantity}</Text>
+                    </View>
+                    <View>
+                      <Text style={styles.positionLabel}>Preço médio</Text>
+                      <Text style={styles.positionValue}>{fmtBRL(asset.avgPrice, privacyMode)}</Text>
+                    </View>
+                    <View>
+                      <Text style={styles.positionLabel}>Total atual</Text>
+                      <Text style={styles.positionValue}>
+                        {fmtBRL(quote.regularMarketPrice * asset.quantity, privacyMode)}
+                      </Text>
+                    </View>
+                  </View>
+                  <View style={styles.positionDivider} />
+                  <View style={styles.positionRow}>
+                    <View>
+                      <Text style={styles.positionLabel}>Lucro/Prejuízo</Text>
+                      <Text
+                        style={[styles.positionValue, {
+                          color: quote.regularMarketPrice * asset.quantity - asset.avgPrice * asset.quantity >= 0
+                            ? colors.success : colors.danger,
+                        }]}
+                      >
+                        {fmtBRL(quote.regularMarketPrice * asset.quantity - asset.avgPrice * asset.quantity, privacyMode)}
+                      </Text>
+                    </View>
+                    <View>
+                      <Text style={styles.positionLabel}>Retorno</Text>
+                      <Text style={[styles.positionValue, {
+                        color: quote.regularMarketPrice >= asset.avgPrice ? colors.success : colors.danger,
+                      }]}>
+                        {fmtPct(((quote.regularMarketPrice - asset.avgPrice) / asset.avgPrice) * 100, privacyMode)}
+                      </Text>
+                    </View>
+                  </View>
+                </Card>
+              )}
+              {dividendInfo && (
+                <Card style={styles.dividendCard}>
+                  <View style={styles.dividendHeader}>
+                    <Ionicons name="calendar" size={18} color={colors.primary} />
+                    <Text style={styles.dividendTitle}>Próximo pagamento</Text>
+                  </View>
+                  <View style={styles.dividendRow}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.dividendLabel}>{frequencyLabel(dividendInfo.frequency)}</Text>
+                      <Text style={styles.dividendDate}>{formatNextPayment(dividendInfo).whenLabel}</Text>
+                    </View>
+                    <View style={{ alignItems: 'flex-end' }}>
+                      <Text style={styles.dividendLabel}>Valor estimado</Text>
+                      <Text style={styles.dividendAmount}>
+                        {fmtBRL(dividendInfo.nextEstimatedAmount * asset.quantity, privacyMode)}
+                      </Text>
+                    </View>
+                  </View>
+                </Card>
+              )}
+              {isTradeable && <View style={{ marginTop: spacing.md }}><AssetReturnsPanel symbol={asset.symbol} /></View>}
+            </>
+          )}
+
+          {/* ============ INDICADORES ============ */}
+          {isTradeable && tab === 'indicadores' && (
+            <View style={{ gap: spacing.md as any }}>
+              {tickerInfo && profile && (
+                <AssetAnalysis ticker={tickerInfo} details={details} loading={loadingData} profile={profile} />
+              )}
+              <View style={{ marginTop: spacing.md }}>
+                {tickerInfo && <InvestorChecklist ticker={tickerInfo} details={details} />}
+              </View>
             </View>
           )}
 
-          {/* Posição atual */}
-          {quote && (
-            <Card style={styles.positionCard}>
-              <Text style={styles.positionTitle}>Sua posição</Text>
-              <View style={styles.positionRow}>
-                <View>
-                  <Text style={styles.positionLabel}>Quantidade</Text>
-                  <Text style={styles.positionValue}>{asset.quantity}</Text>
-                </View>
-                <View>
-                  <Text style={styles.positionLabel}>Preço médio</Text>
-                  <Text style={styles.positionValue}>{fmtBRL(asset.avgPrice, privacyMode)}</Text>
-                </View>
-                <View>
-                  <Text style={styles.positionLabel}>Total atual</Text>
-                  <Text style={styles.positionValue}>
-                    {fmtBRL(quote.regularMarketPrice * asset.quantity, privacyMode)}
-                  </Text>
-                </View>
-              </View>
-              <View style={styles.positionDivider} />
-              <View style={styles.positionRow}>
-                <View>
-                  <Text style={styles.positionLabel}>Lucro/Prejuízo</Text>
-                  <Text
-                    style={[
-                      styles.positionValue,
-                      {
-                        color:
-                          quote.regularMarketPrice * asset.quantity - asset.avgPrice * asset.quantity >= 0
-                            ? colors.success
-                            : colors.danger,
-                      },
-                    ]}
-                  >
-                    {fmtBRL(
-                      quote.regularMarketPrice * asset.quantity - asset.avgPrice * asset.quantity,
-                      privacyMode,
-                    )}
-                  </Text>
-                </View>
-                <View>
-                  <Text style={styles.positionLabel}>Retorno</Text>
-                  <Text
-                    style={[
-                      styles.positionValue,
-                      {
-                        color:
-                          quote.regularMarketPrice >= asset.avgPrice ? colors.success : colors.danger,
-                      },
-                    ]}
-                  >
-                    {fmtPct(
-                      ((quote.regularMarketPrice - asset.avgPrice) / asset.avgPrice) * 100,
-                      privacyMode,
-                    )}
-                  </Text>
-                </View>
-              </View>
-            </Card>
+          {/* ============ PROVENTOS ============ */}
+          {isTradeable && tab === 'proventos' && (
+            <AssetProventosHistory symbol={asset.symbol} quantity={asset.quantity} privacyMode={privacyMode} />
           )}
 
-          {/* Próximo pagamento */}
-          {dividendInfo && (
-            <Card style={styles.dividendCard}>
-              <View style={styles.dividendHeader}>
-                <Ionicons name="calendar" size={18} color={colors.primary} />
-                <Text style={styles.dividendTitle}>Próximo pagamento</Text>
-              </View>
-              <View style={styles.dividendRow}>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.dividendLabel}>{frequencyLabel(dividendInfo.frequency)}</Text>
-                  <Text style={styles.dividendDate}>
-                    {formatNextPayment(dividendInfo).whenLabel}
-                  </Text>
-                </View>
-                <View style={{ alignItems: 'flex-end' }}>
-                  <Text style={styles.dividendLabel}>Valor estimado</Text>
-                  <Text style={styles.dividendAmount}>
-                    {fmtBRL(dividendInfo.nextEstimatedAmount * asset.quantity, privacyMode)}
-                  </Text>
-                </View>
-              </View>
-            </Card>
+          {/* ============ RESULTADOS ============ */}
+          {isTradeable && tab === 'resultados' && (
+            <TabPlaceholder
+              icon="bar-chart-outline"
+              title="Resultados financeiros"
+              description="Receita, lucro e EBITDA por trimestre/ano. Vamos puxar da CVM via API."
+            />
           )}
 
-          {/* Análise fundamentalista completa */}
-          {tickerInfo && profile && (
-            <AssetAnalysis
-              ticker={tickerInfo}
-              details={details}
-              loading={loadingData}
-              profile={profile}
+          {/* ============ COMPARAR ============ */}
+          {isTradeable && tab === 'comparar' && (
+            <View>
+              <Text style={styles.helper}>Compare {asset.symbol} com outros ativos lado a lado.</Text>
+              <Button
+                title="Abrir comparador"
+                onPress={() => navigation.navigate('Compare', { initialSymbol: asset.symbol })}
+                style={{ marginTop: spacing.md }}
+              />
+            </View>
+          )}
+
+          {/* ============ NOTÍCIAS ============ */}
+          {isTradeable && tab === 'noticias' && (
+            <TabPlaceholder
+              icon="newspaper-outline"
+              title="Notícias do ativo"
+              description="Feed de manchetes filtradas sobre essa empresa. Integração com fontes oficiais em andamento."
+            />
+          )}
+
+          {/* ============ SOBRE ============ */}
+          {isTradeable && tab === 'sobre' && tickerInfo && (
+            <AssetAbout ticker={tickerInfo} details={details} />
+          )}
+
+          {/* ============ DISCUSSÕES ============ */}
+          {isTradeable && tab === 'discussoes' && (
+            <TabPlaceholder
+              icon="chatbubbles-outline"
+              title="Discussões da comunidade"
+              description="Comentários e opiniões de outros investidores do Vesti. Em construção."
             />
           )}
 
