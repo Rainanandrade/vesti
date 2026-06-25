@@ -114,12 +114,16 @@ export function computeDividendForecast(
       for (const h of realInfo.history) {
         addEntry(h.date, h.amount);
       }
-      // 2) Projeta meses futuros não cobertos pelo histórico real
+      // 2) Projeta APENAS meses FUTUROS (não-corrente) não cobertos pelo histórico
+      //    Nunca projeta no mês corrente — esse só reflete o que REALMENTE veio
+      //    no histórico. Isso evita inflar valores quando o pagamento mensal já
+      //    aconteceu e o app somava outra estimativa em cima.
       if (realInfo.averageInterval > 0 && realInfo.averageAmount > 0) {
         const cal = getCalendarFor(asset.symbol);
         const projectedAmount = realInfo.averageAmount;
-        // Pra cada mês que o ativo TIPICAMENTE paga, se não tem entry, projeta
         for (const m of cal.months) {
+          if (m === currentMonth) continue;       // mês atual = só real
+          if (m < currentMonth) continue;          // não projeta passado
           if (entriesByMonth.has(m)) continue;
           const day = realInfo.lastDate ? realInfo.lastDate.slice(8, 10) : '15';
           const projectedIso = `${currentYear}-${String(m).padStart(2, '0')}-${day}`;
@@ -129,6 +133,7 @@ export function computeDividendForecast(
     }
 
     // 3) Sem dados reais → estima por DY + calendário estático
+    //    Mesma regra: nunca projetar no mês corrente.
     if (!usedRealData) {
       const dy = estimateDY(asset, details[asset.symbol] || null);
       if (dy <= 0) continue;
@@ -138,6 +143,8 @@ export function computeDividendForecast(
       if (cal.months.length === 0) continue;
       const perPayment = annualIncome / cal.months.length / asset.quantity;
       for (const m of cal.months) {
+        if (m === currentMonth) continue;
+        if (m < currentMonth) continue;
         const iso = `${currentYear}-${String(m).padStart(2, '0')}-15`;
         addEntry(iso, perPayment);
       }
