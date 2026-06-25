@@ -27,6 +27,7 @@ import { fmtBRL, fmtPct } from '../utils/format';
 import Card from '../components/Card';
 import { fetchDividendInfoBatch, DividendInfo, formatNextPayment, formatDateBR, frequencyLabel } from '../api/dividends';
 import AIFloatingButton from '../components/AIFloatingButton';
+import { confirmAction } from '../utils/confirm';
 
 export default function PortfolioScreen({ navigation }: any) {
   const { activeWallet, privacyMode, removeAsset } = useApp();
@@ -60,21 +61,19 @@ export default function PortfolioScreen({ navigation }: any) {
   };
 
   const handleRemove = (symbol: string) => {
-    Alert.alert('Remover ativo', `Tem certeza que deseja remover ${symbol}?`, [
-      { text: 'Cancelar', style: 'cancel' },
-      {
-        text: 'Remover',
-        style: 'destructive',
-        onPress: async () => {
-          if (!activeWallet) return;
-          try {
-            await removeAsset(activeWallet.id, symbol);
-          } catch (e: any) {
-            Alert.alert('Não foi possível excluir', e?.message || 'Tente novamente.');
-          }
-        },
+    confirmAction(
+      'Remover ativo',
+      `Tem certeza que deseja remover ${symbol}?`,
+      async () => {
+        if (!activeWallet) return;
+        try {
+          await removeAsset(activeWallet.id, symbol);
+        } catch (e: any) {
+          Alert.alert('Não foi possível excluir', e?.message || 'Tente novamente.');
+        }
       },
-    ]);
+      { confirmLabel: 'Remover', destructive: true },
+    );
   };
 
   return (

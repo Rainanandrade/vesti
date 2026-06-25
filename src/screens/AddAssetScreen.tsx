@@ -53,8 +53,16 @@ export default function AddAssetScreen({ navigation, route }: any) {
   const selectedTicker = useMemo<TickerInfo | null>(() => {
     const clean = symbol.trim().toUpperCase();
     if (!typeMeta.needsSymbol || clean.length < 4) return null;
-    return TICKERS.find((t) => t.symbol === clean) || null;
-  }, [symbol, typeMeta.needsSymbol]);
+    const found = TICKERS.find((t) => t.symbol === clean);
+    if (found) return found;
+    // Ticker fora da lista — cria um sintético pra ainda renderizar cotação,
+    // gráfico e análise. brapi conhece muito mais ativos do que nosso TICKERS.
+    return {
+      symbol: clean,
+      name: clean,
+      type: (type === 'fii' || type === 'etf' ? type : 'acao') as TickerInfo['type'],
+    };
+  }, [symbol, type, typeMeta.needsSymbol]);
 
   const suggestions = useMemo(() => {
     if (!typeMeta.needsSymbol) return [];

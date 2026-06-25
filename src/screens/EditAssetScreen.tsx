@@ -26,6 +26,7 @@ import { fetchDividendInfo, DividendInfo, formatNextPayment, frequencyLabel } fr
 import { useEffect } from 'react';
 import { fmtBRL, fmtPct } from '../utils/format';
 import Card from '../components/Card';
+import { confirmAction } from '../utils/confirm';
 
 export default function EditAssetScreen({ navigation, route }: any) {
   const { activeWallet, updateAsset, removeAsset, profile, privacyMode } = useApp();
@@ -116,27 +117,21 @@ export default function EditAssetScreen({ navigation, route }: any) {
   };
 
   const handleDelete = () => {
-    Alert.alert(
+    confirmAction(
       'Excluir posição',
       `Tem certeza que deseja remover ${asset.symbol} da carteira?`,
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Excluir',
-          style: 'destructive',
-          onPress: async () => {
-            setDeleting(true);
-            try {
-              await removeAsset(activeWallet.id, asset.symbol);
-              safeBackToCarteira(navigation);
-            } catch (e: any) {
-              Alert.alert('Não foi possível excluir', e?.message || 'Tente novamente.');
-            } finally {
-              setDeleting(false);
-            }
-          },
-        },
-      ],
+      async () => {
+        setDeleting(true);
+        try {
+          await removeAsset(activeWallet.id, asset.symbol);
+          safeBackToCarteira(navigation);
+        } catch (e: any) {
+          Alert.alert('Não foi possível excluir', e?.message || 'Tente novamente.');
+        } finally {
+          setDeleting(false);
+        }
+      },
+      { confirmLabel: 'Excluir', destructive: true },
     );
   };
 
