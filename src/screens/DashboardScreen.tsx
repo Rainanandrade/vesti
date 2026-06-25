@@ -345,6 +345,11 @@ export default function DashboardScreen({ navigation }: any) {
           <Text style={styles.marketText}>{marketStatus.label}</Text>
           <Text style={styles.marketSub}> · {marketStatus.nextChange}</Text>
         </View>
+        {marketStatus.isOpen && (
+          <Text style={styles.delayNote}>
+            ℹ️ Cotações com ~15 min de atraso (brapi free)
+          </Text>
+        )}
 
         {/* Patrimônio total — hero com gradiente */}
         <LinearGradient
@@ -868,7 +873,8 @@ const styles = StyleSheet.create({
   walletTabActive: { backgroundColor: colors.primary, borderColor: colors.primary },
   walletTabText: { color: colors.textSecondary, fontWeight: '500' },
   walletTabTextActive: { color: colors.textLight, fontWeight: '600' },
-  marketRow: { flexDirection: 'row', alignItems: 'center', marginBottom: spacing.md },
+  marketRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 4 },
+  delayNote: { fontSize: 10, color: colors.textTertiary, fontStyle: 'italic', marginBottom: spacing.md },
   dot: { width: 8, height: 8, borderRadius: 4, marginRight: spacing.sm },
   marketText: { fontSize: fontSize.body, fontWeight: '600', color: colors.text },
   marketSub: { fontSize: fontSize.body, color: colors.textSecondary },

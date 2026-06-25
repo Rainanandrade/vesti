@@ -19,7 +19,11 @@ const API_BASE =
   Platform.OS === 'web' ? '/api' : 'https://vesti-nine.vercel.app/api';
 
 const CACHE_KEY = 'quotes_cache_v1';
-const CACHE_TTL_MS = 5 * 60 * 1000;
+const CACHE_TTL_MS = 60 * 1000; // 1 min — equilíbrio entre frescor e quota
+
+// brapi.dev plano gratuito tem ~15min de delay em relação ao tempo real da B3.
+// Pra real-time precisaria do plano PRO (~R$ 30/mês).
+export const QUOTE_DELAY_MIN = 15;
 
 type CacheEntry = { ts: number; quote: Quote };
 const memCache: Record<string, CacheEntry> = {};
