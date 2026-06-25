@@ -27,10 +27,33 @@ export type ReleaseNote = {
 };
 
 // ATUAL versão do app — bumpa a cada release.
-export const CURRENT_VERSION = '3.3.0';
+export const CURRENT_VERSION = '3.4.0';
 
 // Notas em ordem cronológica DESCENDENTE (mais recente primeiro)
 export const RELEASE_NOTES: ReleaseNote[] = [
+  {
+    version: '3.4.0',
+    date: '2026-06-25',
+    title: 'Rankings com cara nova + ativos clicáveis',
+    subtitle: 'Hero gradiente, medalhas ouro/prata/bronze e tela de detalhe',
+    highlights: [
+      {
+        emoji: '🥇',
+        title: 'Visual do Rankings repaginado',
+        description: 'Hero com gradiente roxo da categoria, medalhas ouro/prata/bronze nos 3 primeiros, badges de tipo (FII/AÇÃO), variação do dia ao lado do preço.',
+      },
+      {
+        emoji: '👆',
+        title: 'Ativos clicáveis',
+        description: 'Toca num ativo no ranking pra ir direto pra tela de detalhe com Resumo, Indicadores, Proventos, Checklist e tudo mais.',
+      },
+      {
+        emoji: '↩️',
+        title: 'Botão Voltar visível',
+        description: 'Toda tela do app (exceto Início) agora tem "← Voltar" no canto superior esquerdo. Sempre dá pra voltar pra onde estava.',
+      },
+    ],
+  },
   {
     version: '3.3.0',
     date: '2026-06-25',

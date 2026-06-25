@@ -25,6 +25,7 @@ import DeclaracaoScreen from '../screens/DeclaracaoScreen';
 import DividendTargetScreen from '../screens/DividendTargetScreen';
 import RankingsScreen from '../screens/RankingsScreen';
 import NewsScreen from '../screens/NewsScreen';
+import AssetDetailScreen from '../screens/AssetDetailScreen';
 import AporteScreen from '../screens/AporteScreen';
 import GoalsScreen from '../screens/GoalsScreen';
 import LearnScreen from '../screens/LearnScreen';
@@ -166,6 +167,7 @@ function MainStack() {
       <Stack.Screen name="DividendTarget" component={DividendTargetScreen} options={{ presentation: 'modal' }} />
       <Stack.Screen name="Rankings" component={RankingsScreen} options={{ presentation: 'modal' }} />
       <Stack.Screen name="News" component={NewsScreen} options={{ presentation: 'modal' }} />
+      <Stack.Screen name="AssetDetail" component={AssetDetailScreen} options={{ presentation: 'modal' }} />
       <Stack.Screen name="Settings" component={SettingsScreen} options={{ presentation: 'modal' }} />
       <Stack.Screen name="Legal" component={LegalDocScreen} options={{ presentation: 'modal' }} />
       <Stack.Screen
