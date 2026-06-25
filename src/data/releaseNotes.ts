@@ -27,10 +27,56 @@ export type ReleaseNote = {
 };
 
 // ATUAL versão do app — bumpa a cada release.
-export const CURRENT_VERSION = '2.9.0';
+export const CURRENT_VERSION = '3.0.0';
 
 // Notas em ordem cronológica DESCENDENTE (mais recente primeiro)
 export const RELEASE_NOTES: ReleaseNote[] = [
+  {
+    version: '3.0.0',
+    date: '2026-06-25',
+    title: 'Vesti 3.0 — Análise profunda, rankings e notícias',
+    subtitle: 'Tela de ativo com tabs, ranking ao vivo, notícias e B3 PRO',
+    highlights: [
+      {
+        emoji: '🐛',
+        title: 'Fix do dividendo inflado',
+        description:
+          'O mês corrente estava somando real + estimativa, dobrando o valor. Agora só conta o que realmente veio no histórico.',
+      },
+      {
+        emoji: '🔍',
+        title: 'Tela de ativo com 8 tabs',
+        description:
+          'Resumo · Indicadores · Proventos · Resultados · Comparar · Notícias · Sobre · Discussões. Inclui rentabilidade multi-período (1m, 6m, 1a, 5a) + real vs IPCA, checklist do investidor e histórico de proventos em barras.',
+      },
+      {
+        emoji: '🏆',
+        title: 'Rankings ao vivo',
+        description:
+          '7 categorias: Maior DY ações, FIIs abaixo do VP, Menor P/L, Maiores altas/quedas do dia, Mais negociadas. Top 20 atualizado a cada 6h.',
+        action: { label: 'Ver rankings', navigateTo: 'Rankings' },
+      },
+      {
+        emoji: '📰',
+        title: 'Notícias do mercado',
+        description:
+          'Feed curado por tópico: Mercado, Ações, FIIs, Dividendos, Economia. Sem ruído aleatório.',
+        action: { label: 'Ver notícias', navigateTo: 'News' },
+      },
+      {
+        emoji: '💼',
+        title: 'Hero da Carteira com variação',
+        description:
+          'Topo da Carteira agora mostra patrimônio, % de variação, investido e L/P. Pronto pra atualizar quando trocar de fuso.',
+      },
+      {
+        emoji: '🔗',
+        title: 'Sincronizar B3 (PRO)',
+        description:
+          'Placeholder na Conta pra futura integração que importa toda a carteira da B3 automaticamente.',
+      },
+    ],
+  },
   {
     version: '2.9.0',
     date: '2026-06-17',

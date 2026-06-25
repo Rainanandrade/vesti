@@ -419,6 +419,12 @@ export default function DashboardScreen({ navigation }: any) {
             color={colors.primaryDark || '#5C0593'}
             onPress={() => navigation.getParent()?.navigate('Rankings')}
           />
+          <ShortcutTile
+            icon="newspaper-outline"
+            label="Notícias"
+            color={colors.warning}
+            onPress={() => navigation.getParent()?.navigate('News')}
+          />
         </View>
 
         {/* Evolução do patrimônio (snapshots diários) */}

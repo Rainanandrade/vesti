@@ -98,8 +98,30 @@ export default function PortfolioScreen({ navigation }: any) {
         </View>
       </View>
 
-      {/* Carteira foca apenas em listar/editar ativos.
-          Atalhos (Proventos, IR, Declaração, etc.) viram no Dashboard. */}
+      {/* Hero: patrimônio + variação em tempo (cache 1min) */}
+      {activeWallet && activeWallet.assets.length > 0 && (() => {
+        const totalCurrent = activeWallet.assets.reduce((s, a) => {
+          const p = quotes[a.symbol]?.regularMarketPrice ?? a.avgPrice;
+          return s + p * a.quantity;
+        }, 0);
+        const totalInvested = activeWallet.assets.reduce((s, a) => s + a.avgPrice * a.quantity, 0);
+        const profit = totalCurrent - totalInvested;
+        const pct = totalInvested > 0 ? (profit / totalInvested) * 100 : 0;
+        return (
+          <View style={styles.heroWrap}>
+            <Text style={styles.heroLabel}>Patrimônio</Text>
+            <View style={styles.heroRow}>
+              <Text style={styles.heroValue}>{fmtBRL(totalCurrent, privacyMode)}</Text>
+              <Text style={[styles.heroPct, { color: pct >= 0 ? colors.success : colors.danger }]}>
+                {pct >= 0 ? '↑' : '↓'} {fmtPct(pct, privacyMode)}
+              </Text>
+            </View>
+            <Text style={styles.heroInvested}>
+              Investido {fmtBRL(totalInvested, privacyMode)} · L/P {fmtBRL(profit, privacyMode)}
+            </Text>
+          </View>
+        );
+      })()}
 
       <ScrollView
         contentContainerStyle={styles.scroll}
@@ -282,4 +304,16 @@ const styles = StyleSheet.create({
   totalLabel: { fontSize: fontSize.small, color: colors.textSecondary },
   totalValue: { fontSize: fontSize.bodyLarge, fontWeight: '700', color: colors.text, marginTop: 2 },
   profitPct: { fontSize: fontSize.small, fontWeight: '600', marginTop: 2 },
+  heroWrap: {
+    marginHorizontal: spacing.md,
+    padding: spacing.md,
+    backgroundColor: colors.primaryLight,
+    borderRadius: radius.lg,
+    marginBottom: spacing.sm,
+  },
+  heroLabel: { fontSize: fontSize.tiny, color: colors.primaryDark, fontWeight: '700', textTransform: 'uppercase' },
+  heroRow: { flexDirection: 'row', alignItems: 'baseline', marginTop: 4 },
+  heroValue: { fontSize: fontSize.heading, fontWeight: 'bold', color: colors.text, flex: 1 },
+  heroPct: { fontSize: fontSize.bodyLarge, fontWeight: '700' },
+  heroInvested: { fontSize: fontSize.small, color: colors.textSecondary, marginTop: 4 },
 });
