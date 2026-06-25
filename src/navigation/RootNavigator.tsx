@@ -23,6 +23,7 @@ import ProventosScreen from '../screens/ProventosScreen';
 import AIHubScreen from '../screens/AIHubScreen';
 import DeclaracaoScreen from '../screens/DeclaracaoScreen';
 import DividendTargetScreen from '../screens/DividendTargetScreen';
+import RankingsScreen from '../screens/RankingsScreen';
 import AporteScreen from '../screens/AporteScreen';
 import GoalsScreen from '../screens/GoalsScreen';
 import LearnScreen from '../screens/LearnScreen';
@@ -162,6 +163,7 @@ function MainStack() {
       <Stack.Screen name="Tabs" component={MainTabs} />
       <Stack.Screen name="AIHub" component={AIHubScreen} options={{ presentation: 'modal' }} />
       <Stack.Screen name="DividendTarget" component={DividendTargetScreen} options={{ presentation: 'modal' }} />
+      <Stack.Screen name="Rankings" component={RankingsScreen} options={{ presentation: 'modal' }} />
       <Stack.Screen name="Settings" component={SettingsScreen} options={{ presentation: 'modal' }} />
       <Stack.Screen name="Legal" component={LegalDocScreen} options={{ presentation: 'modal' }} />
       <Stack.Screen

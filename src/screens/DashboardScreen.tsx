@@ -413,6 +413,12 @@ export default function DashboardScreen({ navigation }: any) {
             color={colors.textSecondary}
             onPress={() => navigation.navigate('Carteira', { screen: 'Watchlist' })}
           />
+          <ShortcutTile
+            icon="trophy-outline"
+            label="Rankings"
+            color={colors.primaryDark || '#5C0593'}
+            onPress={() => navigation.getParent()?.navigate('Rankings')}
+          />
         </View>
 
         {/* Evolução do patrimônio (snapshots diários) */}
