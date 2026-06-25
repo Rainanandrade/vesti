@@ -1,7 +1,11 @@
 import { Asset } from '../context/AppContext';
 import { DividendInfo } from '../api/dividends';
 
-const MIN_HOLD_DAYS = 5;
+// Antes era 5 dias — heurística conservadora que barrava pagamentos legítimos.
+// O Status Invest já retorna a data oficial de pagamento, e a B3 só precisa
+// que o investidor esteja na posição até o "data com" (geralmente 1 dia antes).
+// Mudamos pra 0: se o ativo estava na carteira ANTES da data do pagamento, conta.
+const MIN_HOLD_DAYS = 0;
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
 export type ReceivedProvento = {

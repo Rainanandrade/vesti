@@ -146,12 +146,57 @@ export default async function handler(req, res) {
   const clean = symbol.toUpperCase().replace(/[^A-Z0-9]/g, '');
 
   const brapi = await fromBrapi(clean);
-  if (brapi) return res.status(200).json(brapi);
+  if (brapi && hasMeaningfulData(brapi)) return res.status(200).json(brapi);
 
   const yahoo = await fromYahoo(clean);
-  if (yahoo) return res.status(200).json(yahoo);
+  if (yahoo && hasMeaningfulData(yahoo)) return res.status(200).json(yahoo);
+
+  // Fallback: pega cotação básica (FIIs/Units no plano free não têm modules,
+  // mas a cotação simples sempre vem). Retornamos algo pra UI conseguir renderizar.
+  const basic = await fromBrapiQuote(clean);
+  if (basic) return res.status(200).json(basic);
 
   return res.status(503).json({
     error: 'Análise fundamentalista temporariamente indisponível pra este ativo.',
   });
+}
+
+function hasMeaningfulData(d) {
+  if (!d) return false;
+  // Considera "significativo" se tem pelo menos preço + alguma métrica
+  return d.currentPrice != null && (
+    d.dividendYield != null ||
+    d.trailingPE != null ||
+    d.priceToBook != null ||
+    d.sector ||
+    d.businessSummary
+  );
+}
+
+async function fromBrapiQuote(symbol) {
+  if (!BRAPI_TOKEN) return null;
+  try {
+    const url = `https://brapi.dev/api/quote/${symbol}?token=${BRAPI_TOKEN}`;
+    const r = await fetchWithTimeout(url, { headers: { Accept: 'application/json' } });
+    if (!r.ok) return null;
+    const json = await r.json();
+    const q = json?.results?.[0];
+    if (!q) return null;
+    return {
+      symbol,
+      shortName: q.shortName,
+      longName: q.longName,
+      currentPrice: q.regularMarketPrice,
+      dividendYield: q.dividendYield != null ? Number((q.dividendYield * 100).toFixed(2)) : undefined,
+      trailingPE: q.priceEarnings,
+      fiftyTwoWeekHigh: q.fiftyTwoWeekHigh,
+      fiftyTwoWeekLow: q.fiftyTwoWeekLow,
+      marketCap: q.marketCap,
+      source: 'brapi-basic',
+      // Aviso pra UI mostrar que veio só básico
+      partial: true,
+    };
+  } catch {
+    return null;
+  }
 }

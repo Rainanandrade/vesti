@@ -46,7 +46,9 @@ function getCalendarForAsset(asset: Asset): DividendCalendar {
   return getCalendarFor(asset.symbol);
 }
 
-const MIN_HOLD_DAYS = 5;
+// Heurística mais permissiva: se o ativo estava na carteira antes da data
+// do pagamento, conta. A "data com" da B3 costuma ser apenas 1 dia antes.
+const MIN_HOLD_DAYS = 0;
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
 export function computeDividendForecast(

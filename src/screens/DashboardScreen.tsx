@@ -28,9 +28,16 @@ import AIFloatingButton from '../components/AIFloatingButton';
 import { computeReceivedProventos } from '../utils/receivedProventos';
 import { computeTargetProgress } from '../utils/dividendTarget';
 import { LinearGradient } from 'expo-linear-gradient';
+import { fetchNews, NewsItem } from '../api/news';
+import { Linking } from 'react-native';
 
 export default function DashboardScreen({ navigation }: any) {
   const { user, activeWallet, privacyMode, togglePrivacy, profile, recordGoal, wallets, setActiveWalletId, goalsReached, watchlist, snapshots, recordSnapshot, operations, proventos } = useApp();
+  const [news, setNews] = useState<NewsItem[]>([]);
+
+  useEffect(() => {
+    fetchNews('mercado').then((arr) => setNews(arr.slice(0, 5)));
+  }, []);
   const [quotes, setQuotes] = useState<Record<string, Quote>>({});
   const [detailsMap, setDetailsMap] = useState<Record<string, AssetDetails | null>>({});
   const [dividendInfoMap, setDividendInfoMap] = useState<Record<string, DividendInfo | null>>({});
@@ -375,44 +382,8 @@ export default function DashboardScreen({ navigation }: any) {
           <Text style={styles.heroInvested}>Investido: {fmtBRL(totalInvested, privacyMode)}</Text>
         </LinearGradient>
 
-        {/* Grid de atalhos visuais — tira features do esconderijo */}
+        {/* Atalhos essenciais (atalhos coloridos detalhados ficam dentro da Carteira) */}
         <View style={styles.shortcutsGrid}>
-          <ShortcutTile
-            icon="cash-outline"
-            label="Proventos"
-            color={colors.success}
-            onPress={() => navigation.navigate('Carteira', { screen: 'Proventos' })}
-          />
-          <ShortcutTile
-            icon="receipt-outline"
-            label="IR / DARF"
-            color={colors.warning}
-            onPress={() => navigation.navigate('Carteira', { screen: 'IRCalculator' })}
-          />
-          <ShortcutTile
-            icon="document-text-outline"
-            label="Declaração"
-            color={colors.primary}
-            onPress={() => navigation.navigate('Carteira', { screen: 'Declaracao' })}
-          />
-          <ShortcutTile
-            icon="swap-vertical-outline"
-            label="Operações"
-            color={colors.text}
-            onPress={() => navigation.navigate('Carteira', { screen: 'Operacoes' })}
-          />
-          <ShortcutTile
-            icon="git-compare-outline"
-            label="Comparar"
-            color={colors.primaryDark}
-            onPress={() => navigation.navigate('Carteira', { screen: 'Compare' })}
-          />
-          <ShortcutTile
-            icon="eye-outline"
-            label="Acompanho"
-            color={colors.textSecondary}
-            onPress={() => navigation.navigate('Carteira', { screen: 'Watchlist' })}
-          />
           <ShortcutTile
             icon="trophy-outline"
             label="Rankings"
@@ -424,6 +395,12 @@ export default function DashboardScreen({ navigation }: any) {
             label="Notícias"
             color={colors.warning}
             onPress={() => navigation.getParent()?.navigate('News')}
+          />
+          <ShortcutTile
+            icon="wallet-outline"
+            label="Carteira"
+            color={colors.primary}
+            onPress={() => navigation.navigate('Carteira')}
           />
         </View>
 
@@ -779,6 +756,34 @@ export default function DashboardScreen({ navigation }: any) {
             >
               <Text style={styles.emptyBtnText}>+ Adicionar ativo</Text>
             </TouchableOpacity>
+          </Card>
+        )}
+
+        {/* Notícias do mercado (5 mais recentes) */}
+        {news.length > 0 && (
+          <Card style={{ marginTop: spacing.md }}>
+            <View style={styles.cardHeader}>
+              <Text style={styles.cardTitle}>📰 Notícias do mercado</Text>
+              <TouchableOpacity onPress={() => navigation.getParent()?.navigate('News')}>
+                <Text style={{ color: colors.primary, fontWeight: '700' }}>Ver tudo</Text>
+              </TouchableOpacity>
+            </View>
+            {news.map((n, i) => (
+              <TouchableOpacity
+                key={i}
+                onPress={() => Linking.openURL(n.link)}
+                style={{ paddingVertical: spacing.sm, borderBottomWidth: i < news.length - 1 ? 1 : 0, borderColor: colors.divider }}
+              >
+                <Text style={{ fontSize: fontSize.body, fontWeight: '600', color: colors.text }} numberOfLines={2}>
+                  {n.title}
+                </Text>
+                {n.source && (
+                  <Text style={{ fontSize: fontSize.tiny, color: colors.primary, marginTop: 4, fontWeight: '700' }}>
+                    {n.source}
+                  </Text>
+                )}
+              </TouchableOpacity>
+            ))}
           </Card>
         )}
       </ScrollView>

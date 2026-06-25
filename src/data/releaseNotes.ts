@@ -27,10 +27,38 @@ export type ReleaseNote = {
 };
 
 // ATUAL versão do app — bumpa a cada release.
-export const CURRENT_VERSION = '3.0.0';
+export const CURRENT_VERSION = '3.1.0';
 
 // Notas em ordem cronológica DESCENDENTE (mais recente primeiro)
 export const RELEASE_NOTES: ReleaseNote[] = [
+  {
+    version: '3.1.0',
+    date: '2026-06-25',
+    title: 'Carteira com tabs + notícias no Início',
+    subtitle: 'Layout estilo Grana, indicadores funcionando, dividendos mais reais',
+    highlights: [
+      {
+        emoji: '🗂️',
+        title: 'Carteira com tabs Resumo · Proventos · Rentabilidade',
+        description: 'Rolagem horizontal no topo. Atalhos (Proventos, IR, Declaração, Operações, Comparar) agora vivem dentro da Carteira na aba Resumo.',
+      },
+      {
+        emoji: '📰',
+        title: 'Notícias no Início',
+        description: 'Top 5 manchetes do mercado direto no Dashboard, antes era só pela tela cheia.',
+      },
+      {
+        emoji: '📊',
+        title: 'Indicadores funcionando pra FIIs/Units',
+        description: 'O endpoint /api/details agora cai pra dados básicos (preço, DY, máx/mín 52sem) quando brapi/Yahoo não tem fundamentals. Não mais "indisponível".',
+      },
+      {
+        emoji: '🐛',
+        title: 'Dividendos mais próximos do real',
+        description: 'Filtro "holder 5 dias" caiu pra 0 — antes barrava pagamentos legítimos. Mês corrente continua só com histórico real (sem inflar com estimativa).',
+      },
+    ],
+  },
   {
     version: '3.0.0',
     date: '2026-06-25',
