@@ -24,6 +24,7 @@ import { searchTickers, TickerInfo, TICKERS } from '../data/tickers';
 import { fetchQuotes } from '../api/brapi';
 import { fetchAssetDetails, AssetDetails } from '../api/yahooDetails';
 import { fmtBRL } from '../utils/format';
+import SuccessCelebrationModal from '../components/SuccessCelebrationModal';
 
 const TYPES: { value: Asset['type']; label: string; needsSymbol: boolean }[] = [
   { value: 'acao', label: 'Ação', needsSymbol: true },
@@ -48,6 +49,16 @@ export default function AddAssetScreen({ navigation, route }: any) {
   const [details, setDetails] = useState<AssetDetails | null>(null);
   const [loadingDetails, setLoadingDetails] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [celebrating, setCelebrating] = useState(false);
+
+  const resetForm = () => {
+    setSymbol('');
+    setName('');
+    setQuantity('');
+    setPrice('');
+    setLivePrice(null);
+    setDetails(null);
+  };
 
   const typeMeta = TYPES.find((t) => t.value === type)!;
   const selectedTicker = useMemo<TickerInfo | null>(() => {
@@ -148,7 +159,7 @@ export default function AddAssetScreen({ navigation, route }: any) {
         avgPrice: pr,
         addedAt: Date.now(),
       });
-      safeBackToCarteira(navigation);
+      setCelebrating(true);
     } catch (e: any) {
       Alert.alert('Não foi possível salvar', e?.message || 'Tente novamente.');
     } finally {
@@ -299,6 +310,18 @@ export default function AddAssetScreen({ navigation, route }: any) {
           <Button title="Salvar ativo" onPress={handleSave} loading={saving} style={{ marginTop: spacing.lg }} />
         </ScrollView>
       </KeyboardAvoidingView>
+
+      <SuccessCelebrationModal
+        visible={celebrating}
+        onClose={() => {
+          setCelebrating(false);
+          safeBackToCarteira(navigation);
+        }}
+        onNew={() => {
+          setCelebrating(false);
+          resetForm();
+        }}
+      />
     </SafeAreaView>
   );
 }

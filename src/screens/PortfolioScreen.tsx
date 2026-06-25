@@ -37,9 +37,11 @@ import PortfolioChart from '../components/PortfolioChart';
 import AllocationConfig from '../components/AllocationConfig';
 import TabPlaceholder from '../components/TabPlaceholder';
 import PremiumLockModal from '../components/PremiumLockModal';
+import AssetClassCards from '../components/AssetClassCards';
+import PortfolioDonut from '../components/PortfolioDonut';
 
 export default function PortfolioScreen({ navigation }: any) {
-  const { activeWallet, privacyMode, removeAsset, snapshots } = useApp();
+  const { activeWallet, privacyMode, removeAsset, snapshots, profile } = useApp();
   const [quotes, setQuotes] = useState<Record<string, Quote>>({});
   const [dividends, setDividends] = useState<Record<string, DividendInfo | null>>({});
   const [tab, setTab] = useState<PortfolioTabKey>('resumo');
@@ -236,12 +238,44 @@ export default function PortfolioScreen({ navigation }: any) {
         })()}
 
         {/* ============ TAB PATRIMÔNIO ============ */}
-        {tab === 'patrimonio' && (
-          <Card>
-            <Text style={{ fontSize: fontSize.title, fontWeight: '700', color: colors.text, marginBottom: spacing.sm }}>📊 Evolução do patrimônio</Text>
-            <PortfolioChart data={snapshots.map((s) => ({ date: s.date, total: s.total }))} privacyMode={privacyMode} />
-          </Card>
-        )}
+        {tab === 'patrimonio' && (() => {
+          // Consolidado: cada ativo com seu peso
+          const assetsList = (activeWallet?.assets || []).map((a) => {
+            const p = quotes[a.symbol]?.regularMarketPrice ?? a.avgPrice;
+            return { label: a.symbol, value: p * a.quantity };
+          }).filter((d) => d.value > 0);
+
+          // Por tipo: agrupa
+          const byTypeMap = new Map<string, number>();
+          for (const d of (activeWallet?.assets || [])) {
+            const p = quotes[d.symbol]?.regularMarketPrice ?? d.avgPrice;
+            const v = p * d.quantity;
+            const lbl = d.type === 'acao' ? 'Ações' : d.type === 'fii' ? 'FIIs' : d.type === 'etf' ? 'ETFs' : d.type === 'tesouro' ? 'Tesouro' : d.type === 'cdb' ? 'Renda Fixa' : 'Outros';
+            byTypeMap.set(lbl, (byTypeMap.get(lbl) || 0) + v);
+          }
+          const byType = Array.from(byTypeMap.entries()).map(([label, value]) => ({ label, value }));
+
+          return (
+            <>
+              <Card style={{ marginBottom: spacing.md }}>
+                <Text style={{ fontSize: fontSize.title, fontWeight: '700', color: colors.text, marginBottom: spacing.sm }}>📊 Evolução do patrimônio</Text>
+                <PortfolioChart data={snapshots.map((s) => ({ date: s.date, total: s.total }))} privacyMode={privacyMode} />
+              </Card>
+
+              <Card style={{ marginBottom: spacing.md }}>
+                <Text style={{ fontSize: fontSize.bodyLarge, fontWeight: '800', color: colors.text, letterSpacing: 1, marginBottom: spacing.md }}>CONSOLIDADO</Text>
+                <PortfolioDonut data={assetsList} />
+              </Card>
+
+              {byType.length > 0 && (
+                <Card>
+                  <Text style={{ fontSize: fontSize.bodyLarge, fontWeight: '800', color: colors.text, letterSpacing: 1, marginBottom: spacing.md }}>POR TIPO</Text>
+                  <PortfolioDonut data={byType} />
+                </Card>
+              )}
+            </>
+          );
+        })()}
 
         {/* ============ TAB ANÁLISE ============ */}
         {tab === 'analise' && (
@@ -370,13 +404,28 @@ export default function PortfolioScreen({ navigation }: any) {
         {/* ============ TAB RESUMO ============ */}
         {tab === 'resumo' && (
           <>
-            {/* Resumo limpo — apenas o que não tem tab dedicada */}
+            {/* Header com contador + botão preto destacado */}
             {activeWallet && activeWallet.assets.length > 0 && (
-              <View style={styles.shortcuts}>
-                <ShortcutChip icon="eye-outline" label="Acompanho" color={colors.primary} onPress={() => navigation.navigate('Watchlist')} />
-                <ShortcutChip icon="git-compare-outline" label="Comparar" color={colors.primaryDark || '#5C0593'} onPress={() => navigation.navigate('Compare')} />
-                <ShortcutChip icon="add-circle-outline" label="Adicionar" color={colors.success} onPress={() => navigation.navigate('AddAsset')} />
+              <View style={styles.resumoHeader}>
+                <Text style={styles.resumoTitle}>Meus ativos ({activeWallet.assets.length})</Text>
+                <TouchableOpacity style={styles.addAssetBtn} onPress={() => navigation.navigate('AddAsset')}>
+                  <Ionicons name="add" size={18} color={colors.textLight} />
+                  <Text style={styles.addAssetText}>Adicionar ativo</Text>
+                </TouchableOpacity>
               </View>
+            )}
+
+            {/* Cards agrupados por classe — estilo Investidor 10 */}
+            {activeWallet && activeWallet.assets.length > 0 && (
+              <AssetClassCards
+                wallet={activeWallet}
+                quotes={quotes}
+                profile={profile}
+                privacyMode={privacyMode}
+                onOpenClass={(cls) =>
+                  navigation.getParent()?.navigate('AssetsList', { classFilter: cls })
+                }
+              />
             )}
 
             {(!activeWallet || activeWallet.assets.length === 0) && (
@@ -386,10 +435,15 @@ export default function PortfolioScreen({ navigation }: any) {
                 <Text style={styles.emptyDesc}>
                   Toque em "Adicionar" pra começar a registrar seus ativos.
                 </Text>
+                <TouchableOpacity style={styles.addAssetBtn} onPress={() => navigation.navigate('AddAsset')}>
+                  <Ionicons name="add" size={18} color={colors.textLight} />
+                  <Text style={styles.addAssetText}>Adicionar ativo</Text>
+                </TouchableOpacity>
               </View>
             )}
 
-            {activeWallet?.assets.map((a) => {
+            {/* Lista flat antiga — escondida quando tem AssetClassCards */}
+            {false && activeWallet?.assets.map((a) => {
           const q = quotes[a.symbol];
           const price = q?.regularMarketPrice ?? a.avgPrice;
           const total = price * a.quantity;
@@ -595,4 +649,8 @@ const styles = StyleSheet.create({
   heroPct: { fontSize: fontSize.bodyLarge, fontWeight: '700' },
   heroInvested: { fontSize: fontSize.small, color: colors.textSecondary, marginTop: 4 },
   shortcuts: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', marginBottom: spacing.md },
+  resumoHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.md },
+  resumoTitle: { fontSize: fontSize.title, fontWeight: '700', color: colors.text },
+  addAssetBtn: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.text, paddingHorizontal: spacing.md, paddingVertical: 10, borderRadius: 10 },
+  addAssetText: { color: colors.textLight, fontWeight: '700', marginLeft: 6 },
 });

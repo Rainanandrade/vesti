@@ -27,10 +27,48 @@ export type ReleaseNote = {
 };
 
 // ATUAL versão do app — bumpa a cada release.
-export const CURRENT_VERSION = '3.4.0';
+export const CURRENT_VERSION = '4.0.0';
 
 // Notas em ordem cronológica DESCENDENTE (mais recente primeiro)
 export const RELEASE_NOTES: ReleaseNote[] = [
+  {
+    version: '4.0.0',
+    date: '2026-06-25',
+    title: 'Vesti 4.0 — Nova identidade Esmeralda + Lista de ativos completa',
+    subtitle: 'Paleta exclusiva, Cards por classe, Tabela detalhada e Donut multi-cor',
+    highlights: [
+      {
+        emoji: '💚',
+        title: 'Nova paleta exclusiva',
+        description: 'Esmeralda profundo (#0B5345) + Champagne dourado (#C9A961). Sofisticada, única no mercado fintech BR, inspirada em joalherias de alto padrão.',
+      },
+      {
+        emoji: '🎉',
+        title: 'Tela "Compra lançada com sucesso"',
+        description: 'Após adicionar ativo, abre modal com confetes animados, halo verde brilhante e 2 botões: "Voltar para a carteira" e "+ Novo lançamento".',
+      },
+      {
+        emoji: '📦',
+        title: 'Resumo agrupado por classe',
+        description: 'Cards de Ações/FIIs/ETFs com valor total, variação, rentabilidade e % atual vs ideal. Toca pra abrir lista detalhada.',
+      },
+      {
+        emoji: '📋',
+        title: 'Lista de ativos completa',
+        description: 'Tabela rolável com 10 colunas customizáveis: Qtd, Saldo, Preço médio, Preço atual, Variação, Rentabilidade, Minha nota, % Carteira, % ideal, Comprar (Sim/Não).',
+      },
+      {
+        emoji: '🍩',
+        title: 'Donut multi-cor no Patrimônio',
+        description: 'Gráfico de pizza com cada ativo, nomes dentro das fatias maiores, e lista de barras horizontais abaixo. Versões Consolidado e Por tipo.',
+      },
+      {
+        emoji: '🎨',
+        title: 'Logos coloridos por ticker',
+        description: 'Cada ativo aparece com badge colorido baseado no prefixo (taesa azul, Copel laranja, Petrobras amarelo, etc.).',
+      },
+    ],
+  },
   {
     version: '3.4.0',
     date: '2026-06-25',

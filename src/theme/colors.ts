@@ -1,34 +1,36 @@
-// Paleta inspirada no Nubank: roxo profundo + branco + cinzas neutros.
+// Paleta exclusiva — Esmeralda Profunda + Champagne.
+// Inspirada em joalherias de alto padrão (Cartier, Tiffany).
+// Não existe em fintech BR — visual único e sofisticado.
 export const colors = {
-  primary: '#820AD1',
-  primaryDark: '#5F0A9E',
-  primaryLight: '#F3E5FF',
-  primaryAccent: '#A050E0',
+  primary: '#0B5345',         // Verde esmeralda profundo
+  primaryDark: '#073B30',     // Esmeralda escuro (sombras / gradiente)
+  primaryLight: '#E8F1EF',    // Fundo suave esmeralda
+  primaryAccent: '#C9A961',   // Champagne dourado (acentos sofisticados)
 
   background: '#FFFFFF',
-  surface: '#F7F7F9',
-  surfaceDark: '#EFEEF2',
+  surface: '#F8FAF9',         // Off-white com leve verde
+  surfaceDark: '#EEF2F0',
 
-  text: '#191A1F',
-  textSecondary: '#6B6973',
-  textTertiary: '#9B98A6',
+  text: '#0F172A',            // Quase preto azulado (luxo)
+  textSecondary: '#475569',
+  textTertiary: '#94A3B8',
   textLight: '#FFFFFF',
 
-  success: '#1FAE5A',
-  successLight: '#E3F6EB',
-  danger: '#E2483A',
-  dangerLight: '#FCEAE8',
-  warning: '#F7B500',
-  warningLight: '#FFF6D9',
+  success: '#10B981',         // Verde esmeralda vivo (rentabilidade positiva)
+  successLight: '#D1FAE5',
+  danger: '#DC2626',          // Vermelho profundo
+  dangerLight: '#FEE2E2',
+  warning: '#D97706',         // Âmbar (não amarelo gritante)
+  warningLight: '#FEF3C7',
 
-  border: '#E7E6EB',
-  divider: '#EFEEF2',
+  border: '#E2E8F0',
+  divider: '#EEF2F0',
 
-  gold: '#F7C948',
+  gold: '#C9A961',            // Alias do accent (champagne)
 
-  // Para o cartão hero estilo Nubank: gradiente mental roxo escuro
-  heroBg: '#820AD1',
-  heroBgDark: '#5F0A9E',
+  // Hero: gradiente esmeralda profundo
+  heroBg: '#0B5345',
+  heroBgDark: '#042822',
 };
 
 export const spacing = {
