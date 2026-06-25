@@ -262,10 +262,18 @@ export default function EditAssetScreen({ navigation, route }: any) {
           {isTradeable && tab === 'indicadores' && (
             <View style={{ gap: spacing.md as any }}>
               {tickerInfo && profile && (
-                <AssetAnalysis ticker={tickerInfo} details={details} loading={loadingData} profile={profile} />
+                <AssetAnalysis
+                  ticker={tickerInfo}
+                  details={details}
+                  loading={loadingData}
+                  profile={profile}
+                  dividends={dividendInfo}
+                />
               )}
               <View style={{ marginTop: spacing.md }}>
-                {tickerInfo && <InvestorChecklist ticker={tickerInfo} details={details} />}
+                {tickerInfo && (
+                  <InvestorChecklist ticker={tickerInfo} details={details} dividends={dividendInfo} />
+                )}
               </View>
             </View>
           )}

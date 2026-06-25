@@ -5,16 +5,20 @@ import { AssetDetails } from '../api/yahooDetails';
 import { TickerInfo } from '../data/tickers';
 import { Profile } from '../data/profileQuiz';
 import { evaluateAssetForProfile } from '../utils/strategyMatch';
-import { fmtBRL } from '../utils/format';
+import { computeDyFromHistory } from '../utils/investorChecklist';
+import { DividendInfo } from '../api/dividends';
+import { fmtBRL, fmtCompactBRL } from '../utils/format';
 
 type Props = {
   ticker: TickerInfo;
   details: AssetDetails | null;
   loading: boolean;
   profile: Profile | null;
+  dividends?: DividendInfo | null;
 };
 
-export default function AssetAnalysis({ ticker, details, loading, profile }: Props) {
+export default function AssetAnalysis({ ticker, details, loading, profile, dividends }: Props) {
+  const dyEffective = details?.dividendYield ?? computeDyFromHistory(dividends?.history, details?.currentPrice);
   if (loading) {
     return (
       <View style={styles.loadingBox}>
@@ -66,27 +70,22 @@ export default function AssetAnalysis({ ticker, details, loading, profile }: Pro
         <View style={styles.indicators}>
           <Text style={styles.sectionTitle}>📊 Análise fundamentalista</Text>
           <View style={styles.grid}>
+            <Indicator label="Preço" value={details.currentPrice} fmt={(v) => `R$ ${v.toFixed(2)}`} />
+            <Indicator label="DY (anual)" value={dyEffective ?? undefined} fmt={(v) => `${v.toFixed(2)}%`} />
             <Indicator label="P/L" value={details.trailingPE} fmt={(v) => v.toFixed(1)} />
-            <Indicator label="DY" value={details.dividendYield} fmt={(v) => `${v.toFixed(1)}%`} />
             <Indicator label="P/VP" value={details.priceToBook} fmt={(v) => v.toFixed(2)} />
             <Indicator label="ROE" value={details.returnOnEquity} fmt={(v) => `${v.toFixed(1)}%`} />
             <Indicator label="ROA" value={details.returnOnAssets} fmt={(v) => `${v.toFixed(1)}%`} />
-            <Indicator
-              label="Margem"
-              value={details.profitMargins}
-              fmt={(v) => `${v.toFixed(1)}%`}
-            />
+            <Indicator label="Margem" value={details.profitMargins} fmt={(v) => `${v.toFixed(1)}%`} />
             <Indicator label="Beta" value={details.beta} fmt={(v) => v.toFixed(2)} />
-            <Indicator
-              label="Payout"
-              value={details.payoutRatio}
-              fmt={(v) => `${v.toFixed(0)}%`}
-            />
-            <Indicator
-              label="DY 5 anos"
-              value={details.fiveYearAvgDividendYield}
-              fmt={(v) => `${v.toFixed(1)}%`}
-            />
+            <Indicator label="Payout" value={details.payoutRatio} fmt={(v) => `${v.toFixed(0)}%`} />
+            <Indicator label="DY 5 anos" value={details.fiveYearAvgDividendYield} fmt={(v) => `${v.toFixed(1)}%`} />
+            <Indicator label="Máx 52 sem" value={details.fiftyTwoWeekHigh} fmt={(v) => `R$ ${v.toFixed(2)}`} />
+            <Indicator label="Mín 52 sem" value={details.fiftyTwoWeekLow} fmt={(v) => `R$ ${v.toFixed(2)}`} />
+            <Indicator label="Valor de Mercado" value={details.marketCap} fmt={(v) => fmtCompactBRL(v)} />
+            <Indicator label="Dívida/PL" value={details.debtToEquity} fmt={(v) => `${v.toFixed(1)}%`} />
+            <Indicator label="Cresc. Receita" value={details.revenueGrowth} fmt={(v) => `${v.toFixed(1)}%`} />
+            <Indicator label="Cresc. Lucro" value={details.earningsGrowth} fmt={(v) => `${v.toFixed(1)}%`} />
           </View>
 
           {/* Range 52 semanas */}

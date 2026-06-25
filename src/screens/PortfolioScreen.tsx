@@ -36,6 +36,7 @@ import { computePortfolioStats } from '../utils/portfolio';
 import PortfolioChart from '../components/PortfolioChart';
 import AllocationConfig from '../components/AllocationConfig';
 import TabPlaceholder from '../components/TabPlaceholder';
+import PremiumLockModal from '../components/PremiumLockModal';
 
 export default function PortfolioScreen({ navigation }: any) {
   const { activeWallet, privacyMode, removeAsset, snapshots } = useApp();
@@ -43,6 +44,7 @@ export default function PortfolioScreen({ navigation }: any) {
   const [dividends, setDividends] = useState<Record<string, DividendInfo | null>>({});
   const [tab, setTab] = useState<PortfolioTabKey>('resumo');
   const [proventosExpanded, setProventosExpanded] = useState<Record<string, boolean>>({});
+  const [premiumOpen, setPremiumOpen] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
   const load = useCallback(async () => {
@@ -321,10 +323,11 @@ export default function PortfolioScreen({ navigation }: any) {
                 </View>
               </View>
               <TouchableOpacity
-                style={{ marginTop: spacing.md, backgroundColor: colors.primary, padding: spacing.md, borderRadius: radius.md, alignItems: 'center' }}
-                onPress={() => Alert.alert('Em breve!', 'A integração com a B3 está em desenvolvimento. Será liberada na versão Premium.')}
+                style={{ marginTop: spacing.md, backgroundColor: colors.primary, padding: spacing.md, borderRadius: radius.md, alignItems: 'center', flexDirection: 'row', justifyContent: 'center' }}
+                onPress={() => setPremiumOpen(true)}
               >
-                <Text style={{ color: colors.textLight, fontWeight: '700' }}>Conectar com a B3</Text>
+                <Ionicons name="link" size={16} color={colors.textLight} />
+                <Text style={{ color: colors.textLight, fontWeight: '700', marginLeft: 6 }}>Conectar com a B3</Text>
               </TouchableOpacity>
             </Card>
             <TabPlaceholder icon="receipt-outline" title="Outras integrações" description="Em breve: Nubank, Inter, XP e outros bancos/corretoras." />
@@ -367,14 +370,12 @@ export default function PortfolioScreen({ navigation }: any) {
         {/* ============ TAB RESUMO ============ */}
         {tab === 'resumo' && (
           <>
-            {/* Atalhos coloridos dentro da Carteira */}
+            {/* Resumo limpo — apenas o que não tem tab dedicada */}
             {activeWallet && activeWallet.assets.length > 0 && (
               <View style={styles.shortcuts}>
-                <ShortcutChip icon="cash-outline" label="Proventos" color={colors.success} onPress={() => setTab('proventos')} />
-                <ShortcutChip icon="receipt-outline" label="IR/DARF" color={colors.warning} onPress={() => navigation.navigate('IRCalculator')} />
-                <ShortcutChip icon="document-text-outline" label="Declaração" color={colors.primary} onPress={() => navigation.navigate('Declaracao')} />
-                <ShortcutChip icon="swap-vertical-outline" label="Operações" color={colors.text} onPress={() => navigation.navigate('Operacoes')} />
+                <ShortcutChip icon="eye-outline" label="Acompanho" color={colors.primary} onPress={() => navigation.navigate('Watchlist')} />
                 <ShortcutChip icon="git-compare-outline" label="Comparar" color={colors.primaryDark || '#5C0593'} onPress={() => navigation.navigate('Compare')} />
+                <ShortcutChip icon="add-circle-outline" label="Adicionar" color={colors.success} onPress={() => navigation.navigate('AddAsset')} />
               </View>
             )}
 
@@ -472,6 +473,13 @@ export default function PortfolioScreen({ navigation }: any) {
         )}
       </ScrollView>
       <AIFloatingButton />
+      <PremiumLockModal
+        visible={premiumOpen}
+        onClose={() => setPremiumOpen(false)}
+        title="Sincronização com a B3"
+        description="A integração permite importar todos os seus ativos automaticamente, sem digitação manual. Estamos validando segurança e estabilidade antes de liberar."
+        feature="A sincronização com a B3"
+      />
     </SafeAreaView>
   );
 }

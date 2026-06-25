@@ -27,10 +27,43 @@ export type ReleaseNote = {
 };
 
 // ATUAL versão do app — bumpa a cada release.
-export const CURRENT_VERSION = '3.2.0';
+export const CURRENT_VERSION = '3.3.0';
 
 // Notas em ordem cronológica DESCENDENTE (mais recente primeiro)
 export const RELEASE_NOTES: ReleaseNote[] = [
+  {
+    version: '3.3.0',
+    date: '2026-06-25',
+    title: 'Indicadores completos + modal PRO bonito + tabs fluidas',
+    subtitle: 'Resumo limpo, B3 popup elegante e checklist preenchido',
+    highlights: [
+      {
+        emoji: '💎',
+        title: 'Modal Premium bonito pra B3',
+        description: 'Clicar em "Conectar com a B3" abre popup com gradiente, badge PRO e lista de benefícios. Não é mais alerta seco.',
+      },
+      {
+        emoji: '✨',
+        title: 'Tabs fluidas e integradas',
+        description: 'Tipografia mais limpa, padding ajustado, fundo combinado com a tela. Inspirado no visual do Investidor 10.',
+      },
+      {
+        emoji: '🧹',
+        title: 'Resumo sem duplicações',
+        description: 'Removidos atalhos que tinham tab própria (Proventos, IR, Declaração, Operações). Resumo agora tem só Acompanho, Comparar e Adicionar.',
+      },
+      {
+        emoji: '📊',
+        title: 'Indicadores preenchidos pra todos',
+        description: '14 indicadores no grid (Preço, DY, P/L, P/VP, ROE, ROA, Margem, Beta, Payout, Máx/Mín 52sem, Market Cap, Dívida/PL, Cresc. Receita/Lucro). DY agora é calculado do histórico quando a API não traz.',
+      },
+      {
+        emoji: '✅',
+        title: 'Checklist do investidor completo',
+        description: 'Até 11 itens avaliados: DY atrativo, paga dividendos 12m, frequência mensal, P/L, P/VP, ROE, margem, dívida, receita crescendo, posição no range 52sem, baixa volatilidade.',
+      },
+    ],
+  },
   {
     version: '3.2.0',
     date: '2026-06-25',

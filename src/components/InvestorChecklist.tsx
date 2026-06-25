@@ -3,15 +3,17 @@ import { Ionicons } from '@expo/vector-icons';
 import { colors, fontSize, radius, spacing } from '../theme/colors';
 import { AssetDetails } from '../api/yahooDetails';
 import { TickerInfo } from '../data/tickers';
+import { DividendInfo } from '../api/dividends';
 import { buildChecklist, checklistScore } from '../utils/investorChecklist';
 
 type Props = {
   ticker: TickerInfo;
   details: AssetDetails | null;
+  dividends?: DividendInfo | null;
 };
 
-export default function InvestorChecklist({ ticker, details }: Props) {
-  const items = buildChecklist(ticker, details);
+export default function InvestorChecklist({ ticker, details, dividends }: Props) {
+  const items = buildChecklist(ticker, details, dividends);
   const { passed, total, pct } = checklistScore(items);
   const color = pct >= 70 ? colors.success : pct >= 40 ? colors.warning : colors.danger;
 

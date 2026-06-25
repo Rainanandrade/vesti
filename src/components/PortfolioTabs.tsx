@@ -61,10 +61,28 @@ export default function PortfolioTabs({ active, onChange }: Props) {
 }
 
 const styles = StyleSheet.create({
-  bar: { borderBottomWidth: 1, borderColor: colors.divider, backgroundColor: colors.background },
-  content: { paddingHorizontal: spacing.md, paddingVertical: spacing.sm },
-  tab: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: spacing.md, paddingVertical: 8, marginRight: spacing.lg, borderBottomWidth: 2, borderColor: 'transparent' },
+  bar: {
+    backgroundColor: colors.surface,
+    borderBottomWidth: 1,
+    borderColor: colors.divider,
+  },
+  content: { paddingHorizontal: spacing.sm, paddingVertical: 4 },
+  tab: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    marginRight: 4,
+    borderBottomWidth: 2.5,
+    borderColor: 'transparent',
+  },
   tabActive: { borderColor: colors.primary },
-  tabText: { color: colors.textSecondary, fontWeight: '600', marginLeft: 6, fontSize: fontSize.body },
+  tabText: {
+    color: colors.textTertiary,
+    fontWeight: '500',
+    marginLeft: 6,
+    fontSize: 13,
+    letterSpacing: 0.1,
+  },
   tabTextActive: { color: colors.primary, fontWeight: '700' },
 });
