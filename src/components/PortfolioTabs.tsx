@@ -2,12 +2,29 @@ import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-nati
 import { Ionicons } from '@expo/vector-icons';
 import { colors, fontSize, radius, spacing } from '../theme/colors';
 
-export type PortfolioTabKey = 'resumo' | 'proventos' | 'rentabilidade';
+export type PortfolioTabKey =
+  | 'resumo'
+  | 'proventos'
+  | 'rentabilidade'
+  | 'patrimonio'
+  | 'analise'
+  | 'metas'
+  | 'lancamentos'
+  | 'integracoes'
+  | 'irpf'
+  | 'config';
 
 const TABS: { key: PortfolioTabKey; label: string; icon: any }[] = [
-  { key: 'resumo', label: 'Resumo', icon: 'speedometer-outline' },
-  { key: 'proventos', label: 'Proventos', icon: 'cash-outline' },
+  { key: 'resumo',        label: 'Resumo',        icon: 'speedometer-outline' },
+  { key: 'proventos',     label: 'Proventos',     icon: 'cash-outline' },
   { key: 'rentabilidade', label: 'Rentabilidade', icon: 'trending-up-outline' },
+  { key: 'patrimonio',    label: 'Patrimônio',    icon: 'pie-chart-outline' },
+  { key: 'analise',       label: 'Análise',       icon: 'sparkles-outline' },
+  { key: 'metas',         label: 'Metas',         icon: 'trophy-outline' },
+  { key: 'lancamentos',   label: 'Lançamentos',   icon: 'swap-vertical-outline' },
+  { key: 'integracoes',   label: 'Integrações',   icon: 'sync-circle-outline' },
+  { key: 'irpf',          label: 'IRPF',          icon: 'receipt-outline' },
+  { key: 'config',        label: 'Configurações', icon: 'settings-outline' },
 ];
 
 type Props = {

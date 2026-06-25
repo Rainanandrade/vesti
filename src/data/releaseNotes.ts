@@ -27,10 +27,38 @@ export type ReleaseNote = {
 };
 
 // ATUAL versão do app — bumpa a cada release.
-export const CURRENT_VERSION = '3.1.0';
+export const CURRENT_VERSION = '3.2.0';
 
 // Notas em ordem cronológica DESCENDENTE (mais recente primeiro)
 export const RELEASE_NOTES: ReleaseNote[] = [
+  {
+    version: '3.2.0',
+    date: '2026-06-25',
+    title: 'Carteira com 10 abas + alocação alvo',
+    subtitle: 'Patrimônio, Análise, Metas, Lançamentos, Integrações PRO, IRPF e Configurações',
+    highlights: [
+      {
+        emoji: '🗂️',
+        title: '10 abas dentro da Carteira',
+        description: 'Resumo · Proventos · Rentabilidade · Patrimônio · Análise · Metas · Lançamentos · Integrações · IRPF · Configurações. Rolagem horizontal no topo.',
+      },
+      {
+        emoji: '⚖️',
+        title: 'Configurações de alocação alvo',
+        description: 'Define % ideal pra cada classe (Ações, FIIs, ETFs, Tesouro, CDB, Internacional, Outros). Adiciona/remove classes, X pra excluir, total tem que dar 100%.',
+      },
+      {
+        emoji: '📋',
+        title: 'IRPF unificado',
+        description: 'IR mensal (DARF) e Declaração anual num só lugar dentro da Carteira.',
+      },
+      {
+        emoji: '🔗',
+        title: 'Integrações PRO',
+        description: 'Card "Sincronizar com a B3" preparado pra cobrança futura. Sem custo agora, badge PRO.',
+      },
+    ],
+  },
   {
     version: '3.1.0',
     date: '2026-06-25',

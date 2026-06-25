@@ -33,9 +33,12 @@ import { computeReceivedProventos, groupProventosByMonth } from '../utils/receiv
 import { MONTH_NAMES_PT } from '../data/dividends';
 import IbovespaComparison from '../components/IbovespaComparison';
 import { computePortfolioStats } from '../utils/portfolio';
+import PortfolioChart from '../components/PortfolioChart';
+import AllocationConfig from '../components/AllocationConfig';
+import TabPlaceholder from '../components/TabPlaceholder';
 
 export default function PortfolioScreen({ navigation }: any) {
-  const { activeWallet, privacyMode, removeAsset } = useApp();
+  const { activeWallet, privacyMode, removeAsset, snapshots } = useApp();
   const [quotes, setQuotes] = useState<Record<string, Quote>>({});
   const [dividends, setDividends] = useState<Record<string, DividendInfo | null>>({});
   const [tab, setTab] = useState<PortfolioTabKey>('resumo');
@@ -229,6 +232,137 @@ export default function PortfolioScreen({ navigation }: any) {
             </>
           );
         })()}
+
+        {/* ============ TAB PATRIMÔNIO ============ */}
+        {tab === 'patrimonio' && (
+          <Card>
+            <Text style={{ fontSize: fontSize.title, fontWeight: '700', color: colors.text, marginBottom: spacing.sm }}>📊 Evolução do patrimônio</Text>
+            <PortfolioChart data={snapshots.map((s) => ({ date: s.date, total: s.total }))} privacyMode={privacyMode} />
+          </Card>
+        )}
+
+        {/* ============ TAB ANÁLISE ============ */}
+        {tab === 'analise' && (
+          <View>
+            <Card style={{ alignItems: 'center', padding: spacing.lg, marginBottom: spacing.md }}>
+              <Ionicons name="sparkles" size={36} color={colors.primary} />
+              <Text style={{ fontSize: fontSize.title, fontWeight: '700', color: colors.text, marginTop: spacing.sm }}>Diagnóstico IA</Text>
+              <Text style={{ fontSize: fontSize.body, color: colors.textSecondary, textAlign: 'center', marginTop: spacing.sm, lineHeight: 20 }}>
+                Análise completa da sua carteira pelo Gestor IA: pontos fortes, riscos e próximos passos.
+              </Text>
+              <TouchableOpacity
+                style={{ marginTop: spacing.md, backgroundColor: colors.primary, paddingHorizontal: spacing.lg, paddingVertical: spacing.md, borderRadius: radius.pill, flexDirection: 'row', alignItems: 'center' }}
+                onPress={() => navigation.getParent()?.getParent()?.navigate('AIHub')}
+              >
+                <Ionicons name="sparkles" size={16} color={colors.textLight} />
+                <Text style={{ color: colors.textLight, fontWeight: '700', marginLeft: 6 }}>Abrir Gestor IA</Text>
+              </TouchableOpacity>
+            </Card>
+          </View>
+        )}
+
+        {/* ============ TAB METAS ============ */}
+        {tab === 'metas' && (
+          <View>
+            <Card style={{ marginBottom: spacing.md }}>
+              <Text style={{ fontSize: fontSize.title, fontWeight: '700', color: colors.text }}>🎯 Suas metas</Text>
+              <Text style={{ fontSize: fontSize.body, color: colors.textSecondary, marginTop: spacing.xs }}>
+                Acompanhe progresso, conquistas e meta de renda passiva.
+              </Text>
+              <TouchableOpacity
+                style={{ marginTop: spacing.md, backgroundColor: colors.primaryLight, padding: spacing.md, borderRadius: radius.md }}
+                onPress={() => navigation.getParent()?.navigate('Metas')}
+              >
+                <Text style={{ color: colors.primary, fontWeight: '700', textAlign: 'center' }}>Ver todas as metas</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={{ marginTop: spacing.sm, backgroundColor: colors.primary, padding: spacing.md, borderRadius: radius.md }}
+                onPress={() => navigation.getParent()?.getParent()?.navigate('DividendTarget')}
+              >
+                <Text style={{ color: colors.textLight, fontWeight: '700', textAlign: 'center' }}>Meta de renda passiva</Text>
+              </TouchableOpacity>
+            </Card>
+          </View>
+        )}
+
+        {/* ============ TAB LANÇAMENTOS ============ */}
+        {tab === 'lancamentos' && (
+          <Card style={{ alignItems: 'center', padding: spacing.lg }}>
+            <Ionicons name="swap-vertical-outline" size={36} color={colors.primary} />
+            <Text style={{ fontSize: fontSize.title, fontWeight: '700', color: colors.text, marginTop: spacing.sm }}>Operações</Text>
+            <Text style={{ fontSize: fontSize.body, color: colors.textSecondary, textAlign: 'center', marginTop: spacing.sm }}>
+              Registre suas compras e vendas pra cálculo automático do isentômetro e IR.
+            </Text>
+            <TouchableOpacity
+              style={{ marginTop: spacing.md, backgroundColor: colors.primary, paddingHorizontal: spacing.lg, paddingVertical: spacing.md, borderRadius: radius.pill }}
+              onPress={() => navigation.navigate('Operacoes')}
+            >
+              <Text style={{ color: colors.textLight, fontWeight: '700' }}>Abrir lançamentos</Text>
+            </TouchableOpacity>
+          </Card>
+        )}
+
+        {/* ============ TAB INTEGRAÇÕES ============ */}
+        {tab === 'integracoes' && (
+          <View>
+            <Card style={{ borderColor: colors.primary, borderWidth: 1, marginBottom: spacing.md }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <Ionicons name="sync-circle-outline" size={36} color={colors.primary} />
+                <View style={{ flex: 1, marginLeft: spacing.md }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                    <Text style={{ fontSize: fontSize.bodyLarge, fontWeight: '700', color: colors.text }}>Sincronizar com a B3</Text>
+                    <View style={{ marginLeft: 8, backgroundColor: colors.primary, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 8 }}>
+                      <Text style={{ color: colors.textLight, fontSize: 10, fontWeight: '800' }}>PRO</Text>
+                    </View>
+                  </View>
+                  <Text style={{ fontSize: fontSize.small, color: colors.textSecondary, marginTop: 2 }}>
+                    Importa todos os ativos automaticamente. Sem digitação.
+                  </Text>
+                </View>
+              </View>
+              <TouchableOpacity
+                style={{ marginTop: spacing.md, backgroundColor: colors.primary, padding: spacing.md, borderRadius: radius.md, alignItems: 'center' }}
+                onPress={() => Alert.alert('Em breve!', 'A integração com a B3 está em desenvolvimento. Será liberada na versão Premium.')}
+              >
+                <Text style={{ color: colors.textLight, fontWeight: '700' }}>Conectar com a B3</Text>
+              </TouchableOpacity>
+            </Card>
+            <TabPlaceholder icon="receipt-outline" title="Outras integrações" description="Em breve: Nubank, Inter, XP e outros bancos/corretoras." />
+          </View>
+        )}
+
+        {/* ============ TAB IRPF ============ */}
+        {tab === 'irpf' && (
+          <View>
+            <Card style={{ marginBottom: spacing.md }}>
+              <Text style={{ fontSize: fontSize.title, fontWeight: '700', color: colors.text }}>📋 Imposto de Renda</Text>
+              <Text style={{ fontSize: fontSize.body, color: colors.textSecondary, marginTop: spacing.xs, lineHeight: 20 }}>
+                Tudo pra você não pagar nem mais nem menos: isentômetro, DARF mensal e relatório anual.
+              </Text>
+              <View style={{ marginTop: spacing.md, gap: spacing.sm as any }}>
+                <TouchableOpacity
+                  style={{ backgroundColor: colors.warning, padding: spacing.md, borderRadius: radius.md, flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}
+                  onPress={() => navigation.navigate('IRCalculator')}
+                >
+                  <Ionicons name="calculator-outline" size={18} color={colors.textLight} />
+                  <Text style={{ color: colors.textLight, fontWeight: '700', marginLeft: 6 }}>IR mensal · gerar DARF</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={{ marginTop: spacing.sm, backgroundColor: colors.primary, padding: spacing.md, borderRadius: radius.md, flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}
+                  onPress={() => navigation.navigate('Declaracao')}
+                >
+                  <Ionicons name="document-text-outline" size={18} color={colors.textLight} />
+                  <Text style={{ color: colors.textLight, fontWeight: '700', marginLeft: 6 }}>Declaração anual · resumo</Text>
+                </TouchableOpacity>
+              </View>
+            </Card>
+          </View>
+        )}
+
+        {/* ============ TAB CONFIGURAÇÕES (ALOCAÇÃO ALVO) ============ */}
+        {tab === 'config' && (
+          <AllocationConfig />
+        )}
 
         {/* ============ TAB RESUMO ============ */}
         {tab === 'resumo' && (

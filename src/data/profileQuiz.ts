@@ -124,6 +124,7 @@ export type Profile = {
   brokerIds?: string[];     // múltiplas corretoras
   preference?: Preference;  // estilo de investimento — null pra usuários antigos
   dividendTarget?: DividendTarget;  // meta de renda passiva opcional
+  targetAllocation?: TargetAllocation;  // alocação alvo % por classe
 };
 
 export type DividendTarget = {
@@ -131,6 +132,23 @@ export type DividendTarget = {
   // monthly_amount: R$/mês desejados
   // annual_dy: % ao ano desejado
   value: number;
+};
+
+export type AllocationClass = 'acao' | 'fii' | 'etf' | 'tesouro' | 'cdb' | 'internacional' | 'outro';
+
+export type TargetAllocation = {
+  // Cada chave vale uma porcentagem (0-100). Soma deve dar 100.
+  [k in AllocationClass]?: number;
+};
+
+export const ALLOCATION_LABELS: Record<AllocationClass, string> = {
+  acao: 'Ações',
+  fii: 'FIIs',
+  etf: 'ETFs',
+  tesouro: 'Tesouro',
+  cdb: 'CDB/LCI/LCA',
+  internacional: 'Internacional',
+  outro: 'Outros',
 };
 
 export function computeProfile(answers: Record<string, number>): Profile {
