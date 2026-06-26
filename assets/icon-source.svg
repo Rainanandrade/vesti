@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  ÍCONE FONTE — Vesti
+  Tamanho: 1024×1024 (Apple) / 512×512 (Google Play)
+  Cores: Esmeralda profundo + Champagne dourado
+
+  Como exportar:
+  1. Abrir em https://svgomg.net OU Figma OU Inkscape
+  2. Exportar como PNG 1024×1024
+  3. Salvar como assets/icon.png (e duplicar como adaptive-icon.png)
+  4. Pra favicon: exportar 32×32 e salvar como assets/favicon.png
+-->
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+  <!-- Fundo arredondado esmeralda -->
+  <rect x="0" y="0" width="1024" height="1024" rx="230" fill="#0B5345"/>
+
+  <!-- Vinheta sutil pra dar profundidade -->
+  <radialGradient id="glow" cx="50%" cy="40%" r="60%">
+    <stop offset="0%" stop-color="#1A7565" stop-opacity="0.5"/>
+    <stop offset="100%" stop-color="#0B5345" stop-opacity="0"/>
+  </radialGradient>
+  <rect x="0" y="0" width="1024" height="1024" rx="230" fill="url(#glow)"/>
+
+  <!-- Folha esquerda no topo -->
+  <path d="M 342 367 C 311 304 311 246 354 200 C 397 246 397 304 367 367 Z"
+        fill="#C9A961"/>
+
+  <!-- Folha direita no topo -->
+  <path d="M 682 367 C 713 304 713 246 670 200 C 627 246 627 304 657 367 Z"
+        fill="#C9A961"/>
+
+  <!-- Asa esquerda descendo -->
+  <path d="M 342 367 C 342 512 397 640 487 736 C 499 750 512 750 512 736"
+        fill="none" stroke="#C9A961" stroke-width="58" stroke-linecap="round"/>
+
+  <!-- Asa direita descendo (espelhada) -->
+  <path d="M 682 367 C 682 512 627 640 537 736 C 525 750 512 750 512 736"
+        fill="none" stroke="#C9A961" stroke-width="58" stroke-linecap="round"/>
+
+  <!-- Gota central -->
+  <circle cx="512" cy="754" r="34" fill="#C9A961"/>
+</svg>

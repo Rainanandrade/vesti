@@ -4,20 +4,35 @@
     "appVersionSource": "remote"
   },
   "build": {
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal",
+      "channel": "development"
+    },
     "preview": {
       "distribution": "internal",
-      "android": {
-        "buildType": "apk"
-      },
-      "ios": {
-        "simulator": true
-      }
+      "channel": "preview",
+      "android": { "buildType": "apk" },
+      "ios": { "simulator": true }
     },
     "production": {
-      "autoIncrement": true
+      "autoIncrement": true,
+      "channel": "production",
+      "ios": { "resourceClass": "m-medium" },
+      "android": { "resourceClass": "medium" }
     }
   },
   "submit": {
-    "production": {}
+    "production": {
+      "ios": {
+        "appleId": "PREENCHER_SEU_EMAIL_APPLE_ID",
+        "ascAppId": "PREENCHER_DEPOIS_DE_CRIAR_APP_NO_APP_STORE_CONNECT",
+        "appleTeamId": "PREENCHER_DEPOIS_DE_CRIAR_CONTA_DEV"
+      },
+      "android": {
+        "serviceAccountKeyPath": "./google-play-key.json",
+        "track": "internal"
+      }
+    }
   }
 }

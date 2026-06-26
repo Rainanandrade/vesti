@@ -1,47 +1,57 @@
-// Gera ícones do app (icon, adaptive-icon, splash-icon, favicon) a partir de SVG.
-// Rodar com: node scripts/generate-icons.js
+// Gera ícones do app (icon, adaptive-icon, splash-icon, favicon).
+// Usa o SVG fonte em assets/icon-source.svg + paleta Esmeralda + Champagne.
+// Rodar: node scripts/generate-icons.js
 
 const sharp = require('sharp');
 const path = require('path');
 const fs = require('fs');
 
-const PRIMARY = '#820AD1';
-const PRIMARY_DARK = '#5F0A9E';
-const GOLD = '#F7C948';
+const PRIMARY = '#0B5345';      // Esmeralda profundo
+const PRIMARY_LIGHT = '#1A7565';
+const ACCENT = '#C9A961';        // Champagne dourado
 
-function svgLogo({ bg, fg = '#FFFFFF', size = 1024, padding = 0.2, withCircle = true }) {
-  const innerSize = size * (1 - padding * 2);
-  const offset = size * padding;
-  const cx = size / 2;
-  const cy = size / 2;
-  const r = innerSize / 2;
-  const vPath = `
-    M ${cx - r * 0.44} ${cy - r * 0.44}
-    L ${cx} ${cy + r * 0.44}
-    L ${cx + r * 0.44} ${cy - r * 0.44}
-    L ${cx + r * 0.28} ${cy - r * 0.44}
-    L ${cx} ${cy + r * 0.16}
-    L ${cx - r * 0.28} ${cy - r * 0.44}
-    Z
-  `;
-  const dotR = r * 0.08;
-  return `
-<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">
-  <defs>
-    <linearGradient id="grad" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="${PRIMARY}"/>
-      <stop offset="1" stop-color="${PRIMARY_DARK}"/>
-    </linearGradient>
-  </defs>
-  ${
-    withCircle
-      ? `<circle cx="${cx}" cy="${cy}" r="${r}" fill="${bg === 'gradient' ? 'url(#grad)' : bg}"/>`
-      : `<rect x="0" y="0" width="${size}" height="${size}" fill="${bg === 'gradient' ? 'url(#grad)' : bg}"/>`
-  }
-  <path d="${vPath}" fill="${fg}"/>
-  <circle cx="${cx + r * 0.44}" cy="${cy - r * 0.44}" r="${dotR}" fill="${GOLD}"/>
-</svg>
-  `.trim();
+// Gera o SVG inline (mesmo do icon-source.svg)
+function buildLogoSvg({ size = 1024, withBg = true, padding = 0 }) {
+  const inner = size - padding * 2;
+  const scale = inner / 1024;
+  const off = padding;
+
+  const bgRect = withBg
+    ? `<rect x="${off}" y="${off}" width="${inner}" height="${inner}" rx="${230 * scale}" fill="${PRIMARY}"/>`
+    : '';
+  const glow = withBg
+    ? `<defs><radialGradient id="g" cx="50%" cy="40%" r="60%">
+         <stop offset="0%" stop-color="${PRIMARY_LIGHT}" stop-opacity="0.5"/>
+         <stop offset="100%" stop-color="${PRIMARY}" stop-opacity="0"/>
+       </radialGradient></defs>
+       <rect x="${off}" y="${off}" width="${inner}" height="${inner}" rx="${230 * scale}" fill="url(#g)"/>`
+    : '';
+
+  // Transformação pra coordenadas do logo (originalmente em 1024)
+  const t = (x) => off + x * scale;
+
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">
+    ${bgRect}
+    ${glow}
+    <!-- Folha esquerda topo -->
+    <path d="M ${t(342)} ${t(367)} C ${t(311)} ${t(304)} ${t(311)} ${t(246)} ${t(354)} ${t(200)}
+             C ${t(397)} ${t(246)} ${t(397)} ${t(304)} ${t(367)} ${t(367)} Z"
+          fill="${ACCENT}"/>
+    <!-- Folha direita topo -->
+    <path d="M ${t(682)} ${t(367)} C ${t(713)} ${t(304)} ${t(713)} ${t(246)} ${t(670)} ${t(200)}
+             C ${t(627)} ${t(246)} ${t(627)} ${t(304)} ${t(657)} ${t(367)} Z"
+          fill="${ACCENT}"/>
+    <!-- Asa esquerda descendo -->
+    <path d="M ${t(342)} ${t(367)} C ${t(342)} ${t(512)} ${t(397)} ${t(640)} ${t(487)} ${t(736)}
+             C ${t(499)} ${t(750)} ${t(512)} ${t(750)} ${t(512)} ${t(736)}"
+          fill="none" stroke="${ACCENT}" stroke-width="${58 * scale}" stroke-linecap="round"/>
+    <!-- Asa direita descendo -->
+    <path d="M ${t(682)} ${t(367)} C ${t(682)} ${t(512)} ${t(627)} ${t(640)} ${t(537)} ${t(736)}
+             C ${t(525)} ${t(750)} ${t(512)} ${t(750)} ${t(512)} ${t(736)}"
+          fill="none" stroke="${ACCENT}" stroke-width="${58 * scale}" stroke-linecap="round"/>
+    <!-- Gota central -->
+    <circle cx="${t(512)}" cy="${t(754)}" r="${34 * scale}" fill="${ACCENT}"/>
+  </svg>`;
 }
 
 async function generate() {
@@ -49,23 +59,18 @@ async function generate() {
   if (!fs.existsSync(out)) fs.mkdirSync(out);
 
   const items = [
-    // icon.png — ícone principal iOS / Android (1024x1024)
-    { file: 'icon.png', size: 1024, bg: 'gradient', withCircle: false, padding: 0.18 },
-    // adaptive-icon.png — foreground do Android (apenas o V, fundo definido em app.json)
-    { file: 'adaptive-icon.png', size: 1024, bg: 'gradient', withCircle: false, padding: 0.28 },
-    // splash-icon.png — splash centralizada
-    { file: 'splash-icon.png', size: 1024, bg: 'transparent', withCircle: true, padding: 0.15 },
+    // icon.png — ícone principal iOS / Android (1024x1024, com fundo)
+    { file: 'icon.png',          size: 1024, withBg: true,  padding: 0 },
+    // adaptive-icon.png — foreground Android com margem (cor fundo definida em app.json)
+    { file: 'adaptive-icon.png', size: 1024, withBg: true,  padding: 100 },
+    // splash-icon.png — splash centralizada (com fundo)
+    { file: 'splash-icon.png',   size: 1024, withBg: true,  padding: 50 },
     // favicon.png — para web
-    { file: 'favicon.png', size: 256, bg: 'gradient', withCircle: false, padding: 0.18 },
+    { file: 'favicon.png',       size: 256,  withBg: true,  padding: 0 },
   ];
 
   for (const it of items) {
-    const svg = svgLogo({
-      bg: it.bg,
-      size: it.size,
-      padding: it.padding,
-      withCircle: it.withCircle,
-    });
+    const svg = buildLogoSvg({ size: it.size, withBg: it.withBg, padding: it.padding });
     const target = path.join(out, it.file);
     await sharp(Buffer.from(svg)).png().toFile(target);
     console.log(`✓ ${it.file} (${it.size}x${it.size})`);

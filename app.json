@@ -2,38 +2,54 @@
   "expo": {
     "name": "Vesti",
     "slug": "vesti",
-    "version": "1.0.0",
+    "version": "4.4.2",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "scheme": "vesti",
+    "description": "Acompanhe sua carteira de ações, FIIs e ETFs da B3 em um só lugar. Calcule IR mensal, gere DARF, acompanhe dividendos, defina metas e receba análises personalizadas com IA. Não somos corretora — é uma ferramenta de organização e educação financeira.",
+    "primaryColor": "#0B5345",
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#820AD1"
+      "backgroundColor": "#0B5345"
     },
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.rainangleidson.vesti",
       "buildNumber": "1",
+      "icon": "./assets/icon.png",
+      "config": {
+        "usesNonExemptEncryption": false
+      },
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
-      }
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSCameraUsageDescription": "O Vesti pode usar a câmera apenas se você optar por digitalizar um código de boleto ou QR de DARF.",
+        "NSFaceIDUsageDescription": "Use Face ID pra desbloquear o app em vez de digitar o PIN.",
+        "CFBundleDisplayName": "Vesti",
+        "LSApplicationCategoryType": "public.app-category.finance"
+      },
+      "associatedDomains": ["applinks:vesti-nine.vercel.app"]
     },
     "android": {
       "package": "com.rainangleidson.vesti",
       "versionCode": 1,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#820AD1"
+        "backgroundColor": "#0B5345"
       },
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "permissions": ["NOTIFICATIONS"]
     },
     "web": {
       "favicon": "./assets/favicon.png",
-      "bundler": "metro"
+      "bundler": "metro",
+      "name": "Vesti — Sua Carteira em Tempo Real",
+      "shortName": "Vesti",
+      "themeColor": "#0B5345",
+      "backgroundColor": "#FFFFFF"
     },
     "plugins": [
       "expo-secure-store",
@@ -43,7 +59,10 @@
     "extra": {
       "eas": {
         "projectId": "062aa63c-2231-491a-a53a-67048683534f"
-      }
+      },
+      "privacyPolicyUrl": "https://vesti-nine.vercel.app/legal/privacy",
+      "termsOfUseUrl": "https://vesti-nine.vercel.app/legal/terms",
+      "supportEmail": "rainangleidson@protonmail.com"
     },
     "owner": "rainangleidsons-team"
   }
