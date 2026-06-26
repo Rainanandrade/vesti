@@ -65,6 +65,9 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     borderBottomWidth: 1,
     borderColor: colors.divider,
+    maxHeight: 50,
+    minHeight: 50,
+    flexGrow: 0,
   },
   content: { paddingHorizontal: spacing.sm, paddingVertical: 4 },
   tab: {

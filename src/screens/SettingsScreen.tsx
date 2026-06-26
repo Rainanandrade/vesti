@@ -190,19 +190,30 @@ Pra detalhe operação a operação, posso exportar o JSON completo no Vesti.`;
   }, []);
 
   const handleToggleNotif = async (val: boolean) => {
+    // No web não dá pra agendar notificações push do mesmo jeito.
+    // Atualizamos o switch otimisticamente e salvamos preferência.
+    if (Platform.OS === 'web') {
+      setNotifEnabled(val);
+      if (val) {
+        Alert.alert(
+          'Notificações no navegador',
+          'No navegador as notificações funcionam só com o app instalado na tela inicial. Quando instalar como PWA, esse preferência já fica ativada.',
+        );
+      }
+      return;
+    }
+    setNotifEnabled(val); // otimista — evita estado preso
     if (val) {
       const ok = await enableNotifications();
       if (!ok) {
+        setNotifEnabled(false);
         Alert.alert(
           'Permissão necessária',
           'Habilite as notificações do Vesti nas configurações do celular pra receber alertas.',
         );
-        return;
       }
-      setNotifEnabled(true);
     } else {
       await disableNotifications();
-      setNotifEnabled(false);
     }
   };
 

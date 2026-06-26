@@ -26,11 +26,13 @@ export default async function handler(req, res) {
   const isIbovIndex = raw === '^BVSP' || raw === 'IBOV' || clean === 'BVSP';
   const brapiTicker = isIbovIndex ? 'BOVA11' : clean;
 
-  // 1) brapi.dev (preferred)
-  if (BRAPI_TOKEN) {
+  // 1) brapi.dev (preferred) — token via Bearer header (não mais query param)
+  {
     try {
-      const url = `https://brapi.dev/api/quote/${brapiTicker}?token=${BRAPI_TOKEN}`;
-      const r = await fetchWithTimeout(url, { headers: { Accept: 'application/json' } });
+      const url = `https://brapi.dev/api/quote/${brapiTicker}`;
+      const headers = { Accept: 'application/json' };
+      if (BRAPI_TOKEN) headers.Authorization = `Bearer ${BRAPI_TOKEN}`;
+      const r = await fetchWithTimeout(url, { headers });
       if (r.ok) {
         const json = await r.json();
         const q = json?.results?.[0];

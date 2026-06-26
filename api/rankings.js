@@ -33,10 +33,11 @@ const FIIS_UNIVERSO = [
 ];
 
 async function fetchQuoteData(symbol) {
-  if (!BRAPI_TOKEN) return null;
   try {
-    const url = `https://brapi.dev/api/quote/${symbol}?token=${BRAPI_TOKEN}`;
-    const r = await fetchWithTimeout(url, { headers: { Accept: 'application/json' } }, 6000);
+    const url = `https://brapi.dev/api/quote/${symbol}`;
+    const headers = { Accept: 'application/json' };
+    if (BRAPI_TOKEN) headers.Authorization = `Bearer ${BRAPI_TOKEN}`;
+    const r = await fetchWithTimeout(url, { headers }, 6000);
     if (!r.ok) return null;
     const json = await r.json();
     const q = json?.results?.[0];

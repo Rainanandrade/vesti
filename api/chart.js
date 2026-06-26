@@ -26,7 +26,6 @@ const YAHOO_INTERVAL = {
 };
 
 async function fromBrapi(symbol, range, indexProxy = false) {
-  if (!BRAPI_TOKEN) return null;
   try {
     const { range: r, interval } = BRAPI_RANGE[range] || BRAPI_RANGE['1y'];
     // brapi free não libera ^BVSP/IBOV. Usamos BOVA11 (ETF iShares Ibovespa)
@@ -37,8 +36,12 @@ async function fromBrapi(symbol, range, indexProxy = false) {
     } else if (indexProxy && symbol.startsWith('^')) {
       ticker = 'BOVA11';
     }
-    const url = `https://brapi.dev/api/quote/${ticker}?range=${r}&interval=${interval}&token=${BRAPI_TOKEN}`;
-    const res = await fetchWithTimeout(url, { headers: { Accept: 'application/json' } });
+    // brapi.dev v2: aceita Authorization header (Bearer) OU sem token (público,
+    // com rate limit menor). Token via query param foi descontinuado.
+    const url = `https://brapi.dev/api/quote/${ticker}?range=${r}&interval=${interval}`;
+    const headers = { Accept: 'application/json' };
+    if (BRAPI_TOKEN) headers.Authorization = `Bearer ${BRAPI_TOKEN}`;
+    const res = await fetchWithTimeout(url, { headers });
     if (!res.ok) return null;
     const json = await res.json();
     if (json.error) return null;

@@ -29,8 +29,10 @@ function pct(raw) {
 async function fromBrapi(symbol) {
   if (!BRAPI_TOKEN) return null;
   try {
-    const url = `https://brapi.dev/api/quote/${symbol}?modules=summaryProfile,defaultKeyStatistics,financialData,balanceSheetHistory&token=${BRAPI_TOKEN}`;
-    const r = await fetchWithTimeout(url, { headers: { Accept: 'application/json' } });
+    const url = `https://brapi.dev/api/quote/${symbol}?modules=summaryProfile,defaultKeyStatistics,financialData,balanceSheetHistory`;
+    const headers = { Accept: 'application/json' };
+    if (BRAPI_TOKEN) headers.Authorization = `Bearer ${BRAPI_TOKEN}`;
+    const r = await fetchWithTimeout(url, { headers });
     if (!r.ok) return null;
     const json = await r.json();
     const q = json?.results?.[0];
@@ -176,8 +178,10 @@ function hasMeaningfulData(d) {
 async function fromBrapiQuote(symbol) {
   if (!BRAPI_TOKEN) return null;
   try {
-    const url = `https://brapi.dev/api/quote/${symbol}?token=${BRAPI_TOKEN}`;
-    const r = await fetchWithTimeout(url, { headers: { Accept: 'application/json' } });
+    const url = `https://brapi.dev/api/quote/${symbol}`;
+    const headers = { Accept: 'application/json' };
+    if (BRAPI_TOKEN) headers.Authorization = `Bearer ${BRAPI_TOKEN}`;
+    const r = await fetchWithTimeout(url, { headers });
     if (!r.ok) return null;
     const json = await r.json();
     const q = json?.results?.[0];

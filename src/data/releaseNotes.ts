@@ -27,10 +27,25 @@ export type ReleaseNote = {
 };
 
 // ATUAL versão do app — bumpa a cada release.
-export const CURRENT_VERSION = '4.3.0';
+export const CURRENT_VERSION = '4.4.0';
 
 // Notas em ordem cronológica DESCENDENTE (mais recente primeiro)
 export const RELEASE_NOTES: ReleaseNote[] = [
+  {
+    version: '4.4.0',
+    date: '2026-06-26',
+    title: 'Bugs corrigidos: customizar, sort, watchlist, gráficos',
+    subtitle: '7 fixes pesados de uma vez',
+    highlights: [
+      { emoji: '🪲', title: 'Customizar colunas não bagunça mais', description: 'Header e body agora seguem a MESMA ordem canônica (COLUMNS). Desmarcar uma coluna não embaralha os dados das outras.' },
+      { emoji: '↕️', title: 'Ordenação por coluna funcional', description: 'Toca no cabeçalho pra ordenar asc/desc (Ativos, Qtd, Saldo, Preço médio, Preço atual, Variação, Rentabilidade, Nota, %Carteira).' },
+      { emoji: '👁️', title: 'Watchlist clicável', description: 'Cards do Acompanho agora abrem AssetDetail com indicadores, gráficos e tudo.' },
+      { emoji: '📊', title: 'Gráficos voltaram a funcionar', description: 'brapi.dev mudou pra exigir token via header Authorization. Atualizado em chart, quote, details, rankings e ai-suggest. Todos os ranges (1m, 6m, 1a, 5a) puxam dados de novo.' },
+      { emoji: '🔔', title: 'Toggle notificações funcional no web', description: 'Antes ficava preso em off. Agora salva preferência otimisticamente e avisa sobre instalar como PWA.' },
+      { emoji: '📐', title: 'Tabs sem espaço fantasma', description: 'PortfolioTabs com altura fixa (50px) — não estica mais em layouts flex.' },
+      { emoji: '🍩', title: 'Botão Gráfico no rodapé funciona', description: 'Toca em "Gráfico" abre modal com donut multi-cor da composição dos ativos filtrados.' },
+    ],
+  },
   {
     version: '4.3.0',
     date: '2026-06-26',

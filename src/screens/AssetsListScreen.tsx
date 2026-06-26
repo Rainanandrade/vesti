@@ -15,6 +15,7 @@ import { colors, fontSize, radius, spacing } from '../theme/colors';
 import { useApp } from '../context/AppContext';
 import { fetchQuotes, Quote } from '../api/brapi';
 import { fmtBRL } from '../utils/format';
+import PortfolioDonut from '../components/PortfolioDonut';
 
 type ClassFilter = 'acao' | 'fii' | 'etf' | 'tesouro' | 'cdb' | 'outro';
 type ColumnKey =
@@ -54,13 +55,47 @@ export default function AssetsListScreen({ navigation, route }: any) {
     COLUMNS.filter((c) => c.default).map((c) => c.key),
   );
   const [customizeOpen, setCustomizeOpen] = useState(false);
+  const [chartOpen, setChartOpen] = useState(false);
   const [notes, setNotes] = useState<Record<string, number>>({}); // ticker → nota
   const [noteEdit, setNoteEdit] = useState<{ sym: string; value: string } | null>(null);
 
-  const filtered = useMemo(
+  const [sortBy, setSortBy] = useState<ColumnKey | 'symbol'>('symbol');
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
+
+  const baseFiltered = useMemo(
     () => (activeWallet?.assets || []).filter((a) => a.type === classFilter),
     [activeWallet, classFilter],
   );
+
+  const filtered = useMemo(() => {
+    const arr = [...baseFiltered];
+    arr.sort((a, b) => {
+      const qa = quotes[a.symbol]?.regularMarketPrice ?? a.avgPrice;
+      const qb = quotes[b.symbol]?.regularMarketPrice ?? b.avgPrice;
+      let va: number | string = 0;
+      let vb: number | string = 0;
+      switch (sortBy) {
+        case 'symbol':       va = a.symbol; vb = b.symbol; break;
+        case 'qtd':          va = a.quantity; vb = b.quantity; break;
+        case 'saldo':        va = qa * a.quantity; vb = qb * b.quantity; break;
+        case 'precoMedio':   va = a.avgPrice; vb = b.avgPrice; break;
+        case 'precoAtual':   va = qa; vb = qb; break;
+        case 'variacao':     va = quotes[a.symbol]?.regularMarketChangePercent ?? 0; vb = quotes[b.symbol]?.regularMarketChangePercent ?? 0; break;
+        case 'rent':         va = ((qa - a.avgPrice) / a.avgPrice) * 100; vb = ((qb - b.avgPrice) / b.avgPrice) * 100; break;
+        case 'minhaNota':    va = notes[a.symbol] ?? 0; vb = notes[b.symbol] ?? 0; break;
+        case 'pctCarteira':  va = qa * a.quantity; vb = qb * b.quantity; break;
+        default:             va = a.symbol; vb = b.symbol;
+      }
+      if (typeof va === 'string') return sortDir === 'asc' ? (va as string).localeCompare(vb as string) : (vb as string).localeCompare(va as string);
+      return sortDir === 'asc' ? (va as number) - (vb as number) : (vb as number) - (va as number);
+    });
+    return arr;
+  }, [baseFiltered, quotes, sortBy, sortDir, notes]);
+
+  const toggleSort = (k: ColumnKey | 'symbol') => {
+    if (sortBy === k) setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
+    else { setSortBy(k); setSortDir('asc'); }
+  };
 
   const totalCarteira = useMemo(() => {
     return (activeWallet?.assets || []).reduce((s, a) => {
@@ -137,19 +172,23 @@ export default function AssetsListScreen({ navigation, route }: any) {
       <View style={{ flex: 1 }}>
         <ScrollView horizontal>
           <View>
-            {/* Header da tabela */}
+            {/* Header — usa ordem canônica de COLUMNS, filtrada pelas ativas */}
             <View style={styles.tableHeader}>
-              <View style={[styles.cellFixed]}>
-                <Text style={styles.thText}>Ativos ⇅</Text>
-              </View>
-              {columns.map((c) => (
-                <View key={c} style={styles.th}>
-                  <Text style={styles.thText}>{COLUMNS.find((x) => x.key === c)?.label} ⇅</Text>
-                </View>
+              <TouchableOpacity style={styles.cellFixed} onPress={() => toggleSort('symbol')}>
+                <Text style={styles.thText}>
+                  Ativos {sortBy === 'symbol' ? (sortDir === 'asc' ? '↑' : '↓') : '⇅'}
+                </Text>
+              </TouchableOpacity>
+              {COLUMNS.filter((c) => columns.includes(c.key)).map((c) => (
+                <TouchableOpacity key={c.key} style={styles.th} onPress={() => toggleSort(c.key)}>
+                  <Text style={styles.thText}>
+                    {c.label} {sortBy === c.key ? (sortDir === 'asc' ? '↑' : '↓') : '⇅'}
+                  </Text>
+                </TouchableOpacity>
               ))}
             </View>
 
-            {/* Rows */}
+            {/* Rows — mesma ordem canônica */}
             <ScrollView>
               {filtered.map((a) => {
                 const q = quotes[a.symbol];
@@ -162,11 +201,70 @@ export default function AssetsListScreen({ navigation, route }: any) {
                 const needBuy = idealPct > 0 && pctCarteira < idealPct - 1;
                 const nota = notes[a.symbol] ?? 0;
 
+                const renderCell = (key: ColumnKey) => {
+                  switch (key) {
+                    case 'qtd':         return <Cell key={key} text={String(a.quantity)} />;
+                    case 'saldo':       return <Cell key={key} text={fmtBRL(value, privacyMode)} />;
+                    case 'precoMedio':  return <Cell key={key} text={fmtBRL(a.avgPrice, privacyMode)} />;
+                    case 'precoAtual':
+                    case 'preco':       return <Cell key={key} text={fmtBRL(price, privacyMode)} />;
+                    case 'variacao':
+                      return (
+                        <View key={key} style={styles.td}>
+                          <View style={[styles.pill, { backgroundColor: variation >= 0 ? colors.successLight : colors.dangerLight }]}>
+                            <Text style={{ color: variation >= 0 ? colors.success : colors.danger, fontWeight: '700' }}>
+                              {variation.toFixed(2)}% {variation >= 0 ? '▲' : '▼'}
+                            </Text>
+                          </View>
+                        </View>
+                      );
+                    case 'rent':
+                      return (
+                        <View key={key} style={styles.td}>
+                          <View style={[styles.pill, { backgroundColor: rent === 0 ? colors.surface : (rent > 0 ? colors.successLight : colors.dangerLight) }]}>
+                            <Text style={{ color: rent === 0 ? colors.textTertiary : (rent > 0 ? colors.success : colors.danger), fontWeight: '700' }}>
+                              {rent.toFixed(2)}%
+                            </Text>
+                          </View>
+                        </View>
+                      );
+                    case 'minhaNota':
+                      return (
+                        <View key={key} style={styles.td}>
+                          <TouchableOpacity
+                            style={styles.noteBadge}
+                            onPress={(e) => {
+                              e.stopPropagation();
+                              setNoteEdit({ sym: a.symbol, value: String(nota) });
+                            }}
+                          >
+                            <Text style={styles.noteText}>{nota}</Text>
+                          </TouchableOpacity>
+                        </View>
+                      );
+                    case 'pctCarteira': return <Cell key={key} text={`${pctCarteira.toFixed(2)}%`} />;
+                    case 'pctIdeal':    return <Cell key={key} text={`${idealPct.toFixed(2)}%`} />;
+                    case 'comprar':
+                      return (
+                        <View key={key} style={styles.td}>
+                          <View style={[styles.pill, { backgroundColor: needBuy ? colors.successLight : colors.dangerLight }]}>
+                            <Ionicons name={needBuy ? 'checkmark-circle' : 'close-circle'} size={14} color={needBuy ? colors.success : colors.danger} />
+                            <Text style={{ color: needBuy ? colors.success : colors.danger, fontWeight: '700', marginLeft: 4 }}>
+                              {needBuy ? 'Sim' : 'Não'}
+                            </Text>
+                          </View>
+                        </View>
+                      );
+                    default: return null;
+                  }
+                };
+
                 return (
                   <TouchableOpacity
                     key={a.symbol}
                     style={styles.tr}
                     onPress={() => navigation.navigate('EditAsset', { symbol: a.symbol })}
+                    activeOpacity={0.65}
                   >
                     <View style={styles.cellFixed}>
                       <View style={[styles.logo, { backgroundColor: tickerColor(a.symbol) + '30' }]}>
@@ -174,54 +272,7 @@ export default function AssetsListScreen({ navigation, route }: any) {
                       </View>
                       <Text style={styles.symbol}>{a.symbol}</Text>
                     </View>
-                    {columns.includes('qtd') && <Cell text={String(a.quantity)} />}
-                    {columns.includes('saldo') && <Cell text={fmtBRL(value, privacyMode)} />}
-                    {columns.includes('precoMedio') && <Cell text={fmtBRL(a.avgPrice, privacyMode)} />}
-                    {columns.includes('precoAtual') && <Cell text={fmtBRL(price, privacyMode)} />}
-                    {columns.includes('variacao') && (
-                      <View style={styles.td}>
-                        <View style={[styles.pill, { backgroundColor: (variation >= 0 ? colors.successLight : colors.dangerLight) }]}>
-                          <Text style={{ color: variation >= 0 ? colors.success : colors.danger, fontWeight: '700', fontSize: fontSize.body }}>
-                            {variation.toFixed(2)}% {variation >= 0 ? '▲' : '▼'}
-                          </Text>
-                        </View>
-                      </View>
-                    )}
-                    {columns.includes('rent') && (
-                      <View style={styles.td}>
-                        <View style={[styles.pill, { backgroundColor: rent === 0 ? colors.surface : (rent > 0 ? colors.successLight : colors.dangerLight) }]}>
-                          <Text style={{ color: rent === 0 ? colors.textTertiary : (rent > 0 ? colors.success : colors.danger), fontWeight: '700', fontSize: fontSize.body }}>
-                            {rent.toFixed(2)}%
-                          </Text>
-                        </View>
-                      </View>
-                    )}
-                    {columns.includes('minhaNota') && (
-                      <View style={styles.td}>
-                        <TouchableOpacity
-                          style={styles.noteBadge}
-                          onPress={() => setNoteEdit({ sym: a.symbol, value: String(nota) })}
-                        >
-                          <Text style={styles.noteText}>{nota}</Text>
-                        </TouchableOpacity>
-                      </View>
-                    )}
-                    {columns.includes('pctCarteira') && <Cell text={`${pctCarteira.toFixed(2)}%`} />}
-                    {columns.includes('pctIdeal') && <Cell text={`${idealPct.toFixed(2)}%`} />}
-                    {columns.includes('comprar') && (
-                      <View style={styles.td}>
-                        <View style={[styles.pill, { backgroundColor: needBuy ? colors.successLight : colors.dangerLight }]}>
-                          <Ionicons
-                            name={needBuy ? 'checkmark-circle' : 'close-circle'}
-                            size={14}
-                            color={needBuy ? colors.success : colors.danger}
-                          />
-                          <Text style={{ color: needBuy ? colors.success : colors.danger, fontWeight: '700', marginLeft: 4 }}>
-                            {needBuy ? 'Sim' : 'Não'}
-                          </Text>
-                        </View>
-                      </View>
-                    )}
+                    {COLUMNS.filter((c) => columns.includes(c.key)).map((c) => renderCell(c.key))}
                   </TouchableOpacity>
                 );
               })}
@@ -233,9 +284,28 @@ export default function AssetsListScreen({ navigation, route }: any) {
       {/* Rodapé */}
       <View style={styles.footer}>
         <FooterBtn icon="pie-chart-outline" label="% Ideal" onPress={() => navigation.getParent()?.navigate('DividendTarget')} />
-        <FooterBtn icon="bar-chart-outline" label="Gráfico" onPress={() => {}} />
+        <FooterBtn icon="bar-chart-outline" label="Gráfico" onPress={() => setChartOpen(true)} />
         <FooterBtn icon="settings-outline" label="Customizar" onPress={() => setCustomizeOpen(true)} />
       </View>
+
+      {/* Modal Gráfico — donut da composição */}
+      <Modal visible={chartOpen} transparent animationType="slide" onRequestClose={() => setChartOpen(false)}>
+        <Pressable style={styles.backdrop} onPress={() => setChartOpen(false)}>
+          <Pressable style={[styles.sheet, { padding: spacing.lg }]} onPress={(e) => e.stopPropagation()}>
+            <Text style={styles.sheetTitle}>Composição — {classFilter === 'acao' ? 'Ações' : classFilter === 'fii' ? 'FIIs' : 'ETFs'}</Text>
+            <PortfolioDonut
+              data={filtered.map((a) => ({
+                label: a.symbol,
+                value: (quotes[a.symbol]?.regularMarketPrice ?? a.avgPrice) * a.quantity,
+              }))}
+              size={260}
+            />
+            <TouchableOpacity style={[styles.closeBtn, { marginTop: spacing.lg }]} onPress={() => setChartOpen(false)}>
+              <Text style={styles.closeBtnText}>Fechar</Text>
+            </TouchableOpacity>
+          </Pressable>
+        </Pressable>
+      </Modal>
 
       {/* Modal customizar colunas */}
       <Modal visible={customizeOpen} transparent animationType="fade" onRequestClose={() => setCustomizeOpen(false)}>

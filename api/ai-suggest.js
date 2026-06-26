@@ -38,8 +38,10 @@ const CURATED = {
 async function fetchQuoteAndFundamentals(symbol) {
   if (!BRAPI_TOKEN) return { symbol };
   try {
-    const url = `https://brapi.dev/api/quote/${symbol}?token=${BRAPI_TOKEN}`;
-    const r = await fetchWithTimeout(url, { headers: { Accept: 'application/json' } });
+    const url = `https://brapi.dev/api/quote/${symbol}`;
+    const headers = { Accept: 'application/json' };
+    if (BRAPI_TOKEN) headers.Authorization = `Bearer ${BRAPI_TOKEN}`;
+    const r = await fetchWithTimeout(url, { headers });
     if (!r.ok) return { symbol };
     const json = await r.json();
     const q = json?.results?.[0];

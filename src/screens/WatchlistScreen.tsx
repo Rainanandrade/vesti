@@ -141,7 +141,18 @@ export default function WatchlistScreen({ navigation }: any) {
             const distanceToTarget = target && price ? ((price - target) / price) * 100 : null;
 
             return (
-              <Card key={item.symbol} style={[styles.itemCard, targetReached && styles.itemCardAlert]}>
+              <TouchableOpacity
+                key={item.symbol}
+                activeOpacity={0.7}
+                onPress={() =>
+                  navigation.getParent()?.navigate('AssetDetail', {
+                    symbol: item.symbol,
+                    name: item.name,
+                    type: item.type,
+                  })
+                }
+              >
+              <Card style={[styles.itemCard, targetReached && styles.itemCardAlert]}>
                 <View style={styles.itemRow}>
                   <View style={{ flex: 1 }}>
                     <View style={styles.symbolRow}>
@@ -206,6 +217,7 @@ export default function WatchlistScreen({ navigation }: any) {
                   </TouchableOpacity>
                 </View>
               </Card>
+              </TouchableOpacity>
             );
           })
         )}
