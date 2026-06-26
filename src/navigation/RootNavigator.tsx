@@ -28,6 +28,7 @@ import NewsScreen from '../screens/NewsScreen';
 import AssetDetailScreen from '../screens/AssetDetailScreen';
 import AssetsListScreen from '../screens/AssetsListScreen';
 import AporteScreen from '../screens/AporteScreen';
+import { globalOperationModalRef } from '../context/OperationModalContext';
 import GoalsScreen from '../screens/GoalsScreen';
 import LearnScreen from '../screens/LearnScreen';
 import SettingsScreen from '../screens/SettingsScreen';
@@ -153,6 +154,13 @@ function MainTabs() {
         name="Aportar"
         component={AporteScreen}
         options={{ tabBarLabel: '' }}
+        listeners={({ navigation: nav }) => ({
+          tabPress: (e) => {
+            // Em vez de navegar pra AporteScreen, abre o modal de Nova operação
+            e.preventDefault();
+            globalOperationModalRef.current?.open();
+          },
+        })}
       />
       <Tab.Screen name="Metas" component={GoalsScreen} />
       <Tab.Screen name="Aprender" component={LearnScreen} />

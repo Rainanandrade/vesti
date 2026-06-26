@@ -27,10 +27,21 @@ export type ReleaseNote = {
 };
 
 // ATUAL versão do app — bumpa a cada release.
-export const CURRENT_VERSION = '4.1.0';
+export const CURRENT_VERSION = '4.2.0';
 
 // Notas em ordem cronológica DESCENDENTE (mais recente primeiro)
 export const RELEASE_NOTES: ReleaseNote[] = [
+  {
+    version: '4.2.0',
+    date: '2026-06-26',
+    title: 'Modal Compra/Venda unificado + tabs sem espaço',
+    subtitle: 'Adicionar sem sair da tela e fix do gap visual',
+    highlights: [
+      { emoji: '⚡', title: 'Modal "Nova operação" único', description: 'Botão "Adicionar" da Carteira E botão "+" central da bottom nav abrem o mesmo modal Compra/Venda. Sem redirecionar — você fica na Carteira.' },
+      { emoji: '🔁', title: 'Compra sincroniza carteira', description: 'Ao registrar Compra: cria a operação no ledger E adiciona/atualiza o ativo na carteira. Venda: cria operação e ajusta posição (remove se zerar).' },
+      { emoji: '🧹', title: 'Tabs sem espaço vazio', description: 'Reduzido padding do header e do scroll. Quando troca de aba (Proventos/Rentabilidade/etc), o conteúdo aparece logo abaixo das tabs, sem gap grande.' },
+    ],
+  },
   {
     version: '4.1.0',
     date: '2026-06-25',

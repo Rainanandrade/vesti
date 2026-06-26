@@ -6,6 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { ActivityIndicator, View } from 'react-native';
 import * as SplashScreen from 'expo-splash-screen';
 import { AppProvider, useApp } from './src/context/AppContext';
+import { OperationModalProvider } from './src/context/OperationModalContext';
 import RootNavigator from './src/navigation/RootNavigator';
 import { colors } from './src/theme/colors';
 import ReleaseNotesModal from './src/components/ReleaseNotesModal';
@@ -36,9 +37,11 @@ export default function App() {
   return (
     <SafeAreaProvider>
       <AppProvider>
-        <RootNavigator />
-        <ReleaseNotesGate />
-        <StatusBar style="auto" />
+        <OperationModalProvider>
+          <RootNavigator />
+          <ReleaseNotesGate />
+          <StatusBar style="auto" />
+        </OperationModalProvider>
       </AppProvider>
     </SafeAreaProvider>
   );
