@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import Svg, { Path, Defs, LinearGradient, Stop, Line, Circle } from 'react-native-svg';
 import { colors, fontSize, radius, spacing } from '../theme/colors';
-import { ChartData, ChartRange, fetchChart, RANGE_LABELS } from '../api/chart';
+import { ChartData, ChartRange, fetchChart, RANGE_LABELS, clearChartCache } from '../api/chart';
 import { fmtBRL } from '../utils/format';
 
 type Props = {
@@ -22,7 +22,8 @@ export default function PriceChart({ symbol, width = 320, height = 180 }: Props)
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
-    fetchChart(symbol, range).then((d) => {
+    setData(null); // limpa enquanto carrega — evita ver dados antigos do range anterior
+    fetchChart(symbol, range, { force: retryNonce > 0 }).then((d) => {
       if (cancelled) return;
       setData(d);
       setLoading(false);
@@ -31,6 +32,12 @@ export default function PriceChart({ symbol, width = 320, height = 180 }: Props)
       cancelled = true;
     };
   }, [symbol, range, retryNonce]);
+
+  const handleRetry = () => {
+    // Limpa cache desse símbolo (todos os ranges) e força bypass
+    clearChartCache(symbol);
+    setRetryNonce((n) => n + 1);
+  };
 
   return (
     <View>
@@ -77,10 +84,7 @@ export default function PriceChart({ symbol, width = 320, height = 180 }: Props)
       ) : (
         <View style={[styles.placeholder, { width, height }]}>
           <Text style={styles.placeholderText}>Histórico indisponível</Text>
-          <TouchableOpacity
-            style={styles.retryBtn}
-            onPress={() => setRetryNonce((n) => n + 1)}
-          >
+          <TouchableOpacity style={styles.retryBtn} onPress={handleRetry}>
             <Text style={styles.retryText}>Tentar de novo</Text>
           </TouchableOpacity>
         </View>
