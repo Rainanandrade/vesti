@@ -27,10 +27,27 @@ export type ReleaseNote = {
 };
 
 // ATUAL versão do app — bumpa a cada release.
-export const CURRENT_VERSION = '4.0.0';
+export const CURRENT_VERSION = '4.1.0';
 
 // Notas em ordem cronológica DESCENDENTE (mais recente primeiro)
 export const RELEASE_NOTES: ReleaseNote[] = [
+  {
+    version: '4.1.0',
+    date: '2026-06-25',
+    title: 'Fix de bugs + Discussões da comunidade',
+    subtitle: 'Modal Compra/Venda, abas com conteúdo real e Sobre rico',
+    highlights: [
+      { emoji: '🐛', title: 'Botão "+" da Lista de ativos consertado', description: 'Agora abre o AddAsset corretamente do MainStack via Tab Carteira.' },
+      { emoji: '🧹', title: 'Tabs da Carteira sem espaço vazio', description: 'O Hero de patrimônio agora aparece só no Resumo. Outras tabs vão direto pro conteúdo.' },
+      { emoji: '🏆', title: 'Rankings com chips legíveis', description: 'Categorias no topo do Rankings agora têm tamanho fixo (110px+, altura 38px). Não encolhem mais.' },
+      { emoji: '🧾', title: 'Dashboard limpo', description: 'Removidos os cards "Dividendos & Rentabilidade", "Próximos pagamentos" e bar chart de proventos — todos com valores inconsistentes. Use a tab Proventos da Carteira.' },
+      { emoji: '🛒', title: 'Botão Adicionar abre menu Compra/Venda', description: 'Modal bonito perguntando se é compra (vai pra AddAsset) ou venda (vai pra Operações).' },
+      { emoji: '📊', title: 'Tab Resultados financeiros funcional', description: 'Lista até 12 indicadores: Valor de Mercado, Caixa, Dívida, Margem, ROE, ROA, Crescimento, P/L, P/VP, Payout.' },
+      { emoji: '📰', title: 'Tab Notícias funcional', description: 'Feed real filtrado pelo ticker e nome da empresa. Quando não tem notícia específica, mostra geral do mercado.' },
+      { emoji: '💬', title: 'Discussões da comunidade', description: 'Todos os users podem comentar e ver comentários por ativo. Tabela asset_comments com RLS (todos leem, só dono edita/deleta). Limite 1000 chars.' },
+      { emoji: '📖', title: 'Sobre rico', description: 'Setor, indústria, descrição completa, valor de mercado, range 52sem, beta, DY, links pro Status Invest/B3/InfoMoney e lista de corretoras.' },
+    ],
+  },
   {
     version: '4.0.0',
     date: '2026-06-25',

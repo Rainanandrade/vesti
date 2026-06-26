@@ -39,6 +39,7 @@ import TabPlaceholder from '../components/TabPlaceholder';
 import PremiumLockModal from '../components/PremiumLockModal';
 import AssetClassCards from '../components/AssetClassCards';
 import PortfolioDonut from '../components/PortfolioDonut';
+import AddOptionsModal from '../components/AddOptionsModal';
 
 export default function PortfolioScreen({ navigation }: any) {
   const { activeWallet, privacyMode, removeAsset, snapshots, profile } = useApp();
@@ -47,6 +48,7 @@ export default function PortfolioScreen({ navigation }: any) {
   const [tab, setTab] = useState<PortfolioTabKey>('resumo');
   const [proventosExpanded, setProventosExpanded] = useState<Record<string, boolean>>({});
   const [premiumOpen, setPremiumOpen] = useState(false);
+  const [addOptionsOpen, setAddOptionsOpen] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
   const load = useCallback(async () => {
@@ -104,7 +106,7 @@ export default function PortfolioScreen({ navigation }: any) {
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.addBtn}
-            onPress={() => navigation.navigate('AddAsset')}
+            onPress={() => setAddOptionsOpen(true)}
           >
             <Ionicons name="add" size={22} color={colors.textLight} />
             <Text style={styles.addBtnText}>Adicionar</Text>
@@ -112,8 +114,8 @@ export default function PortfolioScreen({ navigation }: any) {
         </View>
       </View>
 
-      {/* Hero: patrimônio + variação em tempo (cache 1min) */}
-      {activeWallet && activeWallet.assets.length > 0 && (() => {
+      {/* Hero: patrimônio — só no Resumo, evita espaço vazio em outras tabs */}
+      {tab === 'resumo' && activeWallet && activeWallet.assets.length > 0 && (() => {
         const totalCurrent = activeWallet.assets.reduce((s, a) => {
           const p = quotes[a.symbol]?.regularMarketPrice ?? a.avgPrice;
           return s + p * a.quantity;
@@ -408,7 +410,7 @@ export default function PortfolioScreen({ navigation }: any) {
             {activeWallet && activeWallet.assets.length > 0 && (
               <View style={styles.resumoHeader}>
                 <Text style={styles.resumoTitle}>Meus ativos ({activeWallet.assets.length})</Text>
-                <TouchableOpacity style={styles.addAssetBtn} onPress={() => navigation.navigate('AddAsset')}>
+                <TouchableOpacity style={styles.addAssetBtn} onPress={() => setAddOptionsOpen(true)}>
                   <Ionicons name="add" size={18} color={colors.textLight} />
                   <Text style={styles.addAssetText}>Adicionar ativo</Text>
                 </TouchableOpacity>
@@ -435,7 +437,7 @@ export default function PortfolioScreen({ navigation }: any) {
                 <Text style={styles.emptyDesc}>
                   Toque em "Adicionar" pra começar a registrar seus ativos.
                 </Text>
-                <TouchableOpacity style={styles.addAssetBtn} onPress={() => navigation.navigate('AddAsset')}>
+                <TouchableOpacity style={styles.addAssetBtn} onPress={() => setAddOptionsOpen(true)}>
                   <Ionicons name="add" size={18} color={colors.textLight} />
                   <Text style={styles.addAssetText}>Adicionar ativo</Text>
                 </TouchableOpacity>
@@ -533,6 +535,19 @@ export default function PortfolioScreen({ navigation }: any) {
         title="Sincronização com a B3"
         description="A integração permite importar todos os seus ativos automaticamente, sem digitação manual. Estamos validando segurança e estabilidade antes de liberar."
         feature="A sincronização com a B3"
+      />
+
+      <AddOptionsModal
+        visible={addOptionsOpen}
+        onClose={() => setAddOptionsOpen(false)}
+        onBuy={() => {
+          setAddOptionsOpen(false);
+          navigation.navigate('AddAsset');
+        }}
+        onSell={() => {
+          setAddOptionsOpen(false);
+          navigation.navigate('Operacoes');
+        }}
       />
     </SafeAreaView>
   );

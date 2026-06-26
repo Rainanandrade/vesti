@@ -497,32 +497,13 @@ export default function DashboardScreen({ navigation }: any) {
           )}
         </Card>
 
-        {/* Bar chart Recebidos vs A receber (puxado automaticamente do histórico) */}
-        {(() => {
-          const autoReceived = computeReceivedProventos(activeWallet?.assets || [], dividendInfoMap);
-          const upcoming = upcomingPayments.map((p) => ({ date: p.date, amount: p.amount }));
-          if (autoReceived.length === 0 && upcoming.length === 0) return null;
-          return (
-            <Card style={{ marginTop: spacing.md }}>
-              <View style={styles.cardHeader}>
-                <Text style={styles.cardTitle}>📊 Seus proventos</Text>
-                <TouchableOpacity
-                  onPress={() => navigation.navigate('Carteira', { screen: 'Proventos' })}
-                >
-                  <Text style={{ color: colors.primary, fontWeight: '700' }}>Ver tudo</Text>
-                </TouchableOpacity>
-              </View>
-              <ProventosBarChart
-                received={autoReceived.map((r) => ({ date: r.date, amount: r.amount }))}
-                upcoming={upcoming}
-                privacyMode={privacyMode}
-              />
-            </Card>
-          );
-        })()}
+        {/* Bar chart de proventos — removido do Dashboard.
+            Use a tab Proventos da Carteira pra ver os dados corretos. */}
 
-        {/* Dividendos & Rentabilidade */}
-        {(activeWallet?.assets.length || 0) > 0 && (
+        {/* Dividendos & Rentabilidade — removido do Dashboard.
+            Valores eram estimativas que não batiam com o real.
+            Use a tab Proventos da Carteira que mostra só recebimentos reais. */}
+        {false && (activeWallet?.assets.length || 0) > 0 && (
           <Card style={{ marginTop: spacing.md }}>
             <View style={styles.cardHeader}>
               <Text style={styles.cardTitle}>💰 Dividendos & Rentabilidade</Text>
@@ -627,8 +608,8 @@ export default function DashboardScreen({ navigation }: any) {
           </Card>
         )}
 
-        {/* Próximos pagamentos (dados reais) */}
-        {upcomingPayments.length > 0 && (
+        {/* Próximos pagamentos — removido por inconsistência nos valores */}
+        {false && upcomingPayments.length > 0 && (
           <Card style={{ marginTop: spacing.md }}>
             <View style={styles.cardHeader}>
               <Text style={styles.cardTitle}>📅 Próximos pagamentos</Text>

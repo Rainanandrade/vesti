@@ -12,6 +12,9 @@ import InvestorChecklist from '../components/InvestorChecklist';
 import AssetProventosHistory from '../components/AssetProventosHistory';
 import AssetAbout from '../components/AssetAbout';
 import TabPlaceholder from '../components/TabPlaceholder';
+import AssetFinancials from '../components/AssetFinancials';
+import AssetNewsFeed from '../components/AssetNewsFeed';
+import AssetDiscussions from '../components/AssetDiscussions';
 import { TICKERS, TickerInfo } from '../data/tickers';
 import { fetchAssetDetails, AssetDetails } from '../api/yahooDetails';
 import { fetchQuotes, Quote } from '../api/brapi';
@@ -110,7 +113,7 @@ export default function AssetDetailScreen({ navigation, route }: any) {
             <AssetProventosHistory symbol={symbol} />
           )}
           {tab === 'resultados' && (
-            <TabPlaceholder icon="bar-chart-outline" title="Resultados financeiros" description="Receita, lucro e EBITDA por trimestre/ano. Vamos puxar da CVM." />
+            <AssetFinancials details={details} loading={loading} />
           )}
           {tab === 'comparar' && (
             <View>
@@ -126,13 +129,13 @@ export default function AssetDetailScreen({ navigation, route }: any) {
             </View>
           )}
           {tab === 'noticias' && (
-            <TabPlaceholder icon="newspaper-outline" title="Notícias do ativo" description="Feed de manchetes filtradas sobre essa empresa." />
+            <AssetNewsFeed symbol={symbol} companyName={tickerInfo.name} />
           )}
           {tab === 'sobre' && (
             <AssetAbout ticker={tickerInfo} details={details} />
           )}
           {tab === 'discussoes' && (
-            <TabPlaceholder icon="chatbubbles-outline" title="Discussões da comunidade" description="Comentários e opiniões de outros investidores. Em construção." />
+            <AssetDiscussions symbol={symbol} />
           )}
         </View>
 

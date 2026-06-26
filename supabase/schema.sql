@@ -134,6 +134,33 @@ create policy "snapshots_own" on public.patrimony_snapshots
 
 create unique index if not exists snapshots_user_date_uniq on public.patrimony_snapshots(user_id, date);
 
+-- Discussões públicas por ativo (comentários da comunidade)
+create table if not exists public.asset_comments (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  author_name text not null,
+  symbol text not null,
+  content text not null check (char_length(content) <= 1000),
+  created_at timestamptz default now()
+);
+
+alter table public.asset_comments enable row level security;
+-- Todos podem LER, mas só dono pode escrever/deletar
+drop policy if exists "comments_read_all" on public.asset_comments;
+create policy "comments_read_all" on public.asset_comments
+  for select using (true);
+drop policy if exists "comments_write_own" on public.asset_comments;
+create policy "comments_write_own" on public.asset_comments
+  for insert with check (auth.uid() = user_id);
+drop policy if exists "comments_update_own" on public.asset_comments;
+create policy "comments_update_own" on public.asset_comments
+  for update using (auth.uid() = user_id);
+drop policy if exists "comments_delete_own" on public.asset_comments;
+create policy "comments_delete_own" on public.asset_comments
+  for delete using (auth.uid() = user_id);
+
+create index if not exists asset_comments_symbol_idx on public.asset_comments(symbol, created_at desc);
+
 -- =========================
 -- ROW LEVEL SECURITY (cada user só vê seus próprios dados)
 -- =========================

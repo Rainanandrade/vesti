@@ -24,6 +24,9 @@ import InvestorChecklist from '../components/InvestorChecklist';
 import AssetProventosHistory from '../components/AssetProventosHistory';
 import AssetAbout from '../components/AssetAbout';
 import TabPlaceholder from '../components/TabPlaceholder';
+import AssetFinancials from '../components/AssetFinancials';
+import AssetNewsFeed from '../components/AssetNewsFeed';
+import AssetDiscussions from '../components/AssetDiscussions';
 import { TICKERS } from '../data/tickers';
 import { formatCurrencyInput, parseFormattedNumber } from '../utils/numberFormat';
 import { fetchAssetDetails, AssetDetails } from '../api/yahooDetails';
@@ -285,11 +288,7 @@ export default function EditAssetScreen({ navigation, route }: any) {
 
           {/* ============ RESULTADOS ============ */}
           {isTradeable && tab === 'resultados' && (
-            <TabPlaceholder
-              icon="bar-chart-outline"
-              title="Resultados financeiros"
-              description="Receita, lucro e EBITDA por trimestre/ano. Vamos puxar da CVM via API."
-            />
+            <AssetFinancials details={details} loading={loadingData} />
           )}
 
           {/* ============ COMPARAR ============ */}
@@ -305,12 +304,8 @@ export default function EditAssetScreen({ navigation, route }: any) {
           )}
 
           {/* ============ NOTÍCIAS ============ */}
-          {isTradeable && tab === 'noticias' && (
-            <TabPlaceholder
-              icon="newspaper-outline"
-              title="Notícias do ativo"
-              description="Feed de manchetes filtradas sobre essa empresa. Integração com fontes oficiais em andamento."
-            />
+          {isTradeable && tab === 'noticias' && tickerInfo && (
+            <AssetNewsFeed symbol={asset.symbol} companyName={tickerInfo.name} />
           )}
 
           {/* ============ SOBRE ============ */}
@@ -320,11 +315,7 @@ export default function EditAssetScreen({ navigation, route }: any) {
 
           {/* ============ DISCUSSÕES ============ */}
           {isTradeable && tab === 'discussoes' && (
-            <TabPlaceholder
-              icon="chatbubbles-outline"
-              title="Discussões da comunidade"
-              description="Comentários e opiniões de outros investidores do Vesti. Em construção."
-            />
+            <AssetDiscussions symbol={asset.symbol} />
           )}
 
           <Text style={styles.label}>Quantidade</Text>

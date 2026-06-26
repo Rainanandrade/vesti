@@ -102,7 +102,15 @@ export default function AssetsListScreen({ navigation, route }: any) {
           <Ionicons name="arrow-back" size={22} color={colors.text} />
         </TouchableOpacity>
         <Text style={styles.title}>Lista de ativos</Text>
-        <TouchableOpacity style={styles.addBtn} onPress={() => navigation.navigate('AddAsset')}>
+        <TouchableOpacity
+          style={styles.addBtn}
+          onPress={() => {
+            // AssetsList vive no MainStack como modal. AddAsset vive no
+            // PortfolioStack. Precisamos pular do MainStack pra o Tab Carteira
+            // e abrir AddAsset lá.
+            navigation.navigate('Tabs', { screen: 'Carteira', params: { screen: 'AddAsset' } });
+          }}
+        >
           <Ionicons name="add" size={22} color={colors.textLight} />
         </TouchableOpacity>
       </View>
