@@ -17,6 +17,7 @@ export default function PriceChart({ symbol, width = 320, height = 180 }: Props)
   const [range, setRange] = useState<ChartRange>('1y');
   const [data, setData] = useState<ChartData | null>(null);
   const [loading, setLoading] = useState(false);
+  const [retryNonce, setRetryNonce] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -29,7 +30,7 @@ export default function PriceChart({ symbol, width = 320, height = 180 }: Props)
     return () => {
       cancelled = true;
     };
-  }, [symbol, range]);
+  }, [symbol, range, retryNonce]);
 
   return (
     <View>
@@ -76,6 +77,12 @@ export default function PriceChart({ symbol, width = 320, height = 180 }: Props)
       ) : (
         <View style={[styles.placeholder, { width, height }]}>
           <Text style={styles.placeholderText}>Histórico indisponível</Text>
+          <TouchableOpacity
+            style={styles.retryBtn}
+            onPress={() => setRetryNonce((n) => n + 1)}
+          >
+            <Text style={styles.retryText}>Tentar de novo</Text>
+          </TouchableOpacity>
         </View>
       )}
     </View>
@@ -158,4 +165,6 @@ const styles = StyleSheet.create({
   rangeTabTextActive: { color: colors.primary },
   placeholder: { alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surface, borderRadius: radius.md },
   placeholderText: { color: colors.textSecondary, fontSize: fontSize.body },
+  retryBtn: { marginTop: 10, paddingHorizontal: 16, paddingVertical: 6, backgroundColor: colors.primary, borderRadius: radius.pill },
+  retryText: { color: colors.textLight, fontWeight: '700', fontSize: fontSize.small },
 });

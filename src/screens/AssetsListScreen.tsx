@@ -263,7 +263,14 @@ export default function AssetsListScreen({ navigation, route }: any) {
                   <TouchableOpacity
                     key={a.symbol}
                     style={styles.tr}
-                    onPress={() => navigation.navigate('EditAsset', { symbol: a.symbol })}
+                    onPress={() => {
+                      // AssetsList vive no MainStack. EditAsset está no PortfolioStack.
+                      // Navegar via root → Tabs → Carteira → EditAsset.
+                      navigation.navigate('Tabs', {
+                        screen: 'Carteira',
+                        params: { screen: 'EditAsset', params: { symbol: a.symbol } },
+                      });
+                    }}
                     activeOpacity={0.65}
                   >
                     <View style={styles.cellFixed}>
@@ -283,7 +290,7 @@ export default function AssetsListScreen({ navigation, route }: any) {
 
       {/* Rodapé */}
       <View style={styles.footer}>
-        <FooterBtn icon="pie-chart-outline" label="% Ideal" onPress={() => navigation.getParent()?.navigate('DividendTarget')} />
+        <FooterBtn icon="pie-chart-outline" label="% Ideal" onPress={() => navigation.navigate('DividendTarget')} />
         <FooterBtn icon="bar-chart-outline" label="Gráfico" onPress={() => setChartOpen(true)} />
         <FooterBtn icon="settings-outline" label="Customizar" onPress={() => setCustomizeOpen(true)} />
       </View>

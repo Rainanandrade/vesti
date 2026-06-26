@@ -19,12 +19,16 @@ export type ChartData = {
 };
 
 const cache: Record<string, { data: ChartData | null; ts: number }> = {};
-const TTL = 1000 * 60 * 30; // 30 min
+const TTL_OK = 1000 * 60 * 10;   // 10 min pra dados válidos
+const TTL_FAIL = 1000 * 30;      // 30s pra falhas (retry rápido)
 
 export async function fetchChart(symbol: string, range: ChartRange = '1y'): Promise<ChartData | null> {
   const key = `${symbol.toUpperCase()}_${range}`;
   const cached = cache[key];
-  if (cached && Date.now() - cached.ts < TTL) return cached.data;
+  if (cached) {
+    const ttl = cached.data ? TTL_OK : TTL_FAIL;
+    if (Date.now() - cached.ts < ttl) return cached.data;
+  }
   try {
     const res = await fetch(`${API_BASE}/chart?symbol=${encodeURIComponent(symbol)}&range=${range}`);
     if (!res.ok) {

@@ -168,7 +168,7 @@ const styles = StyleSheet.create({
   backBtn: { flexDirection: 'row', alignItems: 'center', minWidth: 70 },
   backText: { color: colors.text, fontWeight: '600', marginLeft: 2 },
   title: { fontSize: fontSize.title, fontWeight: '700', color: colors.text },
-  catBar: { height: 56, maxHeight: 56, borderBottomWidth: 1, borderColor: colors.divider, backgroundColor: colors.background },
+  catBar: { height: 56, maxHeight: 56, minHeight: 56, flexGrow: 0, flexShrink: 0, borderBottomWidth: 1, borderColor: colors.divider, backgroundColor: colors.background },
   catChip: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 16, height: 38, minWidth: 110, borderRadius: radius.pill, backgroundColor: colors.surface, marginRight: spacing.sm, borderWidth: 1, borderColor: 'transparent', flexShrink: 0 },
   catChipActive: { backgroundColor: colors.primaryLight, borderColor: colors.primary },
   catEmoji: { fontSize: 14, marginRight: 6 },
