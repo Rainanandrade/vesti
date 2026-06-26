@@ -1,5 +1,5 @@
-import { View } from 'react-native';
-import Svg, { Path, Circle, Defs, LinearGradient, Stop } from 'react-native-svg';
+import { View, Text, StyleSheet } from 'react-native';
+import Svg, { Path, Circle, Rect } from 'react-native-svg';
 import { colors } from '../theme/colors';
 
 type Props = {
@@ -8,54 +8,64 @@ type Props = {
   color?: string;
 };
 
-// Logo "mark": V estilizado em círculo roxo (estilo Nubank).
-// Wordmark: mark + texto Vesti ao lado.
+// Logo "mark": esmeralda profundo com folha/asas estilizadas em champagne.
+// Wordmark: mark + "vesti." ao lado.
 export default function Logo({ size = 64, variant = 'mark', color }: Props) {
-  const fg = color || colors.textLight;
-
   if (variant === 'wordmark') {
     return (
       <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-        <LogoMark size={size} fg={fg} />
-        <View style={{ marginLeft: size * 0.25 }}>
-          <WordmarkText size={size} />
-        </View>
+        <LogoMark size={size} />
+        <Text style={[styles.wordmark, { fontSize: size * 0.6, marginLeft: size * 0.25 }]}>
+          vesti<Text style={{ color: colors.primaryAccent }}>.</Text>
+        </Text>
       </View>
     );
   }
-
-  return <LogoMark size={size} fg={fg} />;
+  return <LogoMark size={size} />;
 }
 
-function LogoMark({ size, fg }: { size: number; fg: string }) {
+function LogoMark({ size }: { size: number }) {
+  // SVG inspirado no HTML enviado: forma de "broto/asas/calice" em champagne sobre esmeralda
   return (
-    <Svg width={size} height={size} viewBox="0 0 100 100">
-      <Defs>
-        <LinearGradient id="grad" x1="0" y1="0" x2="1" y2="1">
-          <Stop offset="0" stopColor={colors.primary} />
-          <Stop offset="1" stopColor={colors.primaryDark} />
-        </LinearGradient>
-      </Defs>
-      <Circle cx="50" cy="50" r="50" fill="url(#grad)" />
-      {/* V estilizado: duas linhas convergindo */}
+    <Svg width={size} height={size} viewBox="0 0 600 600">
+      <Rect x="0" y="0" width="600" height="600" rx="135" fill={colors.primary} />
+      {/* Asa esquerda — curva pra baixo */}
       <Path
-        d="M 28 28 L 50 72 L 72 28 L 64 28 L 50 56 L 36 28 Z"
-        fill={fg}
+        d="M 200 215 C 200 300, 232 375, 285 432 C 292 440, 300 440, 300 432"
+        fill="none"
+        stroke={colors.primaryAccent}
+        strokeWidth="34"
+        strokeLinecap="round"
       />
-      {/* Pequeno detalhe: ponto crescente no topo do V direito */}
-      <Circle cx="72" cy="28" r="4" fill={colors.gold} />
+      {/* Asa direita — espelhada */}
+      <Path
+        d="M 400 215 C 400 300, 368 375, 315 432 C 308 440, 300 440, 300 432"
+        fill="none"
+        stroke={colors.primaryAccent}
+        strokeWidth="34"
+        strokeLinecap="round"
+      />
+      {/* Folha esquerda no topo */}
+      <Path
+        d="M 200 215 C 182 178, 182 144, 207 118 C 232 144, 232 178, 215 215 Z"
+        fill={colors.primaryAccent}
+      />
+      {/* Folha direita no topo */}
+      <Path
+        d="M 400 215 C 418 178, 418 144, 393 118 C 368 144, 368 178, 385 215 Z"
+        fill={colors.primaryAccent}
+      />
+      {/* Gota central */}
+      <Circle cx="300" cy="442" r="20" fill={colors.primaryAccent} />
     </Svg>
   );
 }
 
-function WordmarkText({ size }: { size: number }) {
-  const charSize = size * 0.7;
-  return (
-    <Svg width={charSize * 3.4} height={charSize}>
-      <Path
-        d="M0,0 L100,100"
-        stroke="transparent"
-      />
-    </Svg>
-  );
-}
+const styles = StyleSheet.create({
+  wordmark: {
+    fontFamily: 'Syne_700Bold' as any,
+    fontWeight: '800',
+    color: colors.text,
+    letterSpacing: -0.5,
+  },
+});

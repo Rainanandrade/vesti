@@ -30,6 +30,8 @@ import { computeTargetProgress } from '../utils/dividendTarget';
 import { LinearGradient } from 'expo-linear-gradient';
 import { fetchNews, NewsItem } from '../api/news';
 import { Linking } from 'react-native';
+import MarketStatusBar from '../components/MarketStatusBar';
+import HealthRing from '../components/HealthRing';
 
 export default function DashboardScreen({ navigation }: any) {
   const { user, activeWallet, privacyMode, togglePrivacy, profile, recordGoal, wallets, setActiveWalletId, goalsReached, watchlist, snapshots, recordSnapshot, operations, proventos } = useApp();
@@ -346,17 +348,15 @@ export default function DashboardScreen({ navigation }: any) {
           </TouchableOpacity>
         )}
 
-        {/* Market status */}
-        <View style={styles.marketRow}>
-          <View style={[styles.dot, { backgroundColor: marketStatus.isOpen ? colors.success : colors.danger }]} />
-          <Text style={styles.marketText}>{marketStatus.label}</Text>
-          <Text style={styles.marketSub}> · {marketStatus.nextChange}</Text>
+        {/* Market status — agora com dot pulsante animado */}
+        <View style={{ marginTop: spacing.md }}>
+          <MarketStatusBar />
+          {marketStatus.isOpen && (
+            <Text style={styles.delayNote}>
+              ℹ️ Cotações com ~15 min de atraso (brapi free)
+            </Text>
+          )}
         </View>
-        {marketStatus.isOpen && (
-          <Text style={styles.delayNote}>
-            ℹ️ Cotações com ~15 min de atraso (brapi free)
-          </Text>
-        )}
 
         {/* Patrimônio total — hero com gradiente */}
         <LinearGradient
@@ -424,20 +424,14 @@ export default function DashboardScreen({ navigation }: any) {
           {quote.author && <Text style={styles.quoteAuthor}>— {quote.author}</Text>}
         </Card>
 
-        {/* Health Score + Coach */}
+        {/* Health Ring + Coach */}
+        <View style={{ marginTop: spacing.md }}>
+          <HealthRing score={Math.round(healthScore)} message={healthLevelLabel(healthScore)} />
+        </View>
         <Card style={{ marginTop: spacing.md }}>
           <View style={styles.cardHeader}>
-            <Text style={styles.cardTitle}>Saúde da carteira</Text>
+            <Text style={styles.cardTitle}>🎯 Coach do investidor</Text>
             <InfoTooltip termName="Diversificação" />
-          </View>
-          <View style={styles.healthRow}>
-            <Text style={[styles.healthScore, { color: healthScoreColor(healthScore) }]}>
-              {healthScore.toFixed(1)}
-            </Text>
-            <Text style={styles.healthOutOf}>/ 10</Text>
-            <Text style={[styles.healthLevel, { color: healthScoreColor(healthScore) }]}>
-              {healthLevelLabel(healthScore)}
-            </Text>
           </View>
 
           {/* Coach actions */}
@@ -697,17 +691,21 @@ export default function DashboardScreen({ navigation }: any) {
           </TouchableOpacity>
         )}
 
-        {/* Próxima meta */}
+        {/* Próxima meta — com emoji do milestone */}
         <Card style={{ marginTop: spacing.md }}>
-          <Text style={styles.cardTitle}>Próxima meta</Text>
-          <Text style={styles.goalLabel}>{goals.next.label}</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: spacing.sm }}>
+            <Text style={{ fontSize: 32, marginRight: spacing.sm }}>{goals.next.emoji || '🎯'}</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontSize: fontSize.tiny, color: colors.textTertiary, fontWeight: '700', textTransform: 'uppercase' }}>Próxima meta</Text>
+              <Text style={styles.goalLabel}>{goals.next.title || goals.next.label}</Text>
+              {goals.next.desc && <Text style={{ fontSize: fontSize.small, color: colors.textSecondary, marginTop: 2 }}>{goals.next.desc}</Text>}
+            </View>
+          </View>
           <View style={styles.goalBar}>
             <View
               style={[
                 styles.goalBarFill,
-                {
-                  width: `${Math.min(100, (totalCurrent / goals.next.value) * 100)}%`,
-                },
+                { width: `${Math.min(100, (totalCurrent / goals.next.value) * 100)}%` },
               ]}
             />
           </View>

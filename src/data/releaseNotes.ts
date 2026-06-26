@@ -27,10 +27,22 @@ export type ReleaseNote = {
 };
 
 // ATUAL versão do app — bumpa a cada release.
-export const CURRENT_VERSION = '4.2.0';
+export const CURRENT_VERSION = '4.3.0';
 
 // Notas em ordem cronológica DESCENDENTE (mais recente primeiro)
 export const RELEASE_NOTES: ReleaseNote[] = [
+  {
+    version: '4.3.0',
+    date: '2026-06-26',
+    title: 'Logo novo, anel de saúde, pulse do mercado e metas com emoji',
+    subtitle: 'Visual refinado inspirado no protótipo HTML',
+    highlights: [
+      { emoji: '✨', title: 'Logo redesenhado', description: 'Novo SVG em esmeralda + champagne com folhas e asas estilizadas. Substitui o "V" anterior.' },
+      { emoji: '💚', title: 'Anel de saúde da carteira', description: 'Score 0-10 em anel circular SVG com cor dinâmica (verde/champagne/vermelho) e mensagem contextual.' },
+      { emoji: '📡', title: 'Status do mercado pulsante', description: 'Dot animado que pulsa quando o pregão está aberto, com sombra luminosa verde. Estilo profissional.' },
+      { emoji: '🌱', title: '12 metas progressivas com emoji', description: 'De R$100 (🌱 Primeira semente) até R$1M (🌙 Clube do milhão). Cada uma com título, descrição e sugestão de celebração.' },
+    ],
+  },
   {
     version: '4.2.0',
     date: '2026-06-26',
