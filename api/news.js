@@ -7,11 +7,12 @@ import { rateLimitOrReject } from './_lib/rateLimit.js';
 import { fetchWithTimeout } from './_lib/fetch.js';
 
 const DEFAULT_QUERIES = {
-  mercado: 'bovespa+ibovespa+selic+ações+brasil',
-  acoes: 'ações+brasil+B3+bolsa',
-  fiis: 'fundos+imobiliários+FII+brasil',
-  economia: 'inflação+IPCA+banco+central+brasil',
-  dividendos: 'dividendos+JCP+ações+brasil',
+  // Query ampla pra capturar lançamentos, decisões, fatos relevantes do dia
+  mercado: 'B3+OR+Bovespa+OR+Ibovespa+OR+mercado+financeiro+brasil',
+  acoes: 'ações+B3+bolsa+brasil+OR+empresas+listadas',
+  fiis: 'FII+fundos+imobiliários+brasil+OR+IFIX',
+  economia: 'inflação+IPCA+selic+banco+central+OR+copom+brasil',
+  dividendos: 'dividendos+JCP+ações+brasil+OR+proventos',
 };
 
 function parseRss(xml) {
@@ -42,7 +43,8 @@ function decodeEntities(s) {
 
 export default async function handler(req, res) {
   setCors(req, res);
-  res.setHeader('Cache-Control', 's-maxage=3600, stale-while-revalidate=7200');
+  // Cache curto pra notícias frescas (15min na CDN, revalidate em background).
+  res.setHeader('Cache-Control', 's-maxage=900, stale-while-revalidate=3600');
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'GET') return res.status(405).json({ error: 'Método não permitido' });
   if (!(await rateLimitOrReject(req, res, { limit: 30, windowMs: 60_000, prefix: 'news' }))) return;

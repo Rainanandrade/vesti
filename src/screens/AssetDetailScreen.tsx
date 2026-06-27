@@ -78,22 +78,22 @@ export default function AssetDetailScreen({ navigation, route }: any) {
         <View style={{ width: 70 }} />
       </View>
 
-      <ScrollView contentContainerStyle={{ paddingBottom: spacing.xxl }} stickyHeaderIndices={[1]}>
-        <View style={styles.heroBox}>
-          <Text style={styles.heroSymbol}>{symbol}</Text>
-          <Text style={styles.heroName}>{tickerInfo.name}</Text>
-          {quote && (
-            <View style={styles.priceRow}>
-              <Text style={styles.priceValue}>{fmtBRL(quote.regularMarketPrice)}</Text>
-              <Text style={[styles.priceChange, { color: quote.regularMarketChangePercent >= 0 ? colors.success : colors.danger }]}>
-                {quote.regularMarketChangePercent >= 0 ? '↑' : '↓'} {fmtPct(quote.regularMarketChangePercent)} hoje
-              </Text>
-            </View>
-          )}
-        </View>
+      <View style={styles.heroBox}>
+        <Text style={styles.heroSymbol}>{symbol}</Text>
+        <Text style={styles.heroName}>{tickerInfo.name}</Text>
+        {quote && (
+          <View style={styles.priceRow}>
+            <Text style={styles.priceValue}>{fmtBRL(quote.regularMarketPrice)}</Text>
+            <Text style={[styles.priceChange, { color: quote.regularMarketChangePercent >= 0 ? colors.success : colors.danger }]}>
+              {quote.regularMarketChangePercent >= 0 ? '↑' : '↓'} {fmtPct(quote.regularMarketChangePercent)} hoje
+            </Text>
+          </View>
+        )}
+      </View>
 
-        <AssetTabs active={tab} onChange={setTab} />
+      <AssetTabs active={tab} onChange={setTab} />
 
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: spacing.xxl }}>
         <View style={styles.tabBody}>
           {tab === 'resumo' && (
             <>
