@@ -27,10 +27,21 @@ export type ReleaseNote = {
 };
 
 // ATUAL versão do app — bumpa a cada release.
-export const CURRENT_VERSION = '4.4.2';
+export const CURRENT_VERSION = '4.5.0';
 
 // Notas em ordem cronológica DESCENDENTE (mais recente primeiro)
 export const RELEASE_NOTES: ReleaseNote[] = [
+  {
+    version: '4.5.0',
+    date: '2026-06-27',
+    title: 'Busca de ativos cobre TODA a B3',
+    subtitle: 'TRXF11 e todos os outros tickers aparecem no autocomplete',
+    highlights: [
+      { emoji: '🔍', title: 'Busca dinâmica via brapi.dev', description: 'Novo endpoint /api/search-tickers consulta o catálogo completo da B3 em tempo real. Ao digitar, mostra resultados locais (instantâneos) + remotos (todos os ativos listados).' },
+      { emoji: '📋', title: '+60 FIIs e Fiagros no catálogo local', description: 'TRXF11, BTRA11, BRCO11, LVBI11, ALZR11, BCRI11, RECT11, HGRU11, HFOF11, RBRP11, PATL11, SDIL11, XPID11 e muitos outros agora aparecem na busca instantânea.' },
+      { emoji: '⚡', title: 'Cache de 5 min na busca remota', description: 'Buscar o mesmo termo de novo é instantâneo, sem bater na brapi outra vez.' },
+    ],
+  },
   {
     version: '4.4.0',
     date: '2026-06-26',

@@ -16,7 +16,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { colors, fontSize, radius, spacing } from '../theme/colors';
 import { useApp, Asset } from '../context/AppContext';
 import { formatCurrencyInput, parseFormattedNumber } from '../utils/numberFormat';
-import { searchTickers, TickerInfo, TICKERS } from '../data/tickers';
+import { searchTickers, searchTickersAsync, TickerInfo, TICKERS } from '../data/tickers';
 import { fetchQuotes } from '../api/brapi';
 import { fmtBRL } from '../utils/format';
 
@@ -55,12 +55,26 @@ export default function NewOperationModal({ visible, onClose, onDone }: Props) {
     reset();
   }, [visible]);
 
-  const suggestions = useMemo<TickerInfo[]>(() => {
-    if (assetKind === 'daytrade') return [];
-    const all = searchTickers(symbol, 5);
-    const kind = assetKind;
-    if (kind === 'acao' || kind === 'fii' || kind === 'etf') return all.filter((t) => t.type === kind);
-    return all;
+  const [suggestions, setSuggestions] = useState<TickerInfo[]>([]);
+
+  useEffect(() => {
+    if (assetKind === 'daytrade') { setSuggestions([]); return; }
+    const local = searchTickers(symbol, 5);
+    const filter = (arr: TickerInfo[]) => {
+      if (assetKind === 'acao' || assetKind === 'fii' || assetKind === 'etf') {
+        return arr.filter((t) => t.type === assetKind);
+      }
+      return arr;
+    };
+    setSuggestions(filter(local));
+    if (symbol.trim().length >= 2) {
+      let cancelled = false;
+      searchTickersAsync(symbol, 10).then((all) => {
+        if (cancelled) return;
+        setSuggestions(filter(all));
+      });
+      return () => { cancelled = true; };
+    }
   }, [symbol, assetKind]);
 
   // Auto preço quando ticker bate exato com brapi

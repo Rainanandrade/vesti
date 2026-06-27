@@ -20,7 +20,7 @@ import AssetAnalysis from '../components/AssetAnalysis';
 import { useApp, Asset } from '../context/AppContext';
 import PriceChart from '../components/PriceChart';
 import { formatCurrencyInput, parseFormattedNumber } from '../utils/numberFormat';
-import { searchTickers, TickerInfo, TICKERS } from '../data/tickers';
+import { searchTickers, searchTickersAsync, TickerInfo, TICKERS } from '../data/tickers';
 import { fetchQuotes } from '../api/brapi';
 import { fetchAssetDetails, AssetDetails } from '../api/yahooDetails';
 import { fmtBRL } from '../utils/format';
@@ -75,13 +75,28 @@ export default function AddAssetScreen({ navigation, route }: any) {
     };
   }, [symbol, type, typeMeta.needsSymbol]);
 
-  const suggestions = useMemo(() => {
-    if (!typeMeta.needsSymbol) return [];
-    const filtered = searchTickers(symbol, 8);
-    if (type === 'acao') return filtered.filter((t) => t.type === 'acao');
-    if (type === 'fii') return filtered.filter((t) => t.type === 'fii');
-    if (type === 'etf') return filtered.filter((t) => t.type === 'etf');
-    return filtered;
+  const [suggestions, setSuggestions] = useState<TickerInfo[]>([]);
+
+  useEffect(() => {
+    if (!typeMeta.needsSymbol) { setSuggestions([]); return; }
+    // Resultados locais imediatos
+    const local = searchTickers(symbol, 8);
+    const filterByType = (arr: TickerInfo[]) => {
+      if (type === 'acao') return arr.filter((t) => t.type === 'acao');
+      if (type === 'fii') return arr.filter((t) => t.type === 'fii');
+      if (type === 'etf') return arr.filter((t) => t.type === 'etf');
+      return arr;
+    };
+    setSuggestions(filterByType(local));
+    // Busca remota em paralelo
+    if (symbol.trim().length >= 2) {
+      let cancelled = false;
+      searchTickersAsync(symbol, 12).then((all) => {
+        if (cancelled) return;
+        setSuggestions(filterByType(all));
+      });
+      return () => { cancelled = true; };
+    }
   }, [symbol, type, typeMeta.needsSymbol]);
 
   // Busca cotação ao vivo + detalhes

@@ -257,6 +257,68 @@ export const TICKERS: TickerInfo[] = [
   { symbol: 'CPTR11', name: 'Capitânia Agro', type: 'fii' },
   { symbol: 'XPCA11', name: 'XP Crédito Agrícola', type: 'fii' },
   { symbol: 'RZAG11', name: 'Riza Agro', type: 'fii' },
+  { symbol: 'TRXF11', name: 'TRX Real Estate', type: 'fii' },
+  { symbol: 'BTRA11', name: 'BTG Pactual Terras Agrícolas', type: 'fii' },
+  { symbol: 'AGRX11', name: 'Suno Agroindústria', type: 'fii' },
+  { symbol: 'GCRA11', name: 'Galápagos Crédito Agro', type: 'fii' },
+  { symbol: 'AGCX11', name: 'AF Invest CRA', type: 'fii' },
+  { symbol: 'NCRA11', name: 'Nu Asset CRA', type: 'fii' },
+  { symbol: 'JURO11', name: 'Sparta Top FIC FI', type: 'fii' },
+
+  // ============ MAIS FIIs populares (papel, tijolo, FoF, logística) ============
+  { symbol: 'RECT11', name: 'REC Renda Imobiliária', type: 'fii' },
+  { symbol: 'HFOF11', name: 'Hedge TOP FoF', type: 'fii' },
+  { symbol: 'BCRI11', name: 'Banestes Recebíveis Imobiliários', type: 'fii' },
+  { symbol: 'BRCO11', name: 'Bresco Logística', type: 'fii' },
+  { symbol: 'LVBI11', name: 'VBI Logística', type: 'fii' },
+  { symbol: 'ALZR11', name: 'Alianza Trust Renda Imobiliária', type: 'fii' },
+  { symbol: 'RBRP11', name: 'RBR Properties', type: 'fii' },
+  { symbol: 'RBRY11', name: 'RBR Crédito Imobiliário High Yield', type: 'fii' },
+  { symbol: 'RBHY11', name: 'RBR High Yield', type: 'fii' },
+  { symbol: 'PORD11', name: 'Polo Recebíveis Imobiliários', type: 'fii' },
+  { symbol: 'VGIA11', name: 'Valora Agro', type: 'fii' },
+  { symbol: 'CACR11', name: 'Cartesia Recebíveis Imobiliários', type: 'fii' },
+  { symbol: 'PLCR11', name: 'Plural Recebíveis Imobiliários', type: 'fii' },
+  { symbol: 'BLMG11', name: 'Bluemacaw Logística', type: 'fii' },
+  { symbol: 'BTML11', name: 'BTG Pactual Multiestratégia', type: 'fii' },
+  { symbol: 'VCJR11', name: 'Vectis Juros Real', type: 'fii' },
+  { symbol: 'BPFF11', name: 'BTG Pactual FoF', type: 'fii' },
+  { symbol: 'HGPO11', name: 'CSHG Prime Offices', type: 'fii' },
+  { symbol: 'HABT11', name: 'Habitat II', type: 'fii' },
+  { symbol: 'HSLG11', name: 'HSI Logística', type: 'fii' },
+  { symbol: 'HUSC11', name: 'Hedge U.S. Office Income', type: 'fii' },
+  { symbol: 'HUSI11', name: 'Hedge US Income', type: 'fii' },
+  { symbol: 'KISU11', name: 'Kinea Securities', type: 'fii' },
+  { symbol: 'KORE11', name: 'Korea Lodging', type: 'fii' },
+  { symbol: 'LASC11', name: 'Lasc FII', type: 'fii' },
+  { symbol: 'MFII11', name: 'Mérito Desenvolvimento Imobiliário I', type: 'fii' },
+  { symbol: 'NEWL11', name: 'Newport Logística', type: 'fii' },
+  { symbol: 'OUFF11', name: 'Ourinvest FoF', type: 'fii' },
+  { symbol: 'PATL11', name: 'Pátria Logística', type: 'fii' },
+  { symbol: 'PEMA11', name: 'BTG Pactual Educacional', type: 'fii' },
+  { symbol: 'RBED11', name: 'Rio Bravo Renda Educacional', type: 'fii' },
+  { symbol: 'RBVA11', name: 'Rio Bravo Renda Varejo', type: 'fii' },
+  { symbol: 'RBVO11', name: 'Rio Bravo Renda Imobiliária', type: 'fii' },
+  { symbol: 'RBRS11', name: 'RBR Sec Recebíveis', type: 'fii' },
+  { symbol: 'RCFA11', name: 'Rio Claro Façanha', type: 'fii' },
+  { symbol: 'RZAK11', name: 'Riza Akin', type: 'fii' },
+  { symbol: 'SADI11', name: 'Santander Diversificado', type: 'fii' },
+  { symbol: 'SARE11', name: 'Santander Recebíveis Imobiliários', type: 'fii' },
+  { symbol: 'SDIL11', name: 'SDI Rio Bravo Logística', type: 'fii' },
+  { symbol: 'TEPP11', name: 'Tellus Properties', type: 'fii' },
+  { symbol: 'TRBL11', name: 'TG Ativo Real Imobiliário', type: 'fii' },
+  { symbol: 'TVRI11', name: 'TVL Renda Imobiliária', type: 'fii' },
+  { symbol: 'VCRI11', name: 'Vectis Crédito Imobiliário', type: 'fii' },
+  { symbol: 'VGHF11', name: 'Valora Hedge Fund', type: 'fii' },
+  { symbol: 'VGRI11', name: 'Vinci Logística', type: 'fii' },
+  { symbol: 'VIUR11', name: 'Vinci Urca Properties', type: 'fii' },
+  { symbol: 'VSLH11', name: 'Versalhes Recebíveis Imobiliários', type: 'fii' },
+  { symbol: 'XPCM11', name: 'XP Corporate Macaé', type: 'fii' },
+  { symbol: 'XPID11', name: 'XP Industrial', type: 'fii' },
+  { symbol: 'XPIN11', name: 'XP Industrial Premium', type: 'fii' },
+  { symbol: 'XPPR11', name: 'XP Properties', type: 'fii' },
+  { symbol: 'XPSF11', name: 'XP Selection FoF', type: 'fii' },
+  { symbol: 'YUFI11', name: 'Yuca Renda Imobiliária', type: 'fii' },
 
   // ============ ETFs ============
   { symbol: 'BOVA11', name: 'iShares Ibovespa', type: 'etf' },
@@ -283,4 +345,54 @@ export function searchTickers(query: string, limit = 8): TickerInfo[] {
     (t) => !t.symbol.startsWith(q) && t.name.toUpperCase().includes(q),
   );
   return [...startsWith, ...inName].slice(0, limit);
+}
+
+import { Platform } from 'react-native';
+
+const API_BASE = Platform.OS === 'web' ? '/api' : 'https://vesti-nine.vercel.app/api';
+const remoteCache = new Map<string, { ts: number; results: TickerInfo[] }>();
+const REMOTE_TTL = 5 * 60 * 1000;
+
+/**
+ * Busca tickers TANTO no catálogo local (instantâneo) QUANTO na brapi.dev
+ * via /api/search-tickers (dinâmico, cobre todos os ativos da B3).
+ * Resultados locais aparecem primeiro; remotos completam.
+ */
+export async function searchTickersAsync(query: string, limit = 12): Promise<TickerInfo[]> {
+  const q = query.trim().toUpperCase();
+  if (q.length === 0) return [];
+  const local = searchTickers(q, limit);
+  if (q.length < 2) return local;
+
+  // Verifica cache do remoto
+  const cached = remoteCache.get(q);
+  let remote: TickerInfo[] = [];
+  if (cached && Date.now() - cached.ts < REMOTE_TTL) {
+    remote = cached.results;
+  } else {
+    try {
+      const res = await fetch(`${API_BASE}/search-tickers?q=${encodeURIComponent(q)}`);
+      if (res.ok) {
+        const json = await res.json();
+        if (Array.isArray(json?.results)) {
+          remote = json.results.map((r: any) => ({
+            symbol: r.symbol,
+            name: r.name || r.symbol,
+            type: r.type as TickerInfo['type'],
+          }));
+          remoteCache.set(q, { ts: Date.now(), results: remote });
+        }
+      }
+    } catch {
+      // ignora — usuário ainda tem resultados locais
+    }
+  }
+
+  // Merge: locais primeiro, depois remotos que não estão nos locais
+  const localSymbols = new Set(local.map((t) => t.symbol));
+  const merged = [
+    ...local,
+    ...remote.filter((r) => !localSymbols.has(r.symbol)),
+  ];
+  return merged.slice(0, limit);
 }
