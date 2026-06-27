@@ -159,33 +159,32 @@ export default function EditAssetScreen({ navigation, route }: any) {
           <View style={{ width: 24 }} />
         </View>
 
-        <View style={styles.assetHeader}>
-          <View style={{ flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between' }}>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.symbol}>{asset.symbol}</Text>
-              <Text style={styles.name}>{asset.name}</Text>
-            </View>
-            {quote && (
-              <View style={{ alignItems: 'flex-end' }}>
-                <Text style={styles.cotacaoLabel}>cotação</Text>
-                <Text style={styles.cotacaoValue}>{fmtBRL(quote.regularMarketPrice)}</Text>
-                <Text
-                  style={[
-                    styles.cotacaoChange,
-                    { color: quote.regularMarketChangePercent >= 0 ? colors.success : colors.danger },
-                  ]}
-                >
-                  {fmtPct(quote.regularMarketChangePercent)} hoje
-                </Text>
+        <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled" stickyHeaderIndices={[1]}>
+          <View style={styles.assetHeader}>
+            <View style={{ flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between' }}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.symbol}>{asset.symbol}</Text>
+                <Text style={styles.name}>{asset.name}</Text>
               </View>
-            )}
+              {quote && (
+                <View style={{ alignItems: 'flex-end' }}>
+                  <Text style={styles.cotacaoLabel}>cotação</Text>
+                  <Text style={styles.cotacaoValue}>{fmtBRL(quote.regularMarketPrice)}</Text>
+                  <Text
+                    style={[
+                      styles.cotacaoChange,
+                      { color: quote.regularMarketChangePercent >= 0 ? colors.success : colors.danger },
+                    ]}
+                  >
+                    {fmtPct(quote.regularMarketChangePercent)} hoje
+                  </Text>
+                </View>
+              )}
+            </View>
           </View>
-        </View>
 
-        {/* Tabs FIXAS — fora do ScrollView pra não sumirem ao rolar */}
-        {isTradeable && <AssetTabs active={tab} onChange={setTab} />}
-
-        <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
+          {/* Tabs (sticky) */}
+          {isTradeable && <AssetTabs active={tab} onChange={setTab} />}
 
           {/* ============ RESUMO ============ */}
           {(!isTradeable || tab === 'resumo') && (
@@ -370,7 +369,7 @@ const styles = StyleSheet.create({
   },
   title: { fontSize: fontSize.title, fontWeight: '700', color: colors.text },
   scroll: { padding: spacing.lg, paddingBottom: spacing.xxl },
-  assetHeader: { paddingHorizontal: spacing.lg, paddingTop: spacing.md, paddingBottom: spacing.md },
+  assetHeader: { marginBottom: spacing.lg },
   symbol: { fontSize: fontSize.hero, fontWeight: 'bold', color: colors.primary },
   name: { fontSize: fontSize.body, color: colors.textSecondary },
   chartBox: { marginBottom: spacing.lg, backgroundColor: colors.surface, padding: spacing.md, borderRadius: radius.lg },
