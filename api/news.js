@@ -47,8 +47,16 @@ export default async function handler(req, res) {
   if (req.method !== 'GET') return res.status(405).json({ error: 'Método não permitido' });
   if (!(await rateLimitOrReject(req, res, { limit: 30, windowMs: 60_000, prefix: 'news' }))) return;
 
+  // Suporta busca livre (?q=...) OU tópico padrão (?topic=mercado)
+  const freeQuery = String(req.query?.q || '').trim();
   const topic = String(req.query?.topic || 'mercado');
-  const query = DEFAULT_QUERIES[topic] || DEFAULT_QUERIES.mercado;
+  let query;
+  if (freeQuery) {
+    // Sanitiza: só letras, números, espaços, +, - e aspas
+    query = freeQuery.replace(/[^a-zA-Z0-9 +\-"]/g, '').slice(0, 200).replace(/\s+/g, '+');
+  } else {
+    query = DEFAULT_QUERIES[topic] || DEFAULT_QUERIES.mercado;
+  }
   const url = `https://news.google.com/rss/search?q=${query}&hl=pt-BR&gl=BR&ceid=BR:pt-419`;
 
   try {
