@@ -43,3 +43,9 @@ yarn-error.*
 # Vercel
 .vercel/
 .env*
+
+# App store / Play store credentials
+google-play-key.json
+google-services.json
+AuthKey_*.p8
+*.itmsp/
