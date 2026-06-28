@@ -124,6 +124,17 @@ export default function PortfolioScreen({ navigation }: any) {
         const totalInvested = activeWallet.assets.reduce((s, a) => s + a.avgPrice * a.quantity, 0);
         const profit = totalCurrent - totalInvested;
         const pct = totalInvested > 0 ? (profit / totalInvested) * 100 : 0;
+        // DY total da carteira: dividendos recebidos nos últimos 12m / patrimônio
+        const cutoffDate = new Date();
+        cutoffDate.setMonth(cutoffDate.getMonth() - 12);
+        const cutoffIso = cutoffDate.toISOString().slice(0, 10);
+        const total12mDividends = activeWallet.assets.reduce((s, a) => {
+          const hist = dividends[a.symbol]?.history;
+          if (!hist || hist.length === 0) return s;
+          const sumPerShare = hist.filter((h) => h.date >= cutoffIso).reduce((acc, h) => acc + h.amount, 0);
+          return s + sumPerShare * a.quantity;
+        }, 0);
+        const totalDy = totalCurrent > 0 && total12mDividends > 0 ? (total12mDividends / totalCurrent) * 100 : 0;
         return (
           <View style={styles.heroWrap}>
             <Text style={styles.heroLabel}>Patrimônio</Text>
@@ -136,6 +147,12 @@ export default function PortfolioScreen({ navigation }: any) {
             <Text style={styles.heroInvested}>
               Investido {fmtBRL(totalInvested, privacyMode)} · L/P {fmtBRL(profit, privacyMode)}
             </Text>
+            {totalDy > 0 && (
+              <Text style={styles.heroDy}>
+                DY da carteira (12m): <Text style={{ color: colors.primaryAccent, fontWeight: '800' }}>{totalDy.toFixed(2)}%</Text>
+                {' '}· {fmtBRL(total12mDividends, privacyMode)} recebidos
+              </Text>
+            )}
           </View>
         );
       })()}
@@ -425,6 +442,7 @@ export default function PortfolioScreen({ navigation }: any) {
                 quotes={quotes}
                 profile={profile}
                 privacyMode={privacyMode}
+                dividends={dividends}
                 onOpenClass={(cls) =>
                   navigation.getParent()?.navigate('AssetsList', { classFilter: cls })
                 }
@@ -652,6 +670,7 @@ const styles = StyleSheet.create({
   heroValue: { fontSize: fontSize.heading, fontWeight: 'bold', color: colors.text, flex: 1 },
   heroPct: { fontSize: fontSize.bodyLarge, fontWeight: '700' },
   heroInvested: { fontSize: fontSize.small, color: colors.textSecondary, marginTop: 4 },
+  heroDy: { fontSize: fontSize.small, color: colors.textSecondary, marginTop: 4 },
   shortcuts: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', marginBottom: spacing.md },
   resumoHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.md },
   resumoTitle: { fontSize: fontSize.title, fontWeight: '700', color: colors.text },

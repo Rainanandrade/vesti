@@ -5,6 +5,8 @@ import { Asset, Wallet } from '../context/AppContext';
 import { Quote } from '../api/brapi';
 import { Profile, AllocationClass, ALLOCATION_LABELS } from '../data/profileQuiz';
 import { fmtBRL, fmtPct } from '../utils/format';
+import { DividendInfo } from '../api/dividends';
+import { computeDyFromHistory } from '../utils/investorChecklist';
 
 type ClassKey = 'acao' | 'fii' | 'etf' | 'tesouro' | 'cdb' | 'outro';
 
@@ -23,9 +25,10 @@ type Props = {
   profile: Profile | null;
   privacyMode?: boolean;
   onOpenClass: (cls: ClassKey) => void;
+  dividends?: Record<string, DividendInfo | null>;
 };
 
-export default function AssetClassCards({ wallet, quotes, profile, privacyMode, onOpenClass }: Props) {
+export default function AssetClassCards({ wallet, quotes, profile, privacyMode, onOpenClass, dividends = {} }: Props) {
   if (!wallet) return null;
   const targetAlloc = profile?.targetAllocation || {};
   const allClasses: ClassKey[] = ['acao', 'fii', 'etf', 'tesouro', 'cdb', 'outro'];
@@ -37,8 +40,12 @@ export default function AssetClassCards({ wallet, quotes, profile, privacyMode, 
   }, 0);
 
   // Aggregate por classe
-  const byClass = new Map<ClassKey, { assets: Asset[]; value: number; invested: number; dayChange: number; weight: number }>();
-  for (const cls of allClasses) byClass.set(cls, { assets: [], value: 0, invested: 0, dayChange: 0, weight: 0 });
+  const byClass = new Map<ClassKey, { assets: Asset[]; value: number; invested: number; dayChange: number; weight: number; dividends12m: number }>();
+  for (const cls of allClasses) byClass.set(cls, { assets: [], value: 0, invested: 0, dayChange: 0, weight: 0, dividends12m: 0 });
+
+  const cutoff = new Date();
+  cutoff.setMonth(cutoff.getMonth() - 12);
+  const cutoffIso = cutoff.toISOString().slice(0, 10);
 
   for (const a of wallet.assets) {
     const cls = (a.type as ClassKey) in CLASS_META ? (a.type as ClassKey) : 'outro';
@@ -51,8 +58,13 @@ export default function AssetClassCards({ wallet, quotes, profile, privacyMode, 
     cur.assets.push(a);
     cur.value += value;
     cur.invested += invested;
-    cur.dayChange += dayChg * value; // pondera depois
+    cur.dayChange += dayChg * value;
     cur.weight += value;
+    const hist = dividends[a.symbol]?.history;
+    if (hist && hist.length > 0) {
+      const sumPerShare = hist.filter((h) => h.date >= cutoffIso).reduce((s, h) => s + h.amount, 0);
+      cur.dividends12m += sumPerShare * a.quantity;
+    }
   }
 
   // Filtra classes que aparecem no targetAlloc OU têm ativos
@@ -74,6 +86,8 @@ export default function AssetClassCards({ wallet, quotes, profile, privacyMode, 
         const ideal = targetAlloc[cls as AllocationClass] || 0;
         const variationPct = data.invested > 0 ? ((data.value - data.invested) / data.invested) * 100 : 0;
         const dayPct = data.weight > 0 ? data.dayChange / data.weight : 0;
+        const dyPct = data.value > 0 && data.dividends12m > 0 ? (data.dividends12m / data.value) * 100 : 0;
+        const showDy = (cls === 'acao' || cls === 'fii' || cls === 'etf') && dyPct > 0;
 
         return (
           <TouchableOpacity key={cls} onPress={() => onOpenClass(cls)} style={styles.card} activeOpacity={0.7}>
@@ -114,6 +128,14 @@ export default function AssetClassCards({ wallet, quotes, profile, privacyMode, 
                   <Text style={{ color: colors.textTertiary }}> / {ideal}%</Text>
                 </Text>
               </View>
+              {showDy && (
+                <View style={styles.cell}>
+                  <Text style={styles.cellLabel}>DY (12m)</Text>
+                  <Text style={[styles.cellValue, { color: colors.primaryAccent, fontSize: fontSize.body }]}>
+                    {dyPct.toFixed(2)}%
+                  </Text>
+                </View>
+              )}
             </View>
           </TouchableOpacity>
         );
