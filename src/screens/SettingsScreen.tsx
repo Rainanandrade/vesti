@@ -38,6 +38,7 @@ export default function SettingsScreen({ navigation }: any) {
     activeWallet,
     updateUserName,
     clearAllUserData,
+    pro,
   } = useApp();
   const [nameModalOpen, setNameModalOpen] = useState(false);
   const [editName, setEditName] = useState(user?.name || '');
@@ -291,6 +292,34 @@ Pra detalhe operação a operação, posso exportar o JSON completo no Vesti.`;
             <Text style={styles.editNameText}>Editar nome</Text>
           </TouchableOpacity>
         </Card>
+
+        {/* Card Vesti Pro */}
+        <TouchableOpacity
+          onPress={() => navigation.getParent()?.navigate('ProSubscribe')}
+          activeOpacity={0.85}
+          style={{ marginTop: spacing.md }}
+        >
+          <Card style={{ backgroundColor: colors.primary, borderColor: colors.primary }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <View style={styles.proDiamondBox}>
+                <Ionicons name="diamond" size={20} color={colors.gold} />
+              </View>
+              <View style={{ flex: 1, marginLeft: spacing.md }}>
+                <Text style={styles.proTitle}>
+                  {pro.isPaid ? 'Vesti Pro ativo' : pro.isTrial ? 'Trial Vesti Pro' : 'Assinar Vesti Pro'}
+                </Text>
+                <Text style={styles.proSub}>
+                  {pro.isPaid
+                    ? `Sua assinatura vai até ${new Date(pro.expiresAt!).toLocaleDateString('pt-BR')}`
+                    : pro.isTrial
+                    ? `${pro.daysLeft} ${pro.daysLeft === 1 ? 'dia restante' : 'dias restantes'} · Toque pra assinar`
+                    : 'Alertas, IR automático, IA consultora, sincronização com corretora'}
+                </Text>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color={colors.textLight} />
+            </View>
+          </Card>
+        </TouchableOpacity>
 
         <Text style={styles.sectionTitle}>Perfil financeiro</Text>
         <TouchableOpacity onPress={() => navigation?.navigate('Preference')}>
@@ -642,6 +671,9 @@ const styles = StyleSheet.create({
   headerBarTitle: { fontSize: fontSize.title, fontWeight: '700', color: colors.text },
   scroll: { padding: spacing.md, paddingBottom: spacing.xxl },
   title: { fontSize: fontSize.heading, fontWeight: 'bold', color: colors.text },
+  proDiamondBox: { width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.15)', alignItems: 'center', justifyContent: 'center' },
+  proTitle: { fontSize: fontSize.bodyLarge, fontWeight: '800', color: colors.textLight },
+  proSub: { fontSize: fontSize.small, color: 'rgba(255,255,255,0.9)', marginTop: 2 },
   avatar: {
     width: 60,
     height: 60,

@@ -35,6 +35,7 @@ import LearnScreen from '../screens/LearnScreen';
 import SettingsScreen from '../screens/SettingsScreen';
 import LegalDocScreen from '../screens/LegalDocScreen';
 import PreferenceScreen from '../screens/PreferenceScreen';
+import ProSubscribeScreen from '../screens/ProSubscribeScreen';
 import AdaptiveTabBar, { DESKTOP_BREAKPOINT, SIDEBAR_WIDTH } from '../components/AdaptiveTabBar';
 import { useWindowDimensions } from 'react-native';
 
@@ -183,6 +184,7 @@ function MainStack() {
       <Stack.Screen name="Tabs" component={MainTabs} />
       <Stack.Screen name="AIHub" component={AIHubScreen} options={{ presentation: 'modal' }} />
       <Stack.Screen name="DividendTarget" component={DividendTargetScreen} options={{ presentation: 'modal' }} />
+      <Stack.Screen name="ProSubscribe" component={ProSubscribeScreen} options={{ presentation: 'modal' }} />
       {/* Integrações Pluggy: rota escondida, ativar quando premium/produção estiver pronto
       <Stack.Screen name="Integracoes" component={IntegracoesScreen} options={{ presentation: 'modal' }} />
       */}

@@ -5,7 +5,9 @@ import { colors, fontSize, radius, spacing } from '../theme/colors';
 import { fetchChart } from '../api/chart';
 import BenchmarkSparkline from './BenchmarkSparkline';
 import PortfolioMetrics from './PortfolioMetrics';
+import ProLock from './ProLock';
 import { buildComparisonSeries, filterOutliers, PatrimonySnap } from '../utils/benchmarks';
+import { useNavigation } from '@react-navigation/native';
 
 type Props = {
   portfolioReturnPct: number | null; // % de retorno da carteira no período
@@ -13,7 +15,7 @@ type Props = {
   snapshots?: PatrimonySnap[];       // opcional pra desenhar gráfico
 };
 
-export default function IbovespaComparison({ portfolioReturnPct, daysOfHistory, snapshots }: Props) {
+function IbovespaComparisonInner({ portfolioReturnPct, daysOfHistory, snapshots }: Props) {
   const [ibovChangePct, setIbovChangePct] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [range, setRange] = useState<'1mo' | '6mo' | '1y' | '5y'>('1y');
@@ -146,6 +148,20 @@ export default function IbovespaComparison({ portfolioReturnPct, daysOfHistory, 
         </>
       )}
     </View>
+  );
+}
+
+// Wrapper com paywall Pro
+export default function IbovespaComparison(props: Props) {
+  const nav = useNavigation<any>();
+  return (
+    <ProLock
+      title="Compare com o Ibovespa"
+      description="Métricas avançadas (Sharpe, volatilidade, drawdown) e comparação real com o índice."
+      onUnlock={() => nav.getParent()?.navigate('ProSubscribe')}
+    >
+      <IbovespaComparisonInner {...props} />
+    </ProLock>
   );
 }
 

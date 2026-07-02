@@ -95,6 +95,7 @@ type AppContextType = {
   updateUserName: (name: string) => Promise<void>;
   clearAllUserData: () => Promise<void>;
   refreshFromCloud: () => Promise<void>;
+  pro: ProStatus;
 };
 
 export type Provento = {
@@ -135,6 +136,14 @@ export type WatchlistItem = {
   addedAt: number;
 };
 
+export type ProStatus = {
+  isPro: boolean;         // true se dentro do prazo (pago OU trial)
+  isTrial: boolean;       // true se trial ativo (não pagou ainda)
+  isPaid: boolean;        // true se pagou de verdade
+  daysLeft: number | null;// dias restantes (null se sem trial/sub)
+  expiresAt: number | null;
+};
+
 const AppContext = createContext<AppContextType | null>(null);
 
 export function AppProvider({ children }: { children: ReactNode }) {
@@ -152,6 +161,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [completedLessons, setCompletedLessons] = useState<Record<string, number>>({});
   const [watchlist, setWatchlist] = useState<WatchlistItem[]>([]);
   const [lastSeenVersion, setLastSeenVersion] = useState<string | null>(null);
+  const [proExpiresAt, setProExpiresAt] = useState<number | null>(null);
+  const [isPaidSubscriber, setIsPaidSubscriber] = useState<boolean>(false);
   const [operations, setOperations] = useState<Operation[]>([]);
   const [proventos, setProventos] = useState<Provento[]>([]);
   const [snapshots, setSnapshots] = useState<PatrimonySnapshot[]>([]);
@@ -170,6 +181,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setProfileState(prof.financial_profile || null);
       setPrivacyMode(!!prof.privacy_mode);
       setOnboardingDone(!!prof.onboarding_done);
+      setProExpiresAt(prof.pro_expires_at ? new Date(prof.pro_expires_at).getTime() : null);
+      setIsPaidSubscriber(!!prof.mercadopago_subscription_id);
       // Recupera a última versão vista do perfil em nuvem
       const remoteVer = prof.financial_profile?.lastSeenVersion;
       if (remoteVer) setLastSeenVersion(remoteVer);
@@ -358,6 +371,20 @@ export function AppProvider({ children }: { children: ReactNode }) {
     });
     return () => sub.subscription.unsubscribe();
   }, [loadUserData]);
+
+  const proStatus: ProStatus = (() => {
+    const now = Date.now();
+    if (!proExpiresAt) return { isPro: false, isTrial: false, isPaid: false, daysLeft: null, expiresAt: null };
+    const isPro = proExpiresAt > now;
+    const daysLeft = Math.max(0, Math.ceil((proExpiresAt - now) / (24 * 60 * 60 * 1000)));
+    return {
+      isPro,
+      isPaid: isPro && isPaidSubscriber,
+      isTrial: isPro && !isPaidSubscriber,
+      daysLeft,
+      expiresAt: proExpiresAt,
+    };
+  })();
 
   const refreshFromCloud = useCallback(async () => {
     if (!userId) return;
@@ -865,6 +892,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         updateUserName,
         clearAllUserData,
         refreshFromCloud,
+        pro: proStatus,
       }}
     >
       {children}
