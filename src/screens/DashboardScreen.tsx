@@ -17,6 +17,8 @@ import { preferenceLabel } from '../data/profileQuiz';
 import { getQuoteOfDay } from '../data/motivational';
 import CelebrationModal from '../components/CelebrationModal';
 import IbovespaComparison from '../components/IbovespaComparison';
+import BenchmarkSparkline from '../components/BenchmarkSparkline';
+import { buildComparisonSeries, computeReturnMetrics } from '../utils/benchmarks';
 import { fetchAssetDetails, AssetDetails } from '../api/yahooDetails';
 import { computeDividendForecast } from '../utils/dividendForecast';
 import { MONTH_NAMES_PT } from '../data/dividends';
@@ -487,6 +489,25 @@ export default function DashboardScreen({ navigation }: any) {
               <Text style={styles.ipcaFootnote}>
                 Anualização baseada em {Math.round(weightedDays)} dias de carteira (média ponderada).
               </Text>
+
+              {/* Gráfico patrimônio × IPCA projetado */}
+              {(() => {
+                const comp = buildComparisonSeries(snapshots, IPCA_12M);
+                if (!comp || comp.portfolio.length < 3) return null;
+                return (
+                  <View style={{ marginTop: spacing.md }}>
+                    <BenchmarkSparkline
+                      width={320}
+                      height={110}
+                      series={[
+                        { label: 'Sua carteira', color: colors.primary, values: comp.portfolio },
+                        { label: `IPCA (${IPCA_12M}% aa)`, color: colors.warning, values: comp.benchmark },
+                      ]}
+                      labels={[comp.labels[0], comp.labels[comp.labels.length - 1]]}
+                    />
+                  </View>
+                );
+              })()}
             </>
           )}
         </Card>
@@ -598,6 +619,7 @@ export default function DashboardScreen({ navigation }: any) {
             <IbovespaComparison
               portfolioReturnPct={profitPct}
               daysOfHistory={weightedDays}
+              snapshots={snapshots}
             />
           </Card>
         )}
@@ -652,7 +674,18 @@ export default function DashboardScreen({ navigation }: any) {
           const autoRec = computeReceivedProventos(activeWallet?.assets || [], dividendInfoMap);
           const year = new Date().getFullYear();
           const ytd = autoRec.filter((p) => p.date.startsWith(String(year))).reduce((s, p) => s + p.amount, 0);
-          const monthsElapsed = new Date().getMonth() + 1;
+          // Meses elegíveis = do primeiro ativo cadastrado neste ano até agora, min 1.
+          // Sem isso, cadastrar em julho ainda divide os proventos por 7 e distorce a média.
+          const now = new Date();
+          const startOfYear = new Date(now.getFullYear(), 0, 1).getTime();
+          const firstAssetTs = (activeWallet?.assets || [])
+            .map((a) => a.addedAt)
+            .filter((t) => t && t >= startOfYear)
+            .sort((a, b) => a - b)[0] || now.getTime();
+          const firstDate = new Date(firstAssetTs);
+          const monthsFromFirst = (now.getFullYear() - firstDate.getFullYear()) * 12
+            + (now.getMonth() - firstDate.getMonth()) + 1;
+          const monthsElapsed = Math.max(1, Math.min(12, monthsFromFirst));
           const progress = computeTargetProgress(
             profile.dividendTarget,
             totalCurrent,

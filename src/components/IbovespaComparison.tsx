@@ -3,13 +3,17 @@ import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, fontSize, radius, spacing } from '../theme/colors';
 import { fetchChart } from '../api/chart';
+import BenchmarkSparkline from './BenchmarkSparkline';
+import PortfolioMetrics from './PortfolioMetrics';
+import { buildComparisonSeries, PatrimonySnap } from '../utils/benchmarks';
 
 type Props = {
   portfolioReturnPct: number | null; // % de retorno da carteira no período
   daysOfHistory: number;             // dias de histórico da carteira (pra escolher range)
+  snapshots?: PatrimonySnap[];       // opcional pra desenhar gráfico
 };
 
-export default function IbovespaComparison({ portfolioReturnPct, daysOfHistory }: Props) {
+export default function IbovespaComparison({ portfolioReturnPct, daysOfHistory, snapshots }: Props) {
   const [ibovChangePct, setIbovChangePct] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [range, setRange] = useState<'1mo' | '6mo' | '1y' | '5y'>('1y');
@@ -113,6 +117,29 @@ export default function IbovespaComparison({ portfolioReturnPct, daysOfHistory }
                 : `Você está atrás do Ibovespa em ${Math.abs(diff).toFixed(2)} pp`}
             </Text>
           </View>
+
+          {/* Gráfico: patrimônio × Ibovespa projetado com base no ganho anualizado do índice */}
+          {(() => {
+            if (!snapshots || snapshots.length < 3 || ibovChangePct == null) return null;
+            const dayDenom = Math.max(1, daysOfHistory);
+            const ibovAnnualPct = (Math.pow(1 + ibovChangePct / 100, 365 / dayDenom) - 1) * 100;
+            const comp = buildComparisonSeries(snapshots, ibovAnnualPct);
+            if (!comp || comp.portfolio.length < 3) return null;
+            return (
+              <View style={{ marginTop: spacing.md }}>
+                <BenchmarkSparkline
+                  width={320}
+                  height={110}
+                  series={[
+                    { label: 'Sua carteira', color: colors.primary, values: comp.portfolio },
+                    { label: 'Ibovespa', color: colors.warning, values: comp.benchmark },
+                  ]}
+                  labels={[comp.labels[0], comp.labels[comp.labels.length - 1]]}
+                />
+                <PortfolioMetrics portfolioValues={comp.portfolio} />
+              </View>
+            );
+          })()}
         </>
       )}
     </View>

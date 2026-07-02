@@ -334,10 +334,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
       }
     })();
 
-    const { data: sub } = supabase.auth.onAuthStateChange(async (_event, session) => {
+    const { data: sub } = supabase.auth.onAuthStateChange(async (event, session) => {
+      // Token refresh silencioso NÃO deve recarregar dados — isso sobrescreve
+      // estado local recém-modificado (ex: usuário troca corretora → antes do
+      // upsert responder, refresh dispara e volta o valor antigo).
+      // Só recarrega em eventos que realmente mudam o usuário.
+      const shouldReload = event === 'SIGNED_IN' || event === 'USER_UPDATED' || event === 'INITIAL_SESSION';
       if (session?.user) {
         setUserId(session.user.id);
-        await loadUserData(session.user.id, session.user.email || '');
+        if (shouldReload) await loadUserData(session.user.id, session.user.email || '');
       } else {
         setUserId(null);
         setUser(null);
@@ -745,8 +750,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     async (total: number, invested: number) => {
       if (!userId || total <= 0) return;
       const today = new Date().toISOString().slice(0, 10);
-      // Evita gravar duas vezes no mesmo dia
-      if (snapshots.some((s) => s.date === today)) return;
+      // Upsert sempre — se já existe snapshot de hoje, ATUALIZA (adicionar ativo
+      // no meio do dia deve refletir imediatamente na evolução da carteira).
       const { data, error } = await supabase
         .from('patrimony_snapshots')
         .upsert(
@@ -764,7 +769,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         ].sort((a, b) => a.date.localeCompare(b.date));
       });
     },
-    [userId, snapshots],
+    [userId],
   );
 
   const markVersionSeen = useCallback(

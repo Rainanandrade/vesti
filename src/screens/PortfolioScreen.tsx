@@ -124,19 +124,24 @@ export default function PortfolioScreen({ navigation }: any) {
         const totalInvested = activeWallet.assets.reduce((s, a) => s + a.avgPrice * a.quantity, 0);
         const profit = totalCurrent - totalInvested;
         const pct = totalInvested > 0 ? (profit / totalInvested) * 100 : 0;
-        // DY total da carteira: dividendos recebidos nos últimos 12m / patrimônio
-        const cutoffDate = new Date();
-        cutoffDate.setMonth(cutoffDate.getMonth() - 12);
-        const cutoffIso = cutoffDate.toISOString().slice(0, 10);
-        const total12mDividends = activeWallet.assets.reduce((s, a) => {
+        // DY anualizado da carteira. Usa histórico real desde addedAt e escala
+        // proporcionalmente pra 365 dias — assim o valor fica estável mesmo
+        // quando um ativo é recém-cadastrado (senão o DY apareceria muito baixo).
+        const nowMs = Date.now();
+        const MS_PER_DAY = 24 * 60 * 60 * 1000;
+        const cutoffMs = nowMs - 365 * MS_PER_DAY;
+        const annualizedByAsset = activeWallet.assets.reduce((s, a) => {
           const hist = dividends[a.symbol]?.history;
           if (!hist || hist.length === 0) return s;
-          const addedIso = new Date(a.addedAt).toISOString().slice(0, 10);
-          const lowerBound = addedIso > cutoffIso ? addedIso : cutoffIso;
-          const sumPerShare = hist.filter((h) => h.date >= lowerBound).reduce((acc, h) => acc + h.amount, 0);
-          return s + sumPerShare * a.quantity;
+          const lowerMs = Math.max(a.addedAt, cutoffMs);
+          const lowerIso = new Date(lowerMs).toISOString().slice(0, 10);
+          const sumPerShare = hist.filter((h) => h.date >= lowerIso).reduce((acc, h) => acc + h.amount, 0);
+          const effectiveDays = Math.max(30, (nowMs - lowerMs) / MS_PER_DAY);
+          const annualizedPerShare = sumPerShare * (365 / effectiveDays);
+          return s + annualizedPerShare * a.quantity;
         }, 0);
-        const totalDy = totalCurrent > 0 && total12mDividends > 0 ? (total12mDividends / totalCurrent) * 100 : 0;
+        const totalDy = totalCurrent > 0 && annualizedByAsset > 0 ? (annualizedByAsset / totalCurrent) * 100 : 0;
+        const total12mDividends = annualizedByAsset;
         return (
           <View style={styles.heroWrap}>
             <Text style={styles.heroLabel}>Patrimônio</Text>
@@ -151,8 +156,8 @@ export default function PortfolioScreen({ navigation }: any) {
             </Text>
             {totalDy > 0 && (
               <Text style={styles.heroDy}>
-                DY da carteira (12m): <Text style={{ color: colors.primaryAccent, fontWeight: '800' }}>{totalDy.toFixed(2)}%</Text>
-                {' '}· {fmtBRL(total12mDividends, privacyMode)} recebidos
+                DY da carteira: <Text style={{ color: colors.primaryAccent, fontWeight: '800' }}>{totalDy.toFixed(2)}%</Text>
+                {' '}· ~{fmtBRL(total12mDividends, privacyMode)}/ano anualizado
               </Text>
             )}
           </View>
@@ -252,7 +257,7 @@ export default function PortfolioScreen({ navigation }: any) {
               </Card>
               {stats.weightedDays >= 7 && (
                 <Card>
-                  <IbovespaComparison portfolioReturnPct={stats.profitPct} daysOfHistory={stats.weightedDays} />
+                  <IbovespaComparison portfolioReturnPct={stats.profitPct} daysOfHistory={stats.weightedDays} snapshots={snapshots} />
                 </Card>
               )}
             </>
@@ -367,20 +372,26 @@ export default function PortfolioScreen({ navigation }: any) {
               <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                 <Ionicons name="sync-circle-outline" size={36} color={colors.primary} />
                 <View style={{ flex: 1, marginLeft: spacing.md }}>
-                  <Text style={{ fontSize: fontSize.bodyLarge, fontWeight: '700', color: colors.text }}>Sincronize sua corretora</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                    <Text style={{ fontSize: fontSize.bodyLarge, fontWeight: '700', color: colors.text }}>Sincronizar com a B3</Text>
+                    <View style={{ marginLeft: 8, backgroundColor: colors.primary, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 8 }}>
+                      <Text style={{ color: colors.textLight, fontSize: 10, fontWeight: '800' }}>PRO</Text>
+                    </View>
+                  </View>
                   <Text style={{ fontSize: fontSize.small, color: colors.textSecondary, marginTop: 2 }}>
-                    XP, Rico, Clear, BTG, Nubank, Inter e outras. Os ativos aparecem sozinhos aqui.
+                    Importa todos os ativos automaticamente. Sem digitação.
                   </Text>
                 </View>
               </View>
               <TouchableOpacity
                 style={{ marginTop: spacing.md, backgroundColor: colors.primary, padding: spacing.md, borderRadius: radius.md, alignItems: 'center', flexDirection: 'row', justifyContent: 'center' }}
-                onPress={() => navigation.getParent()?.navigate('Integracoes')}
+                onPress={() => setPremiumOpen(true)}
               >
                 <Ionicons name="link" size={16} color={colors.textLight} />
-                <Text style={{ color: colors.textLight, fontWeight: '700', marginLeft: 6 }}>Conectar corretora</Text>
+                <Text style={{ color: colors.textLight, fontWeight: '700', marginLeft: 6 }}>Conectar com a B3</Text>
               </TouchableOpacity>
             </Card>
+            <TabPlaceholder icon="receipt-outline" title="Outras integrações" description="Em breve: Nubank, Inter, XP e outros bancos/corretoras." />
           </View>
         )}
 

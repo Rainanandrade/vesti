@@ -43,9 +43,10 @@ export default function AssetClassCards({ wallet, quotes, profile, privacyMode, 
   const byClass = new Map<ClassKey, { assets: Asset[]; value: number; invested: number; dayChange: number; weight: number; dividends12m: number }>();
   for (const cls of allClasses) byClass.set(cls, { assets: [], value: 0, invested: 0, dayChange: 0, weight: 0, dividends12m: 0 });
 
-  const cutoff = new Date();
-  cutoff.setMonth(cutoff.getMonth() - 12);
-  const cutoffIso = cutoff.toISOString().slice(0, 10);
+  const nowMs = Date.now();
+  const MS_PER_DAY = 24 * 60 * 60 * 1000;
+  const cutoffMs = nowMs - 365 * MS_PER_DAY;
+  const cutoffIso = new Date(cutoffMs).toISOString().slice(0, 10);
 
   for (const a of wallet.assets) {
     const cls = (a.type as ClassKey) in CLASS_META ? (a.type as ClassKey) : 'outro';
@@ -62,20 +63,28 @@ export default function AssetClassCards({ wallet, quotes, profile, privacyMode, 
     cur.weight += value;
     const hist = dividends[a.symbol]?.history;
     if (hist && hist.length > 0) {
-      // Só conta proventos com data >= data em que o ativo entrou na carteira
-      const addedIso = new Date(a.addedAt).toISOString().slice(0, 10);
-      const lowerBound = addedIso > cutoffIso ? addedIso : cutoffIso;
-      const sumPerShare = hist.filter((h) => h.date >= lowerBound).reduce((s, h) => s + h.amount, 0);
-      cur.dividends12m += sumPerShare * a.quantity;
+      // Só conta proventos com data >= data em que o ativo entrou na carteira.
+      // Anualiza pelos DIAS EFETIVOS (evita DY subestimado quando o ativo tem
+      // pouco tempo na carteira, ou "aleatório" quando chega histórico novo).
+      const addedMs = a.addedAt;
+      const lowerMs = Math.max(addedMs, cutoffMs);
+      const lowerIso = new Date(lowerMs).toISOString().slice(0, 10);
+      const sumPerShare = hist.filter((h) => h.date >= lowerIso).reduce((s, h) => s + h.amount, 0);
+      const effectiveDays = Math.max(30, (nowMs - lowerMs) / MS_PER_DAY);
+      const annualizedPerShare = sumPerShare * (365 / effectiveDays);
+      cur.dividends12m += annualizedPerShare * a.quantity;
     }
   }
 
-  // Filtra classes que aparecem no targetAlloc OU têm ativos
-  const visibleClasses = allClasses.filter((c) => {
-    const has = (byClass.get(c)?.assets.length || 0) > 0;
-    const inTarget = targetAlloc[c as AllocationClass] != null;
-    return has || inTarget;
-  });
+  // Filtra classes que aparecem no targetAlloc OU têm ativos.
+  // Ordena por valor decrescente: quem pesa mais na carteira aparece primeiro.
+  const visibleClasses = allClasses
+    .filter((c) => {
+      const has = (byClass.get(c)?.assets.length || 0) > 0;
+      const inTarget = targetAlloc[c as AllocationClass] != null;
+      return has || inTarget;
+    })
+    .sort((a, b) => (byClass.get(b)?.value || 0) - (byClass.get(a)?.value || 0));
 
   if (visibleClasses.length === 0) return null;
 
@@ -127,7 +136,7 @@ export default function AssetClassCards({ wallet, quotes, profile, privacyMode, 
               <View style={styles.cell}>
                 <Text style={styles.cellLabel}>% na Carteira</Text>
                 <Text style={styles.cellValue}>
-                  <Text style={{ color: meta.color, fontWeight: '800' }}>{pct.toFixed(0)}%</Text>
+                  <Text style={{ color: meta.color, fontWeight: '800' }}>{pct.toFixed(1)}%</Text>
                   <Text style={{ color: colors.textTertiary }}> / {ideal}%</Text>
                 </Text>
               </View>

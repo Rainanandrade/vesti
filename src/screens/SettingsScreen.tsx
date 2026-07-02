@@ -469,15 +469,20 @@ Pra detalhe operação a operação, posso exportar o JSON completo no Vesti.`;
 
         <Text style={styles.sectionTitle}>Integrações</Text>
         <TouchableOpacity
-          onPress={() => navigation.getParent()?.navigate('Integracoes')}
+          onPress={() => Alert.alert('Integração B3', 'Em breve! A integração com a B3 permite importar todos os seus ativos automaticamente. Será liberada na versão Premium.')}
         >
           <Card style={{ marginBottom: spacing.sm, borderColor: colors.primary, borderWidth: 1 }}>
             <View style={styles.row}>
               <Ionicons name="sync-circle-outline" size={22} color={colors.primary} />
               <View style={{ flex: 1, marginLeft: spacing.md }}>
-                <Text style={styles.rowTitle}>Sincronizar com a corretora</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  <Text style={styles.rowTitle}>Sincronizar com a B3</Text>
+                  <View style={{ marginLeft: 8, backgroundColor: colors.primary, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 8 }}>
+                    <Text style={{ color: colors.textLight, fontSize: 10, fontWeight: '800' }}>PRO</Text>
+                  </View>
+                </View>
                 <Text style={styles.rowSub}>
-                  Conecte XP, Rico, Clear, BTG, Nubank e outras — ativos aparecem sozinhos.
+                  Importa todos seus ativos automaticamente. Sem digitação manual.
                 </Text>
               </View>
               <Ionicons name="chevron-forward" size={20} color={colors.textTertiary} />
