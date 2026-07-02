@@ -62,7 +62,10 @@ export default function AssetClassCards({ wallet, quotes, profile, privacyMode, 
     cur.weight += value;
     const hist = dividends[a.symbol]?.history;
     if (hist && hist.length > 0) {
-      const sumPerShare = hist.filter((h) => h.date >= cutoffIso).reduce((s, h) => s + h.amount, 0);
+      // Só conta proventos com data >= data em que o ativo entrou na carteira
+      const addedIso = new Date(a.addedAt).toISOString().slice(0, 10);
+      const lowerBound = addedIso > cutoffIso ? addedIso : cutoffIso;
+      const sumPerShare = hist.filter((h) => h.date >= lowerBound).reduce((s, h) => s + h.amount, 0);
       cur.dividends12m += sumPerShare * a.quantity;
     }
   }

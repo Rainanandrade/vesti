@@ -131,7 +131,9 @@ export default function PortfolioScreen({ navigation }: any) {
         const total12mDividends = activeWallet.assets.reduce((s, a) => {
           const hist = dividends[a.symbol]?.history;
           if (!hist || hist.length === 0) return s;
-          const sumPerShare = hist.filter((h) => h.date >= cutoffIso).reduce((acc, h) => acc + h.amount, 0);
+          const addedIso = new Date(a.addedAt).toISOString().slice(0, 10);
+          const lowerBound = addedIso > cutoffIso ? addedIso : cutoffIso;
+          const sumPerShare = hist.filter((h) => h.date >= lowerBound).reduce((acc, h) => acc + h.amount, 0);
           return s + sumPerShare * a.quantity;
         }, 0);
         const totalDy = totalCurrent > 0 && total12mDividends > 0 ? (total12mDividends / totalCurrent) * 100 : 0;
