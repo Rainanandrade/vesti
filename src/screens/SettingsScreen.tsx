@@ -16,6 +16,23 @@ import { Modal, Pressable } from 'react-native';
 import { confirmAction } from '../utils/confirm';
 import PremiumLockModal from '../components/PremiumLockModal';
 
+function ProToolRow({ icon, title, desc, navigation, route }: { icon: any; title: string; desc: string; navigation: any; route: string }) {
+  return (
+    <TouchableOpacity onPress={() => navigation.getParent()?.navigate(route)}>
+      <Card style={{ marginBottom: spacing.sm }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+          <Ionicons name={icon} size={22} color={colors.primary} />
+          <View style={{ flex: 1, marginLeft: spacing.md }}>
+            <Text style={{ fontSize: fontSize.body, fontWeight: '700', color: colors.text }}>{title}</Text>
+            <Text style={{ fontSize: fontSize.small, color: colors.textSecondary, marginTop: 2 }}>{desc}</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={20} color={colors.textTertiary} />
+        </View>
+      </Card>
+    </TouchableOpacity>
+  );
+}
+
 export default function SettingsScreen({ navigation }: any) {
   const {
     user,
@@ -320,6 +337,14 @@ Pra detalhe operação a operação, posso exportar o JSON completo no Vesti.`;
             </View>
           </Card>
         </TouchableOpacity>
+
+        <Text style={styles.sectionTitle}>Ferramentas Pro</Text>
+        <ProToolRow icon="calculator-outline" title="IR & DARF automático" desc="Cálculo mensal do imposto e guia DARF" navigation={navigation} route="IRAutomatico" />
+        <ProToolRow icon="sparkles-outline" title="IA Consultora" desc="Análise personalizada da sua carteira" navigation={navigation} route="IAConsultor" />
+        <ProToolRow icon="notifications-outline" title="Alertas inteligentes" desc="Preço alvo, data-com, concentração" navigation={navigation} route="Alerts" />
+        <ProToolRow icon="analytics-outline" title="Simulador de aportes" desc="Monte Carlo pra planejar longo prazo" navigation={navigation} route="Backtest" />
+        <ProToolRow icon="document-text-outline" title="Relatórios PDF" desc="Extrato mensal e informe anual IRPF" navigation={navigation} route="Relatorios" />
+        <ProToolRow icon="people-outline" title="Compartilhar carteira" desc="Dê acesso pra cônjuge ou planejador" navigation={navigation} route="ShareWallets" />
 
         <Text style={styles.sectionTitle}>Perfil financeiro</Text>
         <TouchableOpacity onPress={() => navigation?.navigate('Preference')}>

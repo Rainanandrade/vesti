@@ -40,6 +40,8 @@ import RelatoriosScreen from '../screens/RelatoriosScreen';
 import IRAutomaticoScreen from '../screens/IRAutomaticoScreen';
 import IAConsultorScreen from '../screens/IAConsultorScreen';
 import BacktestScreen from '../screens/BacktestScreen';
+import AlertsScreen from '../screens/AlertsScreen';
+import ShareWalletsScreen from '../screens/ShareWalletsScreen';
 import AdaptiveTabBar, { DESKTOP_BREAKPOINT, SIDEBAR_WIDTH } from '../components/AdaptiveTabBar';
 import { useWindowDimensions } from 'react-native';
 
@@ -193,6 +195,8 @@ function MainStack() {
       <Stack.Screen name="IRAutomatico" component={IRAutomaticoScreen} options={{ presentation: 'modal' }} />
       <Stack.Screen name="IAConsultor" component={IAConsultorScreen} options={{ presentation: 'modal' }} />
       <Stack.Screen name="Backtest" component={BacktestScreen} options={{ presentation: 'modal' }} />
+      <Stack.Screen name="Alerts" component={AlertsScreen} options={{ presentation: 'modal' }} />
+      <Stack.Screen name="ShareWallets" component={ShareWalletsScreen} options={{ presentation: 'modal' }} />
       {/* Integrações Pluggy: rota escondida, ativar quando premium/produção estiver pronto
       <Stack.Screen name="Integracoes" component={IntegracoesScreen} options={{ presentation: 'modal' }} />
       */}
