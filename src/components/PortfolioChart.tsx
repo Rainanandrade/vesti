@@ -1,4 +1,5 @@
-import { View, Text, StyleSheet, Dimensions } from 'react-native';
+import { useState } from 'react';
+import { View, Text, StyleSheet, LayoutChangeEvent } from 'react-native';
 import Svg, { Path, Circle, Line, Text as SvgText, Defs, LinearGradient, Stop } from 'react-native-svg';
 import { colors, fontSize, spacing } from '../theme/colors';
 import { fmtCompactBRL } from '../utils/format';
@@ -12,7 +13,11 @@ type Props = {
 };
 
 export default function PortfolioChart({ data, privacyMode, height = 180 }: Props) {
-  const w = Dimensions.get('window').width - 64;
+  const [w, setW] = useState(320);
+  const onLayout = (e: LayoutChangeEvent) => {
+    const width = Math.round(e.nativeEvent.layout.width);
+    if (width > 0 && Math.abs(width - w) > 2) setW(width);
+  };
   const h = height;
   const padX = 8;
   const padY = 20;
@@ -30,9 +35,14 @@ export default function PortfolioChart({ data, privacyMode, height = 180 }: Prop
   }
 
   const values = data.map((p) => p.total);
-  const max = Math.max(...values);
-  const min = Math.min(...values);
-  const range = max - min || max || 1;
+  const rawMax = Math.max(...values);
+  const rawMin = Math.min(...values);
+  // Padding vertical no eixo Y pra linha não colar nos extremos
+  const rawRange = rawMax - rawMin;
+  const pad = rawRange > 0 ? rawRange * 0.15 : rawMax * 0.05 || 1;
+  const max = rawMax + pad;
+  const min = Math.max(0, rawMin - pad);
+  const range = max - min || 1;
 
   const xStep = (w - padX * 2) / (data.length - 1);
   const points = data.map((p, i) => {
@@ -55,7 +65,7 @@ export default function PortfolioChart({ data, privacyMode, height = 180 }: Prop
   const lineColor = positive ? colors.success : colors.danger;
 
   return (
-    <View>
+    <View onLayout={onLayout} style={{ width: '100%' }}>
       <View style={styles.summary}>
         <View>
           <Text style={styles.summaryLabel}>Atual</Text>
@@ -97,10 +107,10 @@ export default function PortfolioChart({ data, privacyMode, height = 180 }: Prop
         <Circle cx={points[points.length - 1].x} cy={points[points.length - 1].y} r={4} fill={lineColor} />
         {/* Labels min/max */}
         <SvgText x={w - padX - 4} y={padY + 4} fontSize="9" fill={colors.textTertiary} textAnchor="end">
-          {fmtCompactBRL(max, privacyMode)}
+          {fmtCompactBRL(rawMax, privacyMode)}
         </SvgText>
         <SvgText x={w - padX - 4} y={h - 6} fontSize="9" fill={colors.textTertiary} textAnchor="end">
-          {fmtCompactBRL(min, privacyMode)}
+          {fmtCompactBRL(rawMin, privacyMode)}
         </SvgText>
       </Svg>
 

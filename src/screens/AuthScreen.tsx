@@ -11,6 +11,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import { colors, fontSize, radius, spacing } from '../theme/colors';
 import Button from '../components/Button';
 import Logo from '../components/Logo';
@@ -26,10 +27,11 @@ export default function AuthScreen() {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [confirmationMsg, setConfirmationMsg] = useState<string | null>(null);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   const handleSubmit = async () => {
     if (!email.includes('@')) {
-      Alert.alert('Atenção', 'Digite um email válido.');
+      setErrorMsg('Digite um email válido.');
       return;
     }
     if (mode === 'forgot') {
@@ -44,19 +46,29 @@ export default function AuthScreen() {
       return;
     }
     if (password.length < 6) {
-      Alert.alert('Atenção', 'A senha precisa ter pelo menos 6 caracteres.');
+      setErrorMsg('A senha precisa ter pelo menos 6 caracteres.');
       return;
     }
     if (mode === 'signup' && name.trim().length < 2) {
-      Alert.alert('Atenção', 'Digite seu nome.');
+      setErrorMsg('Digite seu nome.');
       return;
     }
+    setErrorMsg(null);
     setLoading(true);
     try {
       if (mode === 'signup') {
         const res = await signUp(name.trim(), email.trim(), password);
         if (!res.ok) {
-          Alert.alert('Ops', res.error || 'Erro ao criar conta');
+          const msg = (res.error || '').toLowerCase();
+          if (msg.includes('already') || msg.includes('registered') || msg.includes('exist')) {
+            setErrorMsg('Já existe uma conta com esse email. Toque em "Entrar" pra fazer login.');
+          } else if (msg.includes('email')) {
+            setErrorMsg('Email inválido. Verifique se digitou certo.');
+          } else if (msg.includes('password') || msg.includes('senha')) {
+            setErrorMsg('Senha fraca. Use pelo menos 6 caracteres.');
+          } else {
+            setErrorMsg(res.error || 'Erro ao criar conta. Tente de novo.');
+          }
         } else if (res.needsConfirmation) {
           setConfirmationMsg(
             `Enviamos um email pra ${email.trim()}. Clique no link de confirmação pra ativar sua conta.`,
@@ -66,7 +78,16 @@ export default function AuthScreen() {
       } else {
         const res = await signIn(email.trim(), password);
         if (!res.ok) {
-          Alert.alert('Ops', res.error || 'Email ou senha incorretos.');
+          const msg = (res.error || '').toLowerCase();
+          if (msg.includes('invalid') || msg.includes('credentials') || msg.includes('login')) {
+            setErrorMsg('Email ou senha incorretos. Tente de novo.');
+          } else if (msg.includes('not confirmed') || msg.includes('confirm')) {
+            setErrorMsg('Confirme seu email antes de entrar. Verifique sua caixa de entrada.');
+          } else if (msg.includes('too many') || msg.includes('rate')) {
+            setErrorMsg('Muitas tentativas. Aguarde alguns minutos e tente de novo.');
+          } else {
+            setErrorMsg(res.error || 'Email ou senha incorretos.');
+          }
         }
       }
     } finally {
@@ -187,6 +208,13 @@ export default function AuthScreen() {
                 />
               </View>
 
+              {errorMsg && (
+                <View style={styles.errorBanner}>
+                  <Ionicons name="alert-circle" size={18} color={colors.danger} />
+                  <Text style={styles.errorText}>{errorMsg}</Text>
+                </View>
+              )}
+
               <Button
                 title={mode === 'signup' ? 'Criar conta' : 'Entrar'}
                 onPress={handleSubmit}
@@ -256,6 +284,18 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
   forgotLink: { color: colors.primary, fontSize: fontSize.body, fontWeight: '600' },
+  errorBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8 as any,
+    backgroundColor: colors.dangerLight,
+    borderWidth: 1,
+    borderColor: colors.danger,
+    padding: spacing.sm,
+    borderRadius: 8,
+    marginTop: spacing.md,
+  },
+  errorText: { flex: 1, color: colors.danger, fontWeight: '700', fontSize: fontSize.small, lineHeight: 18 },
   forgotTitle: { fontSize: fontSize.title, fontWeight: '700', color: colors.text },
   forgotSub: { fontSize: fontSize.body, color: colors.textSecondary, marginTop: spacing.xs, marginBottom: spacing.md, lineHeight: 20 },
 
