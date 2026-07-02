@@ -328,6 +328,21 @@ Pra detalhe operação a operação, posso exportar o JSON completo no Vesti.`;
           </Card>
         </TouchableOpacity>
 
+        <TouchableOpacity onPress={() => navigation.getParent()?.navigate('Integracoes')}>
+          <Card style={{ marginBottom: spacing.sm }}>
+            <View style={styles.row}>
+              <Ionicons name="link-outline" size={22} color={colors.primary} />
+              <View style={{ flex: 1, marginLeft: spacing.md }}>
+                <Text style={styles.rowTitle}>Integrações</Text>
+                <Text style={styles.rowSub}>
+                  Conecte sua corretora e sincronize ativos automaticamente
+                </Text>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color={colors.textTertiary} />
+            </View>
+          </Card>
+        </TouchableOpacity>
+
         <TouchableOpacity onPress={handleRedoProfile}>
           <Card>
             <View style={styles.row}>

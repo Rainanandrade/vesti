@@ -11,6 +11,9 @@ export type Asset = {
   quantity: number;
   avgPrice: number;
   addedAt: number;
+  source?: 'manual' | 'pluggy';
+  pluggyItemId?: string | null;
+  lastSyncAt?: number | null;
 };
 
 export type Wallet = {
@@ -198,6 +201,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
             quantity: Number(a.quantity),
             avgPrice: Number(a.avg_price),
             addedAt: new Date(a.added_at).getTime(),
+            source: (a.source || 'manual') as 'manual' | 'pluggy',
+            pluggyItemId: a.pluggy_item_id ?? null,
+            lastSyncAt: a.last_sync_at ? new Date(a.last_sync_at).getTime() : null,
           })),
       }));
       setWallets(walletList);
@@ -506,6 +512,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
         quantity: Number(data.quantity),
         avgPrice: Number(data.avg_price),
         addedAt: new Date(data.added_at).getTime(),
+        source: (data.source || 'manual') as 'manual' | 'pluggy',
+        pluggyItemId: data.pluggy_item_id ?? null,
+        lastSyncAt: data.last_sync_at ? new Date(data.last_sync_at).getTime() : null,
       };
       setWallets((prev) =>
         prev.map((w) => (w.id === walletId ? { ...w, assets: [...w.assets, newAsset] } : w)),

@@ -23,6 +23,7 @@ import ProventosScreen from '../screens/ProventosScreen';
 import AIHubScreen from '../screens/AIHubScreen';
 import DeclaracaoScreen from '../screens/DeclaracaoScreen';
 import DividendTargetScreen from '../screens/DividendTargetScreen';
+import IntegracoesScreen from '../screens/IntegracoesScreen';
 import RankingsScreen from '../screens/RankingsScreen';
 import NewsScreen from '../screens/NewsScreen';
 import AssetDetailScreen from '../screens/AssetDetailScreen';
@@ -174,6 +175,7 @@ function MainStack() {
       <Stack.Screen name="Tabs" component={MainTabs} />
       <Stack.Screen name="AIHub" component={AIHubScreen} options={{ presentation: 'modal' }} />
       <Stack.Screen name="DividendTarget" component={DividendTargetScreen} options={{ presentation: 'modal' }} />
+      <Stack.Screen name="Integracoes" component={IntegracoesScreen} options={{ presentation: 'modal' }} />
       <Stack.Screen name="Rankings" component={RankingsScreen} options={{ presentation: 'modal' }} />
       <Stack.Screen name="News" component={NewsScreen} options={{ presentation: 'modal' }} />
       <Stack.Screen name="AssetDetail" component={AssetDetailScreen} options={{ presentation: 'modal' }} />

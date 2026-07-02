@@ -278,6 +278,9 @@ export default function AssetsListScreen({ navigation, route }: any) {
                         <Text style={[styles.logoText, { color: tickerColor(a.symbol) }]}>{a.symbol.slice(0, 2)}</Text>
                       </View>
                       <Text style={styles.symbol}>{a.symbol}</Text>
+                      {a.source === 'pluggy' && (
+                        <Ionicons name="link" size={12} color={colors.primaryAccent} style={{ marginLeft: 4 }} />
+                      )}
                     </View>
                     {COLUMNS.filter((c) => columns.includes(c.key)).map((c) => renderCell(c.key))}
                   </TouchableOpacity>
