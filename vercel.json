@@ -11,10 +11,7 @@
     "api/chart.js": { "maxDuration": 10 },
     "api/ai-suggest.js": { "maxDuration": 30 },
     "api/ai-diagnostic.js": { "maxDuration": 30 },
-    "api/pluggy/connect-token.js": { "maxDuration": 15 },
-    "api/pluggy/webhook.js": { "maxDuration": 30 },
-    "api/pluggy/sync.js": { "maxDuration": 30 },
-    "api/pluggy/disconnect.js": { "maxDuration": 15 }
+    "api/pluggy.js": { "maxDuration": 30 }
   },
   "headers": [
     {

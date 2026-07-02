@@ -1,7 +1,7 @@
-// Cliente Pluggy do lado do app: chama backend Vercel.
+// Cliente Pluggy do lado do app: chama backend Vercel (endpoint único com ?action=).
 import { supabase } from '../services/supabase';
 
-const API_BASE = 'https://vesti-nine.vercel.app/api/pluggy';
+const API_URL = 'https://vesti-nine.vercel.app/api/pluggy';
 
 async function authHeader(): Promise<Record<string, string>> {
   const { data } = await supabase.auth.getSession();
@@ -9,43 +9,30 @@ async function authHeader(): Promise<Record<string, string>> {
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
-export async function fetchConnectToken(itemId?: string): Promise<string> {
-  const r = await fetch(`${API_BASE}/connect-token`, {
+async function callAction<T = any>(action: string, body: any = {}): Promise<T> {
+  const r = await fetch(`${API_URL}?action=${action}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...(await authHeader()) },
-    body: JSON.stringify({ itemId }),
+    body: JSON.stringify(body),
   });
   if (!r.ok) {
     const t = await r.text().catch(() => '');
-    throw new Error(`Falha ao gerar token (${r.status}): ${t.slice(0, 200)}`);
-  }
-  const data = await r.json();
-  return data.accessToken;
-}
-
-export async function syncItem(itemId: string): Promise<{ synced: number }> {
-  const r = await fetch(`${API_BASE}/sync`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...(await authHeader()) },
-    body: JSON.stringify({ itemId }),
-  });
-  if (!r.ok) {
-    const t = await r.text().catch(() => '');
-    throw new Error(`Sync falhou (${r.status}): ${t.slice(0, 200)}`);
+    throw new Error(`Falha em ${action} (${r.status}): ${t.slice(0, 200)}`);
   }
   return r.json();
 }
 
+export async function fetchConnectToken(itemId?: string): Promise<string> {
+  const data = await callAction<{ accessToken: string }>('connect-token', { itemId });
+  return data.accessToken;
+}
+
+export async function syncItem(itemId: string): Promise<{ synced: number }> {
+  return callAction('sync', { itemId });
+}
+
 export async function disconnectItem(itemId: string, keepAssets = false): Promise<void> {
-  const r = await fetch(`${API_BASE}/disconnect`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...(await authHeader()) },
-    body: JSON.stringify({ itemId, keepAssets }),
-  });
-  if (!r.ok) {
-    const t = await r.text().catch(() => '');
-    throw new Error(`Desconexão falhou (${r.status}): ${t.slice(0, 200)}`);
-  }
+  await callAction('disconnect', { itemId, keepAssets });
 }
 
 export type PluggyItem = {
@@ -76,6 +63,5 @@ export async function listPluggyItems(): Promise<PluggyItem[]> {
 }
 
 export function pluggyConnectUrl(accessToken: string): string {
-  // URL hosted da Pluggy que abre no browser externo
   return `https://connect.pluggy.ai/?connect_token=${encodeURIComponent(accessToken)}`;
 }
