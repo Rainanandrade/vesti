@@ -8,7 +8,7 @@ import { TargetProgress, targetDescription } from '../utils/dividendTarget';
 
 type Props = {
   target: DividendTarget;
-  progress: TargetProgress;
+  progress: TargetProgress & { receivedMonthly?: number; projectedMonthly?: number };
   privacyMode?: boolean;
   onPress?: () => void;
 };
@@ -16,6 +16,8 @@ type Props = {
 export default function DividendTargetCard({ target, progress, privacyMode, onPress }: Props) {
   const pct = Math.round(progress.progress * 100);
   const reached = progress.progress >= 1;
+  const received = progress.receivedMonthly;
+  const projected = progress.projectedMonthly;
 
   return (
     <TouchableOpacity activeOpacity={0.85} onPress={onPress}>
@@ -34,8 +36,11 @@ export default function DividendTargetCard({ target, progress, privacyMode, onPr
 
         <View style={styles.row}>
           <View style={{ flex: 1 }}>
-            <Text style={styles.subLabel}>Recebendo agora</Text>
-            <Text style={styles.value}>{fmtBRL(progress.currentMonthlyAmount, privacyMode)}/mês</Text>
+            <Text style={styles.subLabel}>Recebido/mês</Text>
+            <Text style={styles.value}>{fmtBRL(received ?? progress.currentMonthlyAmount, privacyMode)}</Text>
+            {projected != null && received != null && projected !== received && (
+              <Text style={styles.subValue}>Projeção: {fmtBRL(projected, privacyMode)}/mês</Text>
+            )}
           </View>
           <View style={{ flex: 1, alignItems: 'flex-end' }}>
             <Text style={styles.subLabel}>Meta</Text>
@@ -86,6 +91,7 @@ const styles = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center', marginTop: spacing.sm },
   subLabel: { fontSize: fontSize.tiny, color: colors.textTertiary, textTransform: 'uppercase', fontWeight: '600' },
   value: { fontSize: fontSize.bodyLarge, fontWeight: '700', color: colors.text, marginTop: 2 },
+  subValue: { fontSize: fontSize.tiny, color: colors.textTertiary, marginTop: 2 },
   barBg: { height: 10, backgroundColor: colors.divider, borderRadius: 5, marginTop: spacing.md, overflow: 'hidden' },
   barFill: { height: 10, borderRadius: 5 },
   pctText: { fontSize: fontSize.small, color: colors.textSecondary, marginTop: spacing.xs, fontWeight: '600' },

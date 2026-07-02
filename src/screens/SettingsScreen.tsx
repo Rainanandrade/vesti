@@ -14,6 +14,7 @@ import {
 import { BROKERS, getBrokerById } from '../data/brokers';
 import { Modal, Pressable } from 'react-native';
 import { confirmAction } from '../utils/confirm';
+import PremiumLockModal from '../components/PremiumLockModal';
 
 export default function SettingsScreen({ navigation }: any) {
   const {
@@ -162,6 +163,7 @@ Pra detalhe operação a operação, posso exportar o JSON completo no Vesti.`;
     );
   };
   const [brokerModalOpen, setBrokerModalOpen] = useState(false);
+  const [premiumLockOpen, setPremiumLockOpen] = useState(false);
   // Suporta multi-corretora: lê brokerIds, com fallback pro legado brokerId
   const currentBrokerIds: string[] =
     profile?.brokerIds || (profile?.brokerId ? [profile.brokerId] : []);
@@ -469,7 +471,7 @@ Pra detalhe operação a operação, posso exportar o JSON completo no Vesti.`;
 
         <Text style={styles.sectionTitle}>Integrações</Text>
         <TouchableOpacity
-          onPress={() => Alert.alert('Integração B3', 'Em breve! A integração com a B3 permite importar todos os seus ativos automaticamente. Será liberada na versão Premium.')}
+          onPress={() => setPremiumLockOpen(true)}
         >
           <Card style={{ marginBottom: spacing.sm, borderColor: colors.primary, borderWidth: 1 }}>
             <View style={styles.row}>
@@ -548,6 +550,13 @@ Pra detalhe operação a operação, posso exportar o JSON completo no Vesti.`;
 
         <Button title="Sair" variant="danger" onPress={handleSignOut} style={{ marginTop: spacing.lg }} />
       </ScrollView>
+
+      <PremiumLockModal
+        visible={premiumLockOpen}
+        onClose={() => setPremiumLockOpen(false)}
+        title="Sincronização com a B3"
+        feature="A sincronização automática"
+      />
 
       <Modal visible={nameModalOpen} transparent animationType="fade" onRequestClose={() => setNameModalOpen(false)}>
         <Pressable style={styles.modalBackdrop} onPress={() => setNameModalOpen(false)}>

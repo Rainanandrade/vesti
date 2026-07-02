@@ -132,8 +132,7 @@ export default function IbovespaComparison({ portfolioReturnPct, daysOfHistory, 
             return (
               <View style={{ marginTop: spacing.md }}>
                 <BenchmarkSparkline
-                  width={320}
-                  height={110}
+                  height={160}
                   series={[
                     { label: 'Sua carteira', color: colors.primary, values: comp.portfolio },
                     { label: 'Ibovespa', color: colors.warning, values: comp.benchmark },

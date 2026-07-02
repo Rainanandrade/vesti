@@ -34,14 +34,35 @@ import { fetchNews, NewsItem } from '../api/news';
 import { Linking } from 'react-native';
 import MarketStatusBar from '../components/MarketStatusBar';
 import HealthRing from '../components/HealthRing';
+import ReleaseNotesModal from '../components/ReleaseNotesModal';
+import { getUnseenNotes, CURRENT_VERSION } from '../data/releaseNotes';
 
 export default function DashboardScreen({ navigation }: any) {
-  const { user, activeWallet, privacyMode, togglePrivacy, profile, recordGoal, wallets, setActiveWalletId, goalsReached, watchlist, snapshots, recordSnapshot, operations, proventos } = useApp();
+  const { user, activeWallet, privacyMode, togglePrivacy, profile, recordGoal, wallets, setActiveWalletId, goalsReached, watchlist, snapshots, recordSnapshot, operations, proventos, lastSeenVersion, markVersionSeen } = useApp();
   const [news, setNews] = useState<NewsItem[]>([]);
+  const [releaseNotesOpen, setReleaseNotesOpen] = useState(false);
+  const [pendingNotes, setPendingNotes] = useState<any[]>([]);
 
   useEffect(() => {
     fetchNews('mercado').then((arr) => setNews(arr.slice(0, 5)));
   }, []);
+
+  // Popup de novidades: mostra apenas se houver versões não vistas
+  useEffect(() => {
+    if (!user) return;
+    const unseen = getUnseenNotes(lastSeenVersion);
+    if (unseen.length > 0) {
+      setPendingNotes(unseen);
+      // Pequeno delay pra não abrir junto com carregamento inicial
+      const t = setTimeout(() => setReleaseNotesOpen(true), 800);
+      return () => clearTimeout(t);
+    }
+  }, [user, lastSeenVersion]);
+
+  const handleCloseReleaseNotes = () => {
+    setReleaseNotesOpen(false);
+    markVersionSeen(CURRENT_VERSION);
+  };
   const [quotes, setQuotes] = useState<Record<string, Quote>>({});
   const [detailsMap, setDetailsMap] = useState<Record<string, AssetDetails | null>>({});
   const [dividendInfoMap, setDividendInfoMap] = useState<Record<string, DividendInfo | null>>({});
@@ -499,8 +520,8 @@ export default function DashboardScreen({ navigation }: any) {
                 return (
                   <View style={{ marginTop: spacing.md }}>
                     <BenchmarkSparkline
-                      width={320}
-                      height={110}
+                      height={160}
+                      privacyMode={privacyMode}
                       series={[
                         { label: 'Sua carteira', color: colors.primary, values: comp.portfolio },
                         { label: `IPCA (${IPCA_12M}% aa)`, color: colors.warning, values: comp.benchmark },
@@ -673,9 +694,23 @@ export default function DashboardScreen({ navigation }: any) {
 
         {/* Meta de Dividendos */}
         {profile?.dividendTarget && totalCurrent > 0 && (() => {
-          // Projeção anual da carteira baseada no PADRÃO de cada ativo (avg × frequência).
-          // Consistente com o DY exibido no PortfolioScreen. Se o ativo pagou dividendo
-          // pontual, isso não infla — usamos a média histórica.
+          const autoRec = computeReceivedProventos(activeWallet?.assets || [], dividendInfoMap);
+          const year = new Date().getFullYear();
+          const ytd = autoRec.filter((p) => p.date.startsWith(String(year))).reduce((s, p) => s + p.amount, 0);
+          // Meses elegíveis = do primeiro ativo cadastrado neste ano até agora, min 1.
+          const now = new Date();
+          const startOfYear = new Date(now.getFullYear(), 0, 1).getTime();
+          const firstAssetTs = (activeWallet?.assets || [])
+            .map((a) => a.addedAt)
+            .filter((t) => t && t >= startOfYear)
+            .sort((a, b) => a - b)[0] || now.getTime();
+          const firstDate = new Date(firstAssetTs);
+          const monthsFromFirst = (now.getFullYear() - firstDate.getFullYear()) * 12
+            + (now.getMonth() - firstDate.getMonth()) + 1;
+          const monthsElapsed = Math.max(1, Math.min(12, monthsFromFirst));
+          const receivedMonthly = ytd / monthsElapsed;
+
+          // Projeção anual estável pela média × frequência de cada ativo
           const FREQ: Record<string, number> = { monthly: 12, quarterly: 4, semestral: 2, annual: 1 };
           const projectedAnnual = (activeWallet?.assets || []).reduce((s, a) => {
             const info = dividendInfoMap[a.symbol];
@@ -683,14 +718,21 @@ export default function DashboardScreen({ navigation }: any) {
             return s + info.averageAmount * (FREQ[info.frequency] || 12) * a.quantity;
           }, 0);
           const projectedMonthly = projectedAnnual / 12;
+
+          // Barra usa PROJEÇÃO (evita ficar em 15% eternamente no início).
+          // Card mostra os dois valores lado a lado.
           const progress = computeTargetProgress(
             profile.dividendTarget,
             totalCurrent,
             totalCurrent > 0 ? (projectedAnnual / totalCurrent) * 100 : 0,
-            projectedAnnual, // "ytdReceived" agora é projeção anual
-            12,               // 12 meses = média anual completa
+            projectedAnnual,
+            12,
           );
-          if (progress) progress.currentMonthlyAmount = projectedMonthly;
+          if (progress) {
+            (progress as any).receivedMonthly = receivedMonthly;
+            (progress as any).projectedMonthly = projectedMonthly;
+            progress.currentMonthlyAmount = projectedMonthly;
+          }
           if (!progress) return null;
           return (
             <View style={{ marginTop: spacing.md }}>
@@ -808,6 +850,13 @@ export default function DashboardScreen({ navigation }: any) {
       />
 
       <AIFloatingButton />
+
+      <ReleaseNotesModal
+        visible={releaseNotesOpen}
+        notes={pendingNotes}
+        onClose={handleCloseReleaseNotes}
+        onNavigate={(route, params) => navigation.getParent()?.navigate(route, params)}
+      />
     </SafeAreaView>
   );
 }

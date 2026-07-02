@@ -35,6 +35,8 @@ import LearnScreen from '../screens/LearnScreen';
 import SettingsScreen from '../screens/SettingsScreen';
 import LegalDocScreen from '../screens/LegalDocScreen';
 import PreferenceScreen from '../screens/PreferenceScreen';
+import AdaptiveTabBar, { DESKTOP_BREAKPOINT, SIDEBAR_WIDTH } from '../components/AdaptiveTabBar';
+import { useWindowDimensions } from 'react-native';
 
 // Ref de navegação global pra que o modal de release notes possa navegar fora
 // da árvore React Navigation (App.tsx).
@@ -112,8 +114,14 @@ function CenterTabButton({ focused }: { focused: boolean }) {
 }
 
 function MainTabs() {
+  const { width } = useWindowDimensions();
+  const isDesktop = width >= DESKTOP_BREAKPOINT;
   return (
     <Tab.Navigator
+      tabBar={(props) => <AdaptiveTabBar {...props} />}
+      screenLayout={isDesktop
+        ? ({ children }) => <View style={{ flex: 1, marginLeft: SIDEBAR_WIDTH }}>{children}</View>
+        : undefined}
       screenOptions={({ route }) => ({
         headerShown: false,
         tabBarActiveTintColor: colors.primary,

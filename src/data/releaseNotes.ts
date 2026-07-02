@@ -27,10 +27,43 @@ export type ReleaseNote = {
 };
 
 // ATUAL versão do app — bumpa a cada release.
-export const CURRENT_VERSION = '4.5.0';
+export const CURRENT_VERSION = '4.7.0';
 
 // Notas em ordem cronológica DESCENDENTE (mais recente primeiro)
 export const RELEASE_NOTES: ReleaseNote[] = [
+  {
+    version: '4.7.0',
+    date: '2026-07-02',
+    title: 'Compare sua carteira com Ibovespa e Inflação',
+    subtitle: 'Novos gráficos, métricas de risco e números mais confiáveis',
+    highlights: [
+      {
+        emoji: '📈',
+        title: 'Gráficos vs Ibovespa e vs Inflação',
+        description: 'Veja como sua carteira performa lado a lado com o índice e com a inflação, no mesmo gráfico. Só existe se você tiver pelo menos alguns dias de histórico.',
+      },
+      {
+        emoji: '📊',
+        title: 'Métricas de risco da sua carteira',
+        description: 'Retorno anualizado, volatilidade, maior queda (drawdown) e Sharpe — os mesmos indicadores que os gestores usam pra avaliar fundos.',
+      },
+      {
+        emoji: '💰',
+        title: 'DY da carteira mais preciso',
+        description: 'DY total e por classe (Ações/FIIs/ETFs) agora usa a média histórica de cada ativo. Sem oscilar toda hora.',
+      },
+      {
+        emoji: '🎯',
+        title: 'Meta de renda passiva melhorada',
+        description: 'Card mostra quanto você recebeu por mês (real) e a projeção anualizada, lado a lado.',
+      },
+      {
+        emoji: '🔁',
+        title: 'Evolução do patrimônio sempre em dia',
+        description: 'Adicionou um ativo? Já aparece no gráfico de evolução na hora, sem precisar esperar o dia seguinte.',
+      },
+    ],
+  },
   {
     version: '4.5.0',
     date: '2026-06-27',
