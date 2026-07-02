@@ -32,6 +32,7 @@ import PortfolioTabs, { PortfolioTabKey } from '../components/PortfolioTabs';
 import { computeReceivedProventos, groupProventosByMonth } from '../utils/receivedProventos';
 import { MONTH_NAMES_PT } from '../data/dividends';
 import IbovespaComparison from '../components/IbovespaComparison';
+import GestoresComparison from '../components/GestoresComparison';
 import { computePortfolioStats } from '../utils/portfolio';
 import PortfolioChart from '../components/PortfolioChart';
 import AllocationConfig from '../components/AllocationConfig';
@@ -253,6 +254,18 @@ export default function PortfolioScreen({ navigation }: any) {
                 <Card>
                   <IbovespaComparison portfolioReturnPct={stats.profitPct} daysOfHistory={stats.weightedDays} snapshots={snapshots} />
                 </Card>
+              )}
+
+              {stats.weightedDays >= 30 && (
+                <View style={{ marginTop: spacing.md }}>
+                  <GestoresComparison
+                    portfolioAnnualPct={
+                      stats.weightedDays > 0
+                        ? (Math.pow(1 + stats.profitPct / 100, 365 / Math.max(90, stats.weightedDays)) - 1) * 100
+                        : null
+                    }
+                  />
+                </View>
               )}
             </>
           );

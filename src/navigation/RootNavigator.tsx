@@ -36,6 +36,10 @@ import SettingsScreen from '../screens/SettingsScreen';
 import LegalDocScreen from '../screens/LegalDocScreen';
 import PreferenceScreen from '../screens/PreferenceScreen';
 import ProSubscribeScreen from '../screens/ProSubscribeScreen';
+import RelatoriosScreen from '../screens/RelatoriosScreen';
+import IRAutomaticoScreen from '../screens/IRAutomaticoScreen';
+import IAConsultorScreen from '../screens/IAConsultorScreen';
+import BacktestScreen from '../screens/BacktestScreen';
 import AdaptiveTabBar, { DESKTOP_BREAKPOINT, SIDEBAR_WIDTH } from '../components/AdaptiveTabBar';
 import { useWindowDimensions } from 'react-native';
 
@@ -185,6 +189,10 @@ function MainStack() {
       <Stack.Screen name="AIHub" component={AIHubScreen} options={{ presentation: 'modal' }} />
       <Stack.Screen name="DividendTarget" component={DividendTargetScreen} options={{ presentation: 'modal' }} />
       <Stack.Screen name="ProSubscribe" component={ProSubscribeScreen} options={{ presentation: 'modal' }} />
+      <Stack.Screen name="Relatorios" component={RelatoriosScreen} options={{ presentation: 'modal' }} />
+      <Stack.Screen name="IRAutomatico" component={IRAutomaticoScreen} options={{ presentation: 'modal' }} />
+      <Stack.Screen name="IAConsultor" component={IAConsultorScreen} options={{ presentation: 'modal' }} />
+      <Stack.Screen name="Backtest" component={BacktestScreen} options={{ presentation: 'modal' }} />
       {/* Integrações Pluggy: rota escondida, ativar quando premium/produção estiver pronto
       <Stack.Screen name="Integracoes" component={IntegracoesScreen} options={{ presentation: 'modal' }} />
       */}
