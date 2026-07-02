@@ -328,21 +328,6 @@ Pra detalhe operação a operação, posso exportar o JSON completo no Vesti.`;
           </Card>
         </TouchableOpacity>
 
-        <TouchableOpacity onPress={() => navigation.getParent()?.navigate('Integracoes')}>
-          <Card style={{ marginBottom: spacing.sm }}>
-            <View style={styles.row}>
-              <Ionicons name="link-outline" size={22} color={colors.primary} />
-              <View style={{ flex: 1, marginLeft: spacing.md }}>
-                <Text style={styles.rowTitle}>Integrações</Text>
-                <Text style={styles.rowSub}>
-                  Conecte sua corretora e sincronize ativos automaticamente
-                </Text>
-              </View>
-              <Ionicons name="chevron-forward" size={20} color={colors.textTertiary} />
-            </View>
-          </Card>
-        </TouchableOpacity>
-
         <TouchableOpacity onPress={handleRedoProfile}>
           <Card>
             <View style={styles.row}>
@@ -484,20 +469,15 @@ Pra detalhe operação a operação, posso exportar o JSON completo no Vesti.`;
 
         <Text style={styles.sectionTitle}>Integrações</Text>
         <TouchableOpacity
-          onPress={() => Alert.alert('Integração B3', 'Em breve! A integração com a B3 permite importar todos os seus ativos automaticamente. Será liberada na versão Premium.')}
+          onPress={() => navigation.getParent()?.navigate('Integracoes')}
         >
           <Card style={{ marginBottom: spacing.sm, borderColor: colors.primary, borderWidth: 1 }}>
             <View style={styles.row}>
               <Ionicons name="sync-circle-outline" size={22} color={colors.primary} />
               <View style={{ flex: 1, marginLeft: spacing.md }}>
-                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                  <Text style={styles.rowTitle}>Sincronizar com a B3</Text>
-                  <View style={{ marginLeft: 8, backgroundColor: colors.primary, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 8 }}>
-                    <Text style={{ color: colors.textLight, fontSize: 10, fontWeight: '800' }}>PRO</Text>
-                  </View>
-                </View>
+                <Text style={styles.rowTitle}>Sincronizar com a corretora</Text>
                 <Text style={styles.rowSub}>
-                  Importa todos seus ativos automaticamente. Sem digitação manual.
+                  Conecte XP, Rico, Clear, BTG, Nubank e outras — ativos aparecem sozinhos.
                 </Text>
               </View>
               <Ionicons name="chevron-forward" size={20} color={colors.textTertiary} />

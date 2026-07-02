@@ -367,26 +367,20 @@ export default function PortfolioScreen({ navigation }: any) {
               <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                 <Ionicons name="sync-circle-outline" size={36} color={colors.primary} />
                 <View style={{ flex: 1, marginLeft: spacing.md }}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                    <Text style={{ fontSize: fontSize.bodyLarge, fontWeight: '700', color: colors.text }}>Sincronizar com a B3</Text>
-                    <View style={{ marginLeft: 8, backgroundColor: colors.primary, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 8 }}>
-                      <Text style={{ color: colors.textLight, fontSize: 10, fontWeight: '800' }}>PRO</Text>
-                    </View>
-                  </View>
+                  <Text style={{ fontSize: fontSize.bodyLarge, fontWeight: '700', color: colors.text }}>Sincronize sua corretora</Text>
                   <Text style={{ fontSize: fontSize.small, color: colors.textSecondary, marginTop: 2 }}>
-                    Importa todos os ativos automaticamente. Sem digitação.
+                    XP, Rico, Clear, BTG, Nubank, Inter e outras. Os ativos aparecem sozinhos aqui.
                   </Text>
                 </View>
               </View>
               <TouchableOpacity
                 style={{ marginTop: spacing.md, backgroundColor: colors.primary, padding: spacing.md, borderRadius: radius.md, alignItems: 'center', flexDirection: 'row', justifyContent: 'center' }}
-                onPress={() => setPremiumOpen(true)}
+                onPress={() => navigation.getParent()?.navigate('Integracoes')}
               >
                 <Ionicons name="link" size={16} color={colors.textLight} />
-                <Text style={{ color: colors.textLight, fontWeight: '700', marginLeft: 6 }}>Conectar com a B3</Text>
+                <Text style={{ color: colors.textLight, fontWeight: '700', marginLeft: 6 }}>Conectar corretora</Text>
               </TouchableOpacity>
             </Card>
-            <TabPlaceholder icon="receipt-outline" title="Outras integrações" description="Em breve: Nubank, Inter, XP e outros bancos/corretoras." />
           </View>
         )}
 
