@@ -56,7 +56,7 @@ function statusLabel(s: string) {
 }
 
 export default function IntegracoesScreen({ navigation }: any) {
-  const { refreshFromCloud } = useApp() as any;
+  const { refreshFromCloud } = useApp();
   const [items, setItems] = useState<PluggyItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -108,7 +108,7 @@ export default function IntegracoesScreen({ navigation }: any) {
     try {
       await syncItem(item.itemId);
       await load();
-      if (typeof refreshFromCloud === 'function') await refreshFromCloud();
+      await refreshFromCloud();
       Alert.alert('Pronto', 'Corretora sincronizada.');
     } catch (e: any) {
       Alert.alert('Erro no sync', e?.message || 'Tente novamente em alguns instantes.');
@@ -130,7 +130,7 @@ export default function IntegracoesScreen({ navigation }: any) {
             try {
               await disconnectItem(item.itemId, false);
               await load();
-              if (typeof refreshFromCloud === 'function') await refreshFromCloud();
+              await refreshFromCloud();
             } catch (e: any) {
               Alert.alert('Erro', e?.message || 'Falha ao desconectar.');
             }
@@ -142,7 +142,7 @@ export default function IntegracoesScreen({ navigation }: any) {
             try {
               await disconnectItem(item.itemId, true);
               await load();
-              if (typeof refreshFromCloud === 'function') await refreshFromCloud();
+              await refreshFromCloud();
             } catch (e: any) {
               Alert.alert('Erro', e?.message || 'Falha ao desconectar.');
             }

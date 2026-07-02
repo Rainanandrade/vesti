@@ -94,6 +94,7 @@ type AppContextType = {
 
   updateUserName: (name: string) => Promise<void>;
   clearAllUserData: () => Promise<void>;
+  refreshFromCloud: () => Promise<void>;
 };
 
 export type Provento = {
@@ -352,6 +353,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
     });
     return () => sub.subscription.unsubscribe();
   }, [loadUserData]);
+
+  const refreshFromCloud = useCallback(async () => {
+    if (!userId) return;
+    const { data: { session } } = await supabase.auth.getSession();
+    const email = session?.user?.email || user?.email || '';
+    await loadUserData(userId, email);
+  }, [userId, user?.email, loadUserData]);
 
   const finishOnboarding = useCallback(async () => {
     await Storage.set(KEYS.ONBOARDING_DONE, true);
@@ -851,6 +859,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         recordSnapshot,
         updateUserName,
         clearAllUserData,
+        refreshFromCloud,
       }}
     >
       {children}
