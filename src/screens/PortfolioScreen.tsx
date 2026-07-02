@@ -124,21 +124,15 @@ export default function PortfolioScreen({ navigation }: any) {
         const totalInvested = activeWallet.assets.reduce((s, a) => s + a.avgPrice * a.quantity, 0);
         const profit = totalCurrent - totalInvested;
         const pct = totalInvested > 0 ? (profit / totalInvested) * 100 : 0;
-        // DY anualizado da carteira. Usa histórico real desde addedAt e escala
-        // proporcionalmente pra 365 dias — assim o valor fica estável mesmo
-        // quando um ativo é recém-cadastrado (senão o DY apareceria muito baixo).
-        const nowMs = Date.now();
-        const MS_PER_DAY = 24 * 60 * 60 * 1000;
-        const cutoffMs = nowMs - 365 * MS_PER_DAY;
+        // DY da carteira projetado pelo padrão histórico de cada ativo
+        // (averageAmount × frequência). Estável — não infla com dividendo extra
+        // pontual nem cai quando o user acabou de cadastrar.
+        const FREQ_PER_YEAR: Record<string, number> = { monthly: 12, quarterly: 4, semestral: 2, annual: 1 };
         const annualizedByAsset = activeWallet.assets.reduce((s, a) => {
-          const hist = dividends[a.symbol]?.history;
-          if (!hist || hist.length === 0) return s;
-          const lowerMs = Math.max(a.addedAt, cutoffMs);
-          const lowerIso = new Date(lowerMs).toISOString().slice(0, 10);
-          const sumPerShare = hist.filter((h) => h.date >= lowerIso).reduce((acc, h) => acc + h.amount, 0);
-          const effectiveDays = Math.max(30, (nowMs - lowerMs) / MS_PER_DAY);
-          const annualizedPerShare = sumPerShare * (365 / effectiveDays);
-          return s + annualizedPerShare * a.quantity;
+          const info = dividends[a.symbol];
+          if (!info || info.averageAmount <= 0) return s;
+          const freq = FREQ_PER_YEAR[info.frequency] || 12;
+          return s + info.averageAmount * freq * a.quantity;
         }, 0);
         const totalDy = totalCurrent > 0 && annualizedByAsset > 0 ? (annualizedByAsset / totalCurrent) * 100 : 0;
         const total12mDividends = annualizedByAsset;

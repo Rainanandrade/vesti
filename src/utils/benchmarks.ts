@@ -51,16 +51,40 @@ export function buildComparisonSeries(
 }
 
 /**
- * Métricas de performance sobre a série da carteira.
- * Retornos diários -> volatilidade anualizada, max drawdown, sharpe (usa Selic anual como risk-free)
+ * Filtra outliers extremos da série (ex: snapshot antigo com carteira quase vazia
+ * distorce gráfico e métricas). Remove pontos com valor < mediana / 4.
  */
-export function computeReturnMetrics(portfolioValues: number[], riskFreeAnnualPct = 10.5) {
-  if (!portfolioValues || portfolioValues.length < 3) return null;
+function filterOutliers(snaps: PatrimonySnap[]): PatrimonySnap[] {
+  if (snaps.length < 3) return snaps;
+  const totals = snaps.map((s) => s.total).sort((a, b) => a - b);
+  const median = totals[Math.floor(totals.length / 2)];
+  const cutoff = median / 4;
+  return snaps.filter((s) => s.total >= cutoff);
+}
+
+export { filterOutliers };
+
+/**
+ * Métricas de performance sobre a série da carteira.
+ * Recebe snapshots (com datas) pra calcular retorno pelos DIAS REAIS, não n de pontos.
+ * Retorna null se não há histórico suficiente (mínimo 30 dias).
+ */
+export function computeReturnMetrics(snapshots: PatrimonySnap[], riskFreeAnnualPct = 10.5) {
+  if (!snapshots || snapshots.length < 3) return null;
+  const clean = filterOutliers(snapshots).sort((a, b) => a.date.localeCompare(b.date));
+  if (clean.length < 3) return null;
+
+  const firstDate = new Date(clean[0].date).getTime();
+  const lastDate = new Date(clean[clean.length - 1].date).getTime();
+  const daysSpan = (lastDate - firstDate) / (24 * 60 * 60 * 1000);
+  if (daysSpan < 30) return null; // pouco tempo pra métricas confiáveis
+
+  const values = clean.map((s) => s.total);
 
   const dailyReturns: number[] = [];
-  for (let i = 1; i < portfolioValues.length; i++) {
-    const prev = portfolioValues[i - 1];
-    if (prev > 0) dailyReturns.push((portfolioValues[i] - prev) / prev);
+  for (let i = 1; i < values.length; i++) {
+    const prev = values[i - 1];
+    if (prev > 0) dailyReturns.push((values[i] - prev) / prev);
   }
   if (dailyReturns.length < 2) return null;
 
@@ -69,25 +93,26 @@ export function computeReturnMetrics(portfolioValues: number[], riskFreeAnnualPc
   const stdDaily = Math.sqrt(variance);
   const volAnnual = stdDaily * Math.sqrt(252) * 100;
 
-  // Max drawdown
-  let peak = portfolioValues[0];
+  let peak = values[0];
   let maxDD = 0;
-  for (const v of portfolioValues) {
+  for (const v of values) {
     if (v > peak) peak = v;
     const dd = peak > 0 ? (peak - v) / peak : 0;
     if (dd > maxDD) maxDD = dd;
   }
 
-  // Sharpe simplificado: (retorno anualizado - risk-free) / vol anual
-  const totalReturn = (portfolioValues[portfolioValues.length - 1] - portfolioValues[0]) / portfolioValues[0];
-  const daysSpan = portfolioValues.length; // 1 snapshot = 1 dia, aproximado
-  const annualizedReturn = (Math.pow(1 + totalReturn, 365 / Math.max(1, daysSpan)) - 1) * 100;
+  const totalReturn = (values[values.length - 1] - values[0]) / values[0];
+  // Anualização por dias REAIS, e cap em 90 dias mínimo pra evitar extrapolação absurda
+  const daysForAnnualization = Math.max(90, daysSpan);
+  const annualizedReturn = (Math.pow(1 + totalReturn, 365 / daysForAnnualization) - 1) * 100;
   const sharpe = volAnnual > 0 ? (annualizedReturn - riskFreeAnnualPct) / volAnnual : 0;
 
+  // Clampa sanamente
   return {
-    volAnnualPct: volAnnual,
+    volAnnualPct: Math.min(500, volAnnual),
     maxDrawdownPct: maxDD * 100,
-    annualizedReturnPct: annualizedReturn,
-    sharpe,
+    annualizedReturnPct: Math.max(-99, Math.min(500, annualizedReturn)),
+    sharpe: Math.max(-10, Math.min(10, sharpe)),
+    daysSpan,
   };
 }

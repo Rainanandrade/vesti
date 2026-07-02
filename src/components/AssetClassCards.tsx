@@ -43,10 +43,7 @@ export default function AssetClassCards({ wallet, quotes, profile, privacyMode, 
   const byClass = new Map<ClassKey, { assets: Asset[]; value: number; invested: number; dayChange: number; weight: number; dividends12m: number }>();
   for (const cls of allClasses) byClass.set(cls, { assets: [], value: 0, invested: 0, dayChange: 0, weight: 0, dividends12m: 0 });
 
-  const nowMs = Date.now();
-  const MS_PER_DAY = 24 * 60 * 60 * 1000;
-  const cutoffMs = nowMs - 365 * MS_PER_DAY;
-  const cutoffIso = new Date(cutoffMs).toISOString().slice(0, 10);
+  const FREQ_PER_YEAR: Record<string, number> = { monthly: 12, quarterly: 4, semestral: 2, annual: 1 };
 
   for (const a of wallet.assets) {
     const cls = (a.type as ClassKey) in CLASS_META ? (a.type as ClassKey) : 'outro';
@@ -61,18 +58,14 @@ export default function AssetClassCards({ wallet, quotes, profile, privacyMode, 
     cur.invested += invested;
     cur.dayChange += dayChg * value;
     cur.weight += value;
-    const hist = dividends[a.symbol]?.history;
-    if (hist && hist.length > 0) {
-      // Só conta proventos com data >= data em que o ativo entrou na carteira.
-      // Anualiza pelos DIAS EFETIVOS (evita DY subestimado quando o ativo tem
-      // pouco tempo na carteira, ou "aleatório" quando chega histórico novo).
-      const addedMs = a.addedAt;
-      const lowerMs = Math.max(addedMs, cutoffMs);
-      const lowerIso = new Date(lowerMs).toISOString().slice(0, 10);
-      const sumPerShare = hist.filter((h) => h.date >= lowerIso).reduce((s, h) => s + h.amount, 0);
-      const effectiveDays = Math.max(30, (nowMs - lowerMs) / MS_PER_DAY);
-      const annualizedPerShare = sumPerShare * (365 / effectiveDays);
-      cur.dividends12m += annualizedPerShare * a.quantity;
+    // DY projetado a partir do PADRÃO histórico do ativo (avg × frequência).
+    // Isso é estável — não depende de quando o user cadastrou nem de dividendo
+    // extraordinário recente. Fonte: Status Invest.
+    const info = dividends[a.symbol];
+    if (info && info.averageAmount > 0) {
+      const freq = FREQ_PER_YEAR[info.frequency] || 12;
+      const annualPerShare = info.averageAmount * freq;
+      cur.dividends12m += annualPerShare * a.quantity;
     }
   }
 

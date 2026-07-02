@@ -18,7 +18,7 @@ import { getQuoteOfDay } from '../data/motivational';
 import CelebrationModal from '../components/CelebrationModal';
 import IbovespaComparison from '../components/IbovespaComparison';
 import BenchmarkSparkline from '../components/BenchmarkSparkline';
-import { buildComparisonSeries, computeReturnMetrics } from '../utils/benchmarks';
+import { buildComparisonSeries, filterOutliers } from '../utils/benchmarks';
 import { fetchAssetDetails, AssetDetails } from '../api/yahooDetails';
 import { computeDividendForecast } from '../utils/dividendForecast';
 import { MONTH_NAMES_PT } from '../data/dividends';
@@ -492,7 +492,9 @@ export default function DashboardScreen({ navigation }: any) {
 
               {/* Gráfico patrimônio × IPCA projetado */}
               {(() => {
-                const comp = buildComparisonSeries(snapshots, IPCA_12M);
+                const clean = filterOutliers(snapshots);
+                if (clean.length < 3) return null;
+                const comp = buildComparisonSeries(clean, IPCA_12M);
                 if (!comp || comp.portfolio.length < 3) return null;
                 return (
                   <View style={{ marginTop: spacing.md }}>
@@ -671,28 +673,24 @@ export default function DashboardScreen({ navigation }: any) {
 
         {/* Meta de Dividendos */}
         {profile?.dividendTarget && totalCurrent > 0 && (() => {
-          const autoRec = computeReceivedProventos(activeWallet?.assets || [], dividendInfoMap);
-          const year = new Date().getFullYear();
-          const ytd = autoRec.filter((p) => p.date.startsWith(String(year))).reduce((s, p) => s + p.amount, 0);
-          // Meses elegíveis = do primeiro ativo cadastrado neste ano até agora, min 1.
-          // Sem isso, cadastrar em julho ainda divide os proventos por 7 e distorce a média.
-          const now = new Date();
-          const startOfYear = new Date(now.getFullYear(), 0, 1).getTime();
-          const firstAssetTs = (activeWallet?.assets || [])
-            .map((a) => a.addedAt)
-            .filter((t) => t && t >= startOfYear)
-            .sort((a, b) => a - b)[0] || now.getTime();
-          const firstDate = new Date(firstAssetTs);
-          const monthsFromFirst = (now.getFullYear() - firstDate.getFullYear()) * 12
-            + (now.getMonth() - firstDate.getMonth()) + 1;
-          const monthsElapsed = Math.max(1, Math.min(12, monthsFromFirst));
+          // Projeção anual da carteira baseada no PADRÃO de cada ativo (avg × frequência).
+          // Consistente com o DY exibido no PortfolioScreen. Se o ativo pagou dividendo
+          // pontual, isso não infla — usamos a média histórica.
+          const FREQ: Record<string, number> = { monthly: 12, quarterly: 4, semestral: 2, annual: 1 };
+          const projectedAnnual = (activeWallet?.assets || []).reduce((s, a) => {
+            const info = dividendInfoMap[a.symbol];
+            if (!info || info.averageAmount <= 0) return s;
+            return s + info.averageAmount * (FREQ[info.frequency] || 12) * a.quantity;
+          }, 0);
+          const projectedMonthly = projectedAnnual / 12;
           const progress = computeTargetProgress(
             profile.dividendTarget,
             totalCurrent,
-            dividendForecast.weightedDY || 8,
-            ytd,
-            monthsElapsed,
+            totalCurrent > 0 ? (projectedAnnual / totalCurrent) * 100 : 0,
+            projectedAnnual, // "ytdReceived" agora é projeção anual
+            12,               // 12 meses = média anual completa
           );
+          if (progress) progress.currentMonthlyAmount = projectedMonthly;
           if (!progress) return null;
           return (
             <View style={{ marginTop: spacing.md }}>

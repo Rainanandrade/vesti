@@ -5,7 +5,7 @@ import { colors, fontSize, radius, spacing } from '../theme/colors';
 import { fetchChart } from '../api/chart';
 import BenchmarkSparkline from './BenchmarkSparkline';
 import PortfolioMetrics from './PortfolioMetrics';
-import { buildComparisonSeries, PatrimonySnap } from '../utils/benchmarks';
+import { buildComparisonSeries, filterOutliers, PatrimonySnap } from '../utils/benchmarks';
 
 type Props = {
   portfolioReturnPct: number | null; // % de retorno da carteira no período
@@ -121,9 +121,13 @@ export default function IbovespaComparison({ portfolioReturnPct, daysOfHistory, 
           {/* Gráfico: patrimônio × Ibovespa projetado com base no ganho anualizado do índice */}
           {(() => {
             if (!snapshots || snapshots.length < 3 || ibovChangePct == null) return null;
+            // Remove snapshots outliers (ex: carteira quase vazia no início da conta)
+            // que distorcem o gráfico e as métricas.
+            const clean = filterOutliers(snapshots);
+            if (clean.length < 3) return null;
             const dayDenom = Math.max(1, daysOfHistory);
             const ibovAnnualPct = (Math.pow(1 + ibovChangePct / 100, 365 / dayDenom) - 1) * 100;
-            const comp = buildComparisonSeries(snapshots, ibovAnnualPct);
+            const comp = buildComparisonSeries(clean, ibovAnnualPct);
             if (!comp || comp.portfolio.length < 3) return null;
             return (
               <View style={{ marginTop: spacing.md }}>
@@ -136,7 +140,7 @@ export default function IbovespaComparison({ portfolioReturnPct, daysOfHistory, 
                   ]}
                   labels={[comp.labels[0], comp.labels[comp.labels.length - 1]]}
                 />
-                <PortfolioMetrics portfolioValues={comp.portfolio} />
+                <PortfolioMetrics snapshots={clean} />
               </View>
             );
           })()}

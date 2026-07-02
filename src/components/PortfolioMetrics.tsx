@@ -1,9 +1,9 @@
 import { View, Text, StyleSheet } from 'react-native';
 import { colors, fontSize, spacing } from '../theme/colors';
-import { computeReturnMetrics } from '../utils/benchmarks';
+import { computeReturnMetrics, PatrimonySnap } from '../utils/benchmarks';
 
 type Props = {
-  portfolioValues: number[];  // série de patrimônio (snapshots.total)
+  snapshots: PatrimonySnap[];  // série completa (data + total)
   compact?: boolean;
 };
 
@@ -14,11 +14,11 @@ type Props = {
  * - Max Drawdown
  * - Sharpe (usa Selic 10.5% como risk-free)
  *
- * Só renderiza se houver dados suficientes (>= 5 snapshots).
+ * Só renderiza se houver ≥ 30 dias de histórico (senão as métricas seriam ruído).
  */
-export default function PortfolioMetrics({ portfolioValues, compact }: Props) {
-  const metrics = computeReturnMetrics(portfolioValues);
-  if (!metrics || portfolioValues.length < 5) return null;
+export default function PortfolioMetrics({ snapshots, compact }: Props) {
+  const metrics = computeReturnMetrics(snapshots);
+  if (!metrics) return null;
 
   const cells = [
     {
