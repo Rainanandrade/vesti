@@ -89,7 +89,7 @@ export default function IAConsultorScreen({ navigation }: any) {
           title="IA consultora da carteira"
           description="Análise personalizada dos seus ativos, sugestão de aporte e resposta a dúvidas."
           featureIcon="sparkles"
-          onUnlock={() => navigation.getParent()?.navigate('ProSubscribe')}
+          onUnlock={(plan) => navigation.getParent()?.navigate('ProSubscribe', { plan })}
         >
           <Card>
             <Text style={styles.introTitle}>✨ Pergunte sobre sua carteira</Text>

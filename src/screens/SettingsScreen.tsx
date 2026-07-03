@@ -608,7 +608,7 @@ Pra detalhe operação a operação, posso exportar o JSON completo no Vesti.`;
       <PremiumLockModal
         visible={premiumLockOpen}
         onClose={() => setPremiumLockOpen(false)}
-        onSubscribe={() => navigation.getParent()?.navigate('ProSubscribe')}
+        onSubscribe={(plan) => navigation.getParent()?.navigate('ProSubscribe', { plan })}
         title="Vesti Pro"
         subtitle="Sincronize com a B3 e muito mais"
         highlightIcon="sync-circle"

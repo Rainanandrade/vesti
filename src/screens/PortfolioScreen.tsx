@@ -565,7 +565,7 @@ export default function PortfolioScreen({ navigation }: any) {
       <PremiumLockModal
         visible={premiumOpen}
         onClose={() => setPremiumOpen(false)}
-        onSubscribe={() => navigation.getParent()?.navigate('ProSubscribe')}
+        onSubscribe={(plan) => navigation.getParent()?.navigate('ProSubscribe', { plan })}
         title="Vesti Pro"
         subtitle="Sincronize com a B3 e muito mais"
         highlightIcon="sync-circle"

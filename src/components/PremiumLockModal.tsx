@@ -1,16 +1,20 @@
+import { useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { colors, fontSize, radius, spacing } from '../theme/colors';
 import { PRO_FEATURES } from '../data/proFeatures';
 
+type Plan = 'monthly' | 'annual';
+
 type Props = {
   visible: boolean;
   onClose: () => void;
-  onSubscribe?: () => void;   // clique em "Assinar Vesti Pro"
-  highlightIcon?: string;     // ícone da feature que o usuário tocou (destaca no topo da lista)
+  onSubscribe?: (plan: Plan) => void;   // qual plano o usuário escolheu
+  highlightIcon?: string;
   title?: string;
   subtitle?: string;
+  defaultPlan?: Plan;
 };
 
 /**
@@ -25,8 +29,10 @@ export default function PremiumLockModal({
   highlightIcon,
   title = 'Vesti Pro',
   subtitle = 'Tudo que você desbloqueia assinando',
+  defaultPlan = 'annual',
 }: Props) {
-  // Coloca a feature clicada no topo da lista (se identificada)
+  const [plan, setPlan] = useState<Plan>(defaultPlan);
+
   const ordered = highlightIcon
     ? [
         ...PRO_FEATURES.filter((f) => f.icon === highlightIcon),
@@ -75,20 +81,53 @@ export default function PremiumLockModal({
               </View>
             ))}
 
-            <View style={styles.priceBox}>
-              <Text style={styles.priceLabel}>A partir de</Text>
-              <Text style={styles.price}>R$ 9,90<Text style={styles.priceUnit}>/mês</Text></Text>
-              <Text style={styles.priceHint}>ou R$ 99/ano (2 meses grátis) · 7 dias grátis pra testar</Text>
+            <View style={styles.plansRow}>
+              <TouchableOpacity
+                onPress={() => setPlan('monthly')}
+                activeOpacity={0.85}
+                style={[styles.planCard, plan === 'monthly' && styles.planCardActive]}
+              >
+                <Text style={styles.planLabel}>Mensal</Text>
+                <Text style={styles.planPrice}>R$ 9,90<Text style={styles.planUnit}>/mês</Text></Text>
+                <Text style={styles.planHint}>Cobrança mensal</Text>
+                {plan === 'monthly' && (
+                  <View style={styles.planCheck}>
+                    <Ionicons name="checkmark" size={14} color={colors.textLight} />
+                  </View>
+                )}
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={() => setPlan('annual')}
+                activeOpacity={0.85}
+                style={[styles.planCard, plan === 'annual' && styles.planCardActive]}
+              >
+                <View style={styles.saveBadge}>
+                  <Text style={styles.saveBadgeText}>ECONOMIZE 17%</Text>
+                </View>
+                <Text style={styles.planLabel}>Anual</Text>
+                <Text style={styles.planPrice}>R$ 8,25<Text style={styles.planUnit}>/mês</Text></Text>
+                <Text style={styles.planHint}>R$ 99 cobrados 1× por ano</Text>
+                {plan === 'annual' && (
+                  <View style={styles.planCheck}>
+                    <Ionicons name="checkmark" size={14} color={colors.textLight} />
+                  </View>
+                )}
+              </TouchableOpacity>
             </View>
+
+            <Text style={styles.trialLine}>🎁 7 dias grátis · cancele quando quiser</Text>
           </ScrollView>
 
           <View style={styles.footer}>
             <TouchableOpacity
               style={styles.btnPrimary}
-              onPress={() => { onClose(); setTimeout(() => onSubscribe?.(), 250); }}
+              onPress={() => { onClose(); setTimeout(() => onSubscribe?.(plan), 250); }}
               activeOpacity={0.85}
             >
-              <Text style={styles.btnPrimaryText}>Ver planos e assinar</Text>
+              <Text style={styles.btnPrimaryText}>
+                Assinar {plan === 'monthly' ? 'Mensal' : 'Anual'}
+              </Text>
             </TouchableOpacity>
             <TouchableOpacity onPress={onClose} style={styles.btnSecondary}>
               <Text style={styles.btnSecondaryText}>Depois</Text>
@@ -156,17 +195,56 @@ const styles = StyleSheet.create({
   soonBadge: { backgroundColor: colors.warningLight, paddingHorizontal: 6, paddingVertical: 2, borderRadius: radius.pill },
   soonText: { color: colors.warning, fontSize: 9, fontWeight: '800', letterSpacing: 0.5 },
 
-  priceBox: {
+  plansRow: {
+    flexDirection: 'row',
+    gap: spacing.sm as any,
     marginTop: spacing.md,
+  },
+  planCard: {
+    flex: 1,
     padding: spacing.md,
     backgroundColor: colors.surface,
     borderRadius: radius.md,
+    borderWidth: 2,
+    borderColor: 'transparent',
     alignItems: 'center',
+    position: 'relative',
   },
-  priceLabel: { fontSize: fontSize.tiny, color: colors.textTertiary, fontWeight: '700', textTransform: 'uppercase' },
-  price: { fontSize: 36, fontWeight: '900', color: colors.primary, marginTop: 2 },
-  priceUnit: { fontSize: fontSize.body, fontWeight: '600', color: colors.textSecondary },
-  priceHint: { fontSize: fontSize.small, color: colors.textSecondary, marginTop: 4, textAlign: 'center' },
+  planCardActive: {
+    borderColor: colors.primary,
+    backgroundColor: colors.primaryLight,
+  },
+  planLabel: { fontSize: fontSize.small, color: colors.textSecondary, fontWeight: '700', textTransform: 'uppercase' },
+  planPrice: { fontSize: 24, fontWeight: '900', color: colors.primary, marginTop: 4 },
+  planUnit: { fontSize: fontSize.small, fontWeight: '600', color: colors.textSecondary },
+  planHint: { fontSize: fontSize.tiny, color: colors.textTertiary, marginTop: 4, textAlign: 'center' },
+  planCheck: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  saveBadge: {
+    position: 'absolute',
+    top: -8,
+    backgroundColor: colors.gold || '#C9A961',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: radius.pill,
+  },
+  saveBadgeText: { color: colors.textLight, fontSize: 9, fontWeight: '900', letterSpacing: 0.5 },
+  trialLine: {
+    textAlign: 'center',
+    fontSize: fontSize.small,
+    color: colors.textSecondary,
+    marginTop: spacing.sm,
+    fontWeight: '600',
+  },
 
   footer: {
     padding: spacing.lg,

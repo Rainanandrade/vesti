@@ -9,8 +9,8 @@ type Props = {
   children: ReactNode;
   title?: string;
   description?: string;
-  onUnlock?: () => void;         // opcional: se passar, é chamado após "Ver planos e assinar"
-  featureIcon?: string;           // ícone da feature Pro pra destacar no popup
+  onUnlock?: (plan?: 'monthly' | 'annual') => void;   // recebe plano escolhido no popup
+  featureIcon?: string;                                // ícone da feature Pro pra destacar no popup
   mode?: 'blur' | 'replace';
 };
 

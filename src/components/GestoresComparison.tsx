@@ -70,7 +70,7 @@ export default function GestoresComparison(props: Props) {
       title="Compare com gestores famosos"
       description="Verde, Dahlia, Trígono, IFIX, CDI. Veja quem você está batendo."
       featureIcon="trophy"
-      onUnlock={() => nav.getParent()?.navigate('ProSubscribe')}
+      onUnlock={(plan) => nav.getParent()?.navigate('ProSubscribe', { plan })}
     >
       <GestoresComparisonInner {...props} />
     </ProLock>

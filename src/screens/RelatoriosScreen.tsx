@@ -69,7 +69,7 @@ export default function RelatoriosScreen({ navigation }: any) {
           title="Relatórios em PDF"
           description="Extrato mensal e informe anual pra IRPF. Envie ao seu contador em 1 clique."
           featureIcon="document-text"
-          onUnlock={() => navigation.getParent()?.navigate('ProSubscribe')}
+          onUnlock={(plan) => navigation.getParent()?.navigate('ProSubscribe', { plan })}
         >
           <Card>
             <Text style={styles.sectionTitle}>📄 Extrato mensal</Text>
