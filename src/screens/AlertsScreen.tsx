@@ -83,7 +83,7 @@ export default function AlertsScreen({ navigation }: any) {
           title="Alertas inteligentes"
           description="Preço alvo, data-com de dividendo, concentração de setor. Você é avisado antes."
           featureIcon="notifications"
-          onUnlock={(plan) => navigation.getParent()?.navigate('ProSubscribe', { plan })}
+          onUnlock={(plan) => navigation.navigate('ProSubscribe', { plan })}
         >
           <Card>
             <Text style={styles.sectionTitle}>➕ Novo alerta de preço</Text>

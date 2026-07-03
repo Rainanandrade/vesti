@@ -82,7 +82,7 @@ export default function ShareWalletsScreen({ navigation }: any) {
           title="Compartilhar carteira"
           description="Dê acesso ao seu cônjuge, filho ou planejador. Modo leitura por padrão."
           featureIcon="people"
-          onUnlock={(plan) => navigation.getParent()?.navigate('ProSubscribe', { plan })}
+          onUnlock={(plan) => navigation.navigate('ProSubscribe', { plan })}
         >
           {/* Convites recebidos */}
           {received.filter((r) => r.status === 'pending').length > 0 && (

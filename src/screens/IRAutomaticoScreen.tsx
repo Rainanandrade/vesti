@@ -32,7 +32,7 @@ export default function IRAutomaticoScreen({ navigation }: any) {
           title="IR e DARF automatizados"
           description="Calcula seu imposto mês a mês, avisa vendas tributáveis, mostra prejuízo pra compensar."
           featureIcon="calculator"
-          onUnlock={(plan) => navigation.getParent()?.navigate('ProSubscribe', { plan })}
+          onUnlock={(plan) => navigation.navigate('ProSubscribe', { plan })}
         >
           <Card style={{ marginBottom: spacing.md, backgroundColor: colors.primaryLight, borderColor: colors.primary }}>
             <Text style={styles.heroLabel}>IR a pagar em {new Date().getFullYear()}</Text>

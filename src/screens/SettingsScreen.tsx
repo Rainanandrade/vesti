@@ -18,7 +18,7 @@ import PremiumLockModal from '../components/PremiumLockModal';
 
 function ProToolRow({ icon, title, desc, navigation, route }: { icon: any; title: string; desc: string; navigation: any; route: string }) {
   return (
-    <TouchableOpacity onPress={() => navigation.getParent()?.navigate(route)}>
+    <TouchableOpacity onPress={() => navigation.navigate(route)}>
       <Card style={{ marginBottom: spacing.sm }}>
         <View style={{ flexDirection: 'row', alignItems: 'center' }}>
           <Ionicons name={icon} size={22} color={colors.primary} />
@@ -312,7 +312,7 @@ Pra detalhe operação a operação, posso exportar o JSON completo no Vesti.`;
 
         {/* Card Vesti Pro */}
         <TouchableOpacity
-          onPress={() => navigation.getParent()?.navigate('ProSubscribe')}
+          onPress={() => navigation.navigate('ProSubscribe')}
           activeOpacity={0.85}
           style={{ marginTop: spacing.md }}
         >
@@ -364,7 +364,7 @@ Pra detalhe operação a operação, posso exportar o JSON completo no Vesti.`;
         </TouchableOpacity>
 
         <TouchableOpacity
-          onPress={() => navigation.getParent()?.navigate('DividendTarget')}
+          onPress={() => navigation.navigate('DividendTarget')}
         >
           <Card style={{ marginBottom: spacing.sm }}>
             <View style={styles.row}>
@@ -608,7 +608,7 @@ Pra detalhe operação a operação, posso exportar o JSON completo no Vesti.`;
       <PremiumLockModal
         visible={premiumLockOpen}
         onClose={() => setPremiumLockOpen(false)}
-        onSubscribe={(plan) => navigation.getParent()?.navigate('ProSubscribe', { plan })}
+        onSubscribe={(plan) => navigation.navigate('ProSubscribe', { plan })}
         title="Vesti Pro"
         subtitle="Sincronize com a B3 e muito mais"
         highlightIcon="sync-circle"

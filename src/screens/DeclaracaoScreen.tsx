@@ -17,6 +17,7 @@ import { colors, fontSize, radius, spacing } from '../theme/colors';
 import { useApp } from '../context/AppContext';
 import { fmtBRL } from '../utils/format';
 import Card from '../components/Card';
+import ProLock from '../components/ProLock';
 import { fetchDividendInfoBatch, DividendInfo } from '../api/dividends';
 import { computeReceivedProventos } from '../utils/receivedProventos';
 import { useEffect } from 'react';
@@ -196,6 +197,13 @@ export default function DeclaracaoScreen({ navigation }: any) {
       </View>
 
       <ScrollView contentContainerStyle={styles.scroll}>
+        <ProLock
+          mode="replace"
+          title="Declaração de IR consolidada"
+          description="Gera resumo pronto pra IRPF (bens, dividendos, JCP, operações) do ano-base escolhido."
+          featureIcon="document-text"
+          onUnlock={(plan) => navigation.navigate('ProSubscribe', { plan })}
+        >
         <Text style={styles.sectionLead}>
           Como você quer resolver sua Declaração {year + 1}?
         </Text>
@@ -272,6 +280,7 @@ export default function DeclaracaoScreen({ navigation }: any) {
             O Vesti não substitui consultoria fiscal.
           </Text>
         </Card>
+        </ProLock>
       </ScrollView>
 
       {/* Modal full-screen "Relatório Pronto" — estilo Grana */}

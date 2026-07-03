@@ -16,6 +16,7 @@ import { colors, fontSize, radius, spacing } from '../theme/colors';
 import { fmtBRL } from '../utils/format';
 import { formatCurrencyInput, parseFormattedNumber } from '../utils/numberFormat';
 import Card from '../components/Card';
+import ProLock from '../components/ProLock';
 import Isentometro from '../components/Isentometro';
 import { useApp } from '../context/AppContext';
 
@@ -97,6 +98,13 @@ export default function IRCalculatorScreen({ navigation }: any) {
         style={{ flex: 1 }}
       >
         <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
+          <ProLock
+            mode="replace"
+            title="Calculadora de IR mensal"
+            description="Apura DARF, IR sobre swing/day/FII e prazo de pagamento. Feature Pro."
+            featureIcon="calculator"
+            onUnlock={(plan) => navigation.navigate('ProSubscribe', { plan })}
+          >
           <Text style={styles.intro}>
             Calcule o IR sobre vendas e veja a tributação de dividendos/JCP. Você apura, gera o DARF (quando necessário) e paga até o último dia útil do mês seguinte.
           </Text>
@@ -365,6 +373,7 @@ export default function IRCalculatorScreen({ navigation }: any) {
               Cálculo simplificado para fins educacionais. Não substitui apuração formal por contador. Day-trade tem retenção de 1% (IRRF) na fonte que pode ser compensada na apuração mensal.
             </Text>
           </View>
+          </ProLock>
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
