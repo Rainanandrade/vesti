@@ -608,8 +608,10 @@ Pra detalhe operação a operação, posso exportar o JSON completo no Vesti.`;
       <PremiumLockModal
         visible={premiumLockOpen}
         onClose={() => setPremiumLockOpen(false)}
-        title="Sincronização com a B3"
-        feature="A sincronização automática"
+        onSubscribe={() => navigation.getParent()?.navigate('ProSubscribe')}
+        title="Vesti Pro"
+        subtitle="Sincronize com a B3 e muito mais"
+        highlightIcon="sync-circle"
       />
 
       <Modal visible={nameModalOpen} transparent animationType="fade" onRequestClose={() => setNameModalOpen(false)}>

@@ -46,6 +46,7 @@ export default function BacktestScreen({ navigation }: any) {
           mode="replace"
           title="Simulação Monte Carlo"
           description="Projete cenários (P10, P50, P90) pra seus aportes com retorno esperado e volatilidade."
+          featureIcon="analytics"
           onUnlock={() => navigation.getParent()?.navigate('ProSubscribe')}
         >
           <Card>

@@ -565,9 +565,10 @@ export default function PortfolioScreen({ navigation }: any) {
       <PremiumLockModal
         visible={premiumOpen}
         onClose={() => setPremiumOpen(false)}
-        title="Sincronização com a B3"
-        description="A integração permite importar todos os seus ativos automaticamente, sem digitação manual. Estamos validando segurança e estabilidade antes de liberar."
-        feature="A sincronização com a B3"
+        onSubscribe={() => navigation.getParent()?.navigate('ProSubscribe')}
+        title="Vesti Pro"
+        subtitle="Sincronize com a B3 e muito mais"
+        highlightIcon="sync-circle"
       />
 
     </SafeAreaView>

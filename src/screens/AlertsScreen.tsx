@@ -82,6 +82,7 @@ export default function AlertsScreen({ navigation }: any) {
           mode="replace"
           title="Alertas inteligentes"
           description="Preço alvo, data-com de dividendo, concentração de setor. Você é avisado antes."
+          featureIcon="notifications"
           onUnlock={() => navigation.getParent()?.navigate('ProSubscribe')}
         >
           <Card>

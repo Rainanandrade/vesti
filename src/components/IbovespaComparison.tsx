@@ -158,6 +158,7 @@ export default function IbovespaComparison(props: Props) {
     <ProLock
       title="Compare com o Ibovespa"
       description="Métricas avançadas (Sharpe, volatilidade, drawdown) e comparação real com o índice."
+      featureIcon="stats-chart"
       onUnlock={() => nav.getParent()?.navigate('ProSubscribe')}
     >
       <IbovespaComparisonInner {...props} />

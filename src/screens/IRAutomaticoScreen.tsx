@@ -31,6 +31,7 @@ export default function IRAutomaticoScreen({ navigation }: any) {
           mode="replace"
           title="IR e DARF automatizados"
           description="Calcula seu imposto mês a mês, avisa vendas tributáveis, mostra prejuízo pra compensar."
+          featureIcon="calculator"
           onUnlock={() => navigation.getParent()?.navigate('ProSubscribe')}
         >
           <Card style={{ marginBottom: spacing.md, backgroundColor: colors.primaryLight, borderColor: colors.primary }}>

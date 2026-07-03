@@ -1,15 +1,17 @@
-import { ReactNode } from 'react';
+import { ReactNode, useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, fontSize, radius, spacing } from '../theme/colors';
 import { useApp } from '../context/AppContext';
+import PremiumLockModal from './PremiumLockModal';
 
 type Props = {
   children: ReactNode;
   title?: string;
   description?: string;
-  onUnlock?: () => void;   // ao clicar em "Ver planos"
-  mode?: 'blur' | 'replace'; // blur = mostra borrado + overlay; replace = card CTA
+  onUnlock?: () => void;         // opcional: se passar, é chamado após "Ver planos e assinar"
+  featureIcon?: string;           // ícone da feature Pro pra destacar no popup
+  mode?: 'blur' | 'replace';
 };
 
 /**
@@ -20,32 +22,49 @@ type Props = {
 export default function ProLock({
   children,
   title = 'Feature exclusiva do Vesti Pro',
-  description = 'Assine pra ver métricas avançadas, alertas, IR automático e mais.',
+  description = 'Toque pra ver tudo que você desbloqueia.',
   onUnlock,
+  featureIcon,
   mode = 'blur',
 }: Props) {
   const { pro } = useApp();
+  const [modalOpen, setModalOpen] = useState(false);
 
   if (pro.isPro) return <>{children}</>;
 
+  const openPopup = () => setModalOpen(true);
+  const closePopup = () => setModalOpen(false);
+
+  const popup = (
+    <PremiumLockModal
+      visible={modalOpen}
+      onClose={closePopup}
+      onSubscribe={onUnlock}
+      highlightIcon={featureIcon}
+      title={title}
+    />
+  );
+
   if (mode === 'replace') {
     return (
-      <TouchableOpacity onPress={onUnlock} activeOpacity={0.85} style={styles.card}>
-        <View style={styles.proBadgeSm}>
-          <Ionicons name="diamond" size={12} color={colors.primary} />
-          <Text style={styles.proBadgeSmText}>PRO</Text>
-        </View>
-        <Text style={styles.cardTitle}>{title}</Text>
-        <Text style={styles.cardDesc}>{description}</Text>
-        <View style={styles.ctaBtn}>
-          <Text style={styles.ctaText}>Ver planos</Text>
-          <Ionicons name="arrow-forward" size={14} color={colors.textLight} />
-        </View>
-      </TouchableOpacity>
+      <>
+        <TouchableOpacity onPress={openPopup} activeOpacity={0.85} style={styles.card}>
+          <View style={styles.proBadgeSm}>
+            <Ionicons name="diamond" size={12} color={colors.primary} />
+            <Text style={styles.proBadgeSmText}>PRO</Text>
+          </View>
+          <Text style={styles.cardTitle}>{title}</Text>
+          <Text style={styles.cardDesc}>{description}</Text>
+          <View style={styles.ctaBtn}>
+            <Text style={styles.ctaText}>Ver tudo do Pro</Text>
+            <Ionicons name="arrow-forward" size={14} color={colors.textLight} />
+          </View>
+        </TouchableOpacity>
+        {popup}
+      </>
     );
   }
 
-  // Modo blur: mostra o conteúdo original desfocado + overlay
   return (
     <View style={styles.container}>
       <View
@@ -59,7 +78,7 @@ export default function ProLock({
       >
         {children}
       </View>
-      <TouchableOpacity style={styles.overlay} activeOpacity={0.9} onPress={onUnlock}>
+      <TouchableOpacity style={styles.overlay} activeOpacity={0.9} onPress={openPopup}>
         <View style={styles.overlayBox}>
           <View style={styles.proBadge}>
             <Ionicons name="diamond" size={14} color={colors.primary} />
@@ -68,11 +87,12 @@ export default function ProLock({
           <Text style={styles.overlayTitle}>{title}</Text>
           <Text style={styles.overlayDesc}>{description}</Text>
           <View style={styles.ctaBtn}>
-            <Text style={styles.ctaText}>Desbloquear com Pro</Text>
+            <Text style={styles.ctaText}>Ver tudo do Pro</Text>
             <Ionicons name="arrow-forward" size={14} color={colors.textLight} />
           </View>
         </View>
       </TouchableOpacity>
+      {popup}
     </View>
   );
 }
