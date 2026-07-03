@@ -9,7 +9,7 @@ import ProLock from '../components/ProLock';
 import BenchmarkSparkline from '../components/BenchmarkSparkline';
 import { safeBackToTabs } from '../utils/navigation';
 import { monteCarloProjection } from '../utils/backtesting';
-import { formatCurrencyInput, parseFormattedNumber } from '../utils/numberFormat';
+import { formatCurrencyInput } from '../utils/numberFormat';
 import { fmtBRL } from '../utils/format';
 
 export default function BacktestScreen({ navigation }: any) {
@@ -21,7 +21,9 @@ export default function BacktestScreen({ navigation }: any) {
   const [expectedReturn, setExpectedReturn] = useState(10); // % ao ano
   const [volatility, setVolatility] = useState(15);         // % ao ano
 
-  const monthlyAmount = parseFormattedNumber(monthlyStr);
+  // monthlyStr guarda os dígitos brutos (ex: '50000' = R$ 500,00).
+  // Divide por 100 pra converter centavos → reais.
+  const monthlyAmount = Number(monthlyStr || '0') / 100;
 
   const result = useMemo(() => monteCarloProjection({
     currentValue: currentTotal,

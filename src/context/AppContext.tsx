@@ -96,6 +96,8 @@ type AppContextType = {
   clearAllUserData: () => Promise<void>;
   refreshFromCloud: () => Promise<void>;
   pro: ProStatus;
+  pretendFree: boolean;
+  setPretendFree: (v: boolean) => void;
 };
 
 export type Provento = {
@@ -163,6 +165,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [lastSeenVersion, setLastSeenVersion] = useState<string | null>(null);
   const [proExpiresAt, setProExpiresAt] = useState<number | null>(null);
   const [isPaidSubscriber, setIsPaidSubscriber] = useState<boolean>(false);
+  const [pretendFree, setPretendFree] = useState<boolean>(false);
   const [operations, setOperations] = useState<Operation[]>([]);
   const [proventos, setProventos] = useState<Provento[]>([]);
   const [snapshots, setSnapshots] = useState<PatrimonySnapshot[]>([]);
@@ -375,12 +378,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const proStatus: ProStatus = (() => {
     const now = Date.now();
     if (!proExpiresAt) return { isPro: false, isTrial: false, isPaid: false, daysLeft: null, expiresAt: null };
-    const isPro = proExpiresAt > now;
+    const realIsPro = proExpiresAt > now;
+    // Dev toggle: se o usuário ligou "Ver como Free" nos Ajustes, força isPro=false
+    // pra ele ver os popups e os paywalls funcionando.
+    const effectiveIsPro = pretendFree ? false : realIsPro;
     const daysLeft = Math.max(0, Math.ceil((proExpiresAt - now) / (24 * 60 * 60 * 1000)));
     return {
-      isPro,
-      isPaid: isPro && isPaidSubscriber,
-      isTrial: isPro && !isPaidSubscriber,
+      isPro: effectiveIsPro,
+      isPaid: effectiveIsPro && isPaidSubscriber,
+      isTrial: effectiveIsPro && !isPaidSubscriber,
       daysLeft,
       expiresAt: proExpiresAt,
     };
@@ -893,6 +899,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
         clearAllUserData,
         refreshFromCloud,
         pro: proStatus,
+        pretendFree,
+        setPretendFree,
       }}
     >
       {children}

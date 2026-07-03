@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -24,14 +25,16 @@ const FEATURES: Feature[] = [
   { icon: 'ribbon', title: 'Comparação com gestores', desc: 'Sua carteira × Verde × Dahlia × Trígono.', available: 'soon' },
 ];
 
-export default function ProSubscribeScreen({ navigation }: any) {
+export default function ProSubscribeScreen({ navigation, route }: any) {
   const { pro } = useApp();
+  const initialPlan = route?.params?.plan === 'monthly' ? 'monthly' : 'yearly';
+  const [selectedPlan, setSelectedPlan] = useState<'monthly' | 'yearly'>(initialPlan);
 
-  const handleSubscribe = (billing: 'monthly' | 'yearly') => {
+  const handleSubscribe = () => {
     // TODO: integrar Mercado Pago Suscripciones (próxima sessão)
     Alert.alert(
       'Assinar Vesti Pro',
-      `Pagamento via Mercado Pago em breve. Enquanto isso, você tem trial grátis de 7 dias ativo.\n\nPlano ${billing === 'yearly' ? 'anual (R$ 99)' : 'mensal (R$ 9,90)'} escolhido.`,
+      `Pagamento via Mercado Pago em breve. Enquanto isso, você tem trial grátis de 7 dias ativo.\n\nPlano ${selectedPlan === 'yearly' ? 'anual (R$ 99)' : 'mensal (R$ 9,90)'} escolhido.`,
     );
   };
 
@@ -68,12 +71,21 @@ export default function ProSubscribeScreen({ navigation }: any) {
           )}
         </LinearGradient>
 
-        {/* Planos */}
+        {/* Planos — selecionáveis */}
         <View style={styles.plansRow}>
-          <TouchableOpacity style={[styles.plan, styles.planYearly]} activeOpacity={0.9} onPress={() => handleSubscribe('yearly')}>
+          <TouchableOpacity
+            style={[styles.plan, selectedPlan === 'yearly' && styles.planSelected]}
+            activeOpacity={0.85}
+            onPress={() => setSelectedPlan('yearly')}
+          >
             <View style={styles.planBadge}>
               <Text style={styles.planBadgeText}>MELHOR OFERTA</Text>
             </View>
+            {selectedPlan === 'yearly' && (
+              <View style={styles.planCheck}>
+                <Ionicons name="checkmark" size={14} color={colors.textLight} />
+              </View>
+            )}
             <Text style={styles.planName}>Anual</Text>
             <Text style={styles.planPrice}>R$ {PLAN_YEARLY.toFixed(0)}</Text>
             <Text style={styles.planPeriod}>/ano</Text>
@@ -81,7 +93,16 @@ export default function ProSubscribeScreen({ navigation }: any) {
             <Text style={styles.planSavings}>2 meses grátis</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.plan} activeOpacity={0.9} onPress={() => handleSubscribe('monthly')}>
+          <TouchableOpacity
+            style={[styles.plan, selectedPlan === 'monthly' && styles.planSelected]}
+            activeOpacity={0.85}
+            onPress={() => setSelectedPlan('monthly')}
+          >
+            {selectedPlan === 'monthly' && (
+              <View style={styles.planCheck}>
+                <Ionicons name="checkmark" size={14} color={colors.textLight} />
+              </View>
+            )}
             <Text style={styles.planName}>Mensal</Text>
             <Text style={styles.planPrice}>R$ {PLAN_MONTHLY.toFixed(2).replace('.', ',')}</Text>
             <Text style={styles.planPeriod}>/mês</Text>
@@ -89,6 +110,13 @@ export default function ProSubscribeScreen({ navigation }: any) {
             <Text style={styles.planSavings}>Cancele quando quiser</Text>
           </TouchableOpacity>
         </View>
+
+        <TouchableOpacity style={styles.subscribeBtn} onPress={handleSubscribe} activeOpacity={0.85}>
+          <Ionicons name="diamond" size={18} color={colors.textLight} />
+          <Text style={styles.subscribeText}>
+            Assinar plano {selectedPlan === 'yearly' ? 'anual · R$ 99' : 'mensal · R$ 9,90'}
+          </Text>
+        </TouchableOpacity>
 
         {/* Features */}
         <Text style={styles.sectionLabel}>Tudo que vem com o Pro</Text>
@@ -137,7 +165,11 @@ const styles = StyleSheet.create({
   plansRow: { flexDirection: 'row', gap: spacing.md as any, marginBottom: spacing.lg },
   plan: { flex: 1, backgroundColor: colors.background, padding: spacing.lg, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.divider, position: 'relative', alignItems: 'center' },
   planYearly: { borderColor: colors.primary, borderWidth: 2 },
+  planSelected: { borderColor: colors.primary, borderWidth: 2, backgroundColor: colors.primaryLight },
+  planCheck: { position: 'absolute', top: 8, right: 8, width: 24, height: 24, borderRadius: 12, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center' },
   planBadge: { position: 'absolute', top: -10, backgroundColor: colors.primary, paddingHorizontal: 10, paddingVertical: 3, borderRadius: radius.pill },
+  subscribeBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 as any, backgroundColor: colors.primary, padding: spacing.lg, borderRadius: radius.md, marginBottom: spacing.lg },
+  subscribeText: { color: colors.textLight, fontWeight: '800', fontSize: fontSize.bodyLarge },
   planBadgeText: { color: colors.textLight, fontSize: 9, fontWeight: '900', letterSpacing: 0.5 },
   planName: { fontSize: fontSize.body, color: colors.textSecondary, fontWeight: '700', marginTop: 4 },
   planPrice: { fontSize: fontSize.heading, fontWeight: '900', color: colors.text, marginTop: 6 },

@@ -8,7 +8,7 @@ import Card from '../components/Card';
 import ProLock from '../components/ProLock';
 import { safeBackToTabs } from '../utils/navigation';
 import { Alert as AlertType, createAlert, deleteAlert, listAlerts, toggleAlert } from '../api/alerts';
-import { formatCurrencyInput, parseFormattedNumber } from '../utils/numberFormat';
+import { formatCurrencyInput } from '../utils/numberFormat';
 import { fmtBRL } from '../utils/format';
 
 const KIND_LABELS: Record<string, { title: string; icon: any; color: string }> = {
@@ -42,7 +42,8 @@ export default function AlertsScreen({ navigation }: any) {
 
   const addAlert = async () => {
     if (!selectedSymbol) { RNAlert.alert('Escolha', 'Selecione um ativo da sua carteira.'); return; }
-    const t = parseFormattedNumber(thresholdStr);
+    // thresholdStr guarda dígitos brutos; converte centavos → reais
+    const t = Number(thresholdStr || '0') / 100;
     if (!t || t <= 0) { RNAlert.alert('Valor inválido', 'Digite um preço válido.'); return; }
     setCreating(true);
     try {
