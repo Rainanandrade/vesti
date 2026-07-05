@@ -12,6 +12,8 @@ type Props = {
   height?: number;
   showLegend?: boolean;
   privacyMode?: boolean;
+  yFormatter?: (v: number) => string;   // customização do eixo Y (default: R$)
+  legendFormatter?: (v: number) => string; // customização da legenda (default: R$)
 };
 
 /**
@@ -26,7 +28,11 @@ export default function BenchmarkSparkline({
   height = 160,
   showLegend = true,
   privacyMode,
+  yFormatter,
+  legendFormatter,
 }: Props) {
+  const fmtY = yFormatter || ((v: number) => fmtBRL(v, privacyMode).replace('R$', '').trim());
+  const fmtLegend = legendFormatter || ((v: number) => fmtBRL(v, privacyMode));
   const [width, setWidth] = useState(320);
   const onLayout = (e: LayoutChangeEvent) => {
     const w = Math.round(e.nativeEvent.layout.width);
@@ -136,7 +142,7 @@ export default function BenchmarkSparkline({
               },
             ]}
           >
-            {fmtBRL(v, privacyMode).replace('R$', '').trim()}
+            {fmtY(v)}
           </Text>
         ))}
       </View>
@@ -149,7 +155,7 @@ export default function BenchmarkSparkline({
               <View key={s.label} style={styles.legendItem}>
                 <View style={[styles.legendDot, { backgroundColor: s.color }]} />
                 <Text style={styles.legendLabel}>{s.label}</Text>
-                <Text style={[styles.legendValue, { color: s.color }]}>{fmtBRL(last, privacyMode)}</Text>
+                <Text style={[styles.legendValue, { color: s.color }]}>{fmtLegend(last)}</Text>
               </View>
             );
           })}

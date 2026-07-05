@@ -172,32 +172,51 @@ export default function RentabilidadeCompleta({ snapshots, privacyMode }: Props)
           ))}
         </ScrollView>
 
-        {/* Toggle de benchmarks */}
+        {/* Toggle de benchmarks — mostra o retorno acumulado no período embaixo do nome */}
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: spacing.sm }}>
           {BENCHMARKS.map((b) => {
             const active = enabledBenchmarks.includes(b.id);
+            const bmValue = accumulateBenchmark(b.yearlyRatePct, daysInPeriod);
             return (
               <TouchableOpacity
                 key={b.id}
-                style={[styles.bmChip, active && { borderColor: b.color, backgroundColor: b.color + '20' }]}
+                style={[styles.bmChip, active && { borderColor: b.color, backgroundColor: b.color + '18' }]}
                 onPress={() => toggleBenchmark(b.id)}
               >
                 <View style={[styles.bmDot, { backgroundColor: b.color, opacity: active ? 1 : 0.3 }]} />
-                <Text style={[styles.bmText, active && { color: colors.text, fontWeight: '800' }]}>{b.name}</Text>
+                <View>
+                  <Text style={[styles.bmText, active && { color: colors.text, fontWeight: '800' }]}>{b.name}</Text>
+                  <Text style={[styles.bmValue, { color: bmValue >= 0 ? colors.success : colors.danger }]}>
+                    {bmValue >= 0 ? '+' : ''}{bmValue.toFixed(2)}%
+                  </Text>
+                </View>
               </TouchableOpacity>
             );
           })}
         </ScrollView>
 
-        {/* Sparkline */}
+        {/* Sparkline com formatação em % */}
         <View style={{ marginTop: spacing.md }}>
           <BenchmarkSparkline
+            key={`chart-${period}-${enabledBenchmarks.join(',')}`}
             height={220}
             series={chartSeries}
             labels={[filtered[0].date.split('-').reverse().slice(0, 2).join('/'), filtered[filtered.length - 1].date.split('-').reverse().slice(0, 2).join('/')]}
-            showLegend={false}
+            showLegend={true}
+            yFormatter={(v) => `${v >= 0 ? '+' : ''}${v.toFixed(1)}%`}
+            legendFormatter={(v) => `${v >= 0 ? '+' : ''}${v.toFixed(2)}%`}
           />
         </View>
+
+        {/* Aviso quando período tem poucos dados */}
+        {filtered.length < 5 && (
+          <View style={styles.warningBox}>
+            <Ionicons name="information-circle-outline" size={14} color={colors.warning} />
+            <Text style={styles.warningText}>
+              Você tem só {filtered.length} snapshots no período selecionado. O gráfico fica mais preciso com mais dias de histórico.
+            </Text>
+          </View>
+        )}
 
         {/* Diff vs CDI */}
         <View style={styles.summaryRow}>
@@ -268,9 +287,12 @@ const styles = StyleSheet.create({
   chipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
   chipText: { fontSize: fontSize.small, color: colors.text, fontWeight: '700' },
 
-  bmChip: { flexDirection: 'row', alignItems: 'center', gap: 4 as any, paddingHorizontal: 10, paddingVertical: 4, borderRadius: radius.pill, borderWidth: 1, borderColor: colors.divider, marginRight: 6 },
-  bmDot: { width: 8, height: 8, borderRadius: 4 },
+  bmChip: { flexDirection: 'row', alignItems: 'center', gap: 6 as any, paddingHorizontal: 10, paddingVertical: 6, borderRadius: radius.md, borderWidth: 1, borderColor: colors.divider, marginRight: 6 },
+  bmDot: { width: 10, height: 10, borderRadius: 5 },
   bmText: { fontSize: fontSize.small, color: colors.textSecondary, fontWeight: '600' },
+  bmValue: { fontSize: fontSize.tiny, fontWeight: '800', marginTop: 2 },
+  warningBox: { flexDirection: 'row', alignItems: 'center', gap: 6 as any, backgroundColor: colors.warningLight, padding: spacing.sm, borderRadius: radius.md, marginTop: spacing.sm },
+  warningText: { fontSize: fontSize.tiny, color: colors.warning, flex: 1, lineHeight: 16 },
 
   summaryRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: spacing.md, padding: spacing.sm, backgroundColor: colors.surface, borderRadius: radius.md },
   summaryLabel: { fontSize: fontSize.small, color: colors.textSecondary, fontWeight: '700' },
