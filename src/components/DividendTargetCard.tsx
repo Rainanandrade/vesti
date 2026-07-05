@@ -34,41 +34,81 @@ export default function DividendTargetCard({ target, progress, privacyMode, onPr
           )}
         </View>
 
-        <View style={styles.row}>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.subLabel}>Recebido/mês</Text>
-            <Text style={styles.value}>{fmtBRL(received ?? progress.currentMonthlyAmount, privacyMode)}</Text>
-            {projected != null && received != null && projected !== received && (
-              <Text style={styles.subValue}>Projeção: {fmtBRL(projected, privacyMode)}/mês</Text>
-            )}
-          </View>
-          <View style={{ flex: 1, alignItems: 'flex-end' }}>
-            <Text style={styles.subLabel}>Meta</Text>
-            <Text style={[styles.value, { color: colors.primary }]}>
-              {fmtBRL(progress.targetMonthlyAmount, privacyMode)}/mês
-            </Text>
-          </View>
-        </View>
+        {progress.mode === 'annual_dy' ? (
+          <>
+            <View style={styles.row}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.subLabel}>DY atual</Text>
+                <Text style={styles.value}>{(progress.currentDyPct ?? 0).toFixed(2)}%</Text>
+                <Text style={styles.subValue}>~{fmtBRL(received ?? progress.currentMonthlyAmount, privacyMode)}/mês</Text>
+              </View>
+              <View style={{ flex: 1, alignItems: 'flex-end' }}>
+                <Text style={styles.subLabel}>Meta</Text>
+                <Text style={[styles.value, { color: colors.primary }]}>
+                  {(progress.targetDyPct ?? 0).toFixed(2)}%
+                </Text>
+                <Text style={styles.subValue}>~{fmtBRL(progress.targetMonthlyAmount, privacyMode)}/mês</Text>
+              </View>
+            </View>
 
-        <View style={styles.barBg}>
-          <View
-            style={[
-              styles.barFill,
-              {
-                width: `${Math.min(100, pct)}%`,
-                backgroundColor: reached ? colors.success : colors.primary,
-              },
-            ]}
-          />
-        </View>
-        <Text style={styles.pctText}>
-          {pct}% da meta
-          {!reached && progress.capitalGap > 0 && (
-            <Text style={styles.gapText}>
-              {' '}· Falta investir {fmtBRL(progress.capitalGap, privacyMode)}
+            <View style={styles.barBg}>
+              <View
+                style={[styles.barFill, {
+                  width: `${Math.min(100, pct)}%`,
+                  backgroundColor: reached ? colors.success : colors.primary,
+                }]}
+              />
+            </View>
+            <Text style={styles.pctText}>
+              {pct}% da meta
+              {!reached && (progress.dyGapPp ?? 0) > 0 && (
+                <Text style={styles.gapText}>
+                  {' '}· Falta subir {progress.dyGapPp!.toFixed(1)} pp em DY
+                </Text>
+              )}
             </Text>
-          )}
-        </Text>
+            {!reached && (progress.dyGapPp ?? 0) > 0 && (
+              <Text style={styles.hintText}>
+                DY é característica dos ativos, não do valor. Considere rebalancear pra FIIs (~10%) ou ações mais focadas em dividendo (BBSE3, ITSA4, TAEE11).
+              </Text>
+            )}
+          </>
+        ) : (
+          <>
+            <View style={styles.row}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.subLabel}>Recebido/mês</Text>
+                <Text style={styles.value}>{fmtBRL(received ?? progress.currentMonthlyAmount, privacyMode)}</Text>
+                {projected != null && received != null && projected !== received && (
+                  <Text style={styles.subValue}>Projeção: {fmtBRL(projected, privacyMode)}/mês</Text>
+                )}
+              </View>
+              <View style={{ flex: 1, alignItems: 'flex-end' }}>
+                <Text style={styles.subLabel}>Meta</Text>
+                <Text style={[styles.value, { color: colors.primary }]}>
+                  {fmtBRL(progress.targetMonthlyAmount, privacyMode)}/mês
+                </Text>
+              </View>
+            </View>
+
+            <View style={styles.barBg}>
+              <View
+                style={[styles.barFill, {
+                  width: `${Math.min(100, pct)}%`,
+                  backgroundColor: reached ? colors.success : colors.primary,
+                }]}
+              />
+            </View>
+            <Text style={styles.pctText}>
+              {pct}% da meta
+              {!reached && progress.capitalGap > 0 && (
+                <Text style={styles.gapText}>
+                  {' '}· Falta investir {fmtBRL(progress.capitalGap, privacyMode)}
+                </Text>
+              )}
+            </Text>
+          </>
+        )}
       </Card>
     </TouchableOpacity>
   );
@@ -96,4 +136,5 @@ const styles = StyleSheet.create({
   barFill: { height: 10, borderRadius: 5 },
   pctText: { fontSize: fontSize.small, color: colors.textSecondary, marginTop: spacing.xs, fontWeight: '600' },
   gapText: { color: colors.textTertiary, fontWeight: 'normal' },
+  hintText: { fontSize: fontSize.tiny, color: colors.textSecondary, marginTop: spacing.sm, lineHeight: 16, fontStyle: 'italic' },
 });

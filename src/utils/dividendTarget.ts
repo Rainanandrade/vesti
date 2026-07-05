@@ -1,18 +1,18 @@
 import { DividendTarget } from '../data/profileQuiz';
 
 export type TargetProgress = {
-  // alvo final em R$/mês (sempre normalizamos pra esse formato)
+  mode: 'monthly_amount' | 'annual_dy';
   targetMonthlyAmount: number;
-  // valor atual em R$/mês (média dos últimos 12 meses recebidos OU forecast)
   currentMonthlyAmount: number;
-  // progresso 0..1
-  progress: number;
-  // patrimônio investido pra atingir o alvo (assumindo DY média da carteira)
-  capitalNeeded: number;
-  // capital atual
+  progress: number;                     // 0..1
   currentCapital: number;
-  // quanto falta investir
+  // Só usados no modo 'monthly_amount':
+  capitalNeeded: number;
   capitalGap: number;
+  // Só usados no modo 'annual_dy':
+  currentDyPct?: number;                // DY atual da carteira (%)
+  targetDyPct?: number;                 // DY meta (%)
+  dyGapPp?: number;                     // diferença em pontos percentuais (target - current)
 };
 
 export function computeTargetProgress(
@@ -24,33 +24,48 @@ export function computeTargetProgress(
 ): TargetProgress | null {
   if (!target || target.value <= 0) return null;
 
-  // Normaliza pra R$/mês
-  let targetMonthlyAmount: number;
-  if (target.mode === 'monthly_amount') {
-    targetMonthlyAmount = target.value;
-  } else {
-    // annual_dy: precisa de capital pra render esse % ao ano
-    // Se quer X% a.a sobre o capital atual, R$/mês = capital × X/100 / 12
-    targetMonthlyAmount = (totalCurrent * target.value) / 100 / 12;
+  const currentMonthlyAmount = monthsElapsed > 0 ? ytdReceived / monthsElapsed : 0;
+
+  if (target.mode === 'annual_dy') {
+    // Meta é uma TAXA (DY %). Compara taxa com taxa.
+    // Investir mais não muda o DY — só rebalanceamento resolve.
+    const currentDyPct = weightedDY;
+    const targetDyPct = target.value;
+    const dyGapPp = targetDyPct - currentDyPct;
+    const progress = targetDyPct > 0 ? Math.min(1, Math.max(0, currentDyPct / targetDyPct)) : 0;
+    // targetMonthlyAmount informativo: quanto o user RECEBERIA se atingisse a meta
+    const targetMonthlyAmount = (totalCurrent * targetDyPct) / 100 / 12;
+    return {
+      mode: 'annual_dy',
+      targetMonthlyAmount,
+      currentMonthlyAmount,
+      progress,
+      currentCapital: totalCurrent,
+      capitalNeeded: 0,
+      capitalGap: 0,
+      currentDyPct,
+      targetDyPct,
+      dyGapPp,
+    };
   }
 
-  const currentMonthlyAmount = monthsElapsed > 0 ? ytdReceived / monthsElapsed : 0;
+  // Modo monthly_amount: meta é um VALOR fixo em R$/mês.
+  // Aí sim faz sentido calcular quanto capital seria necessário.
+  const targetMonthlyAmount = target.value;
   const progress = targetMonthlyAmount > 0
     ? Math.min(1, currentMonthlyAmount / targetMonthlyAmount)
     : 0;
-
-  // Capital necessário pra atingir target com DY atual
-  // R$/mês × 12 = capital × DY/100 → capital = R$/mês × 12 / (DY/100)
-  const dy = weightedDY > 0 ? weightedDY : 8; // fallback 8% se ainda não calculou
+  const dy = weightedDY > 0 ? weightedDY : 8; // fallback pra estimativa
   const capitalNeeded = (targetMonthlyAmount * 12) / (dy / 100);
   const capitalGap = Math.max(0, capitalNeeded - totalCurrent);
 
   return {
+    mode: 'monthly_amount',
     targetMonthlyAmount,
     currentMonthlyAmount,
     progress,
-    capitalNeeded,
     currentCapital: totalCurrent,
+    capitalNeeded,
     capitalGap,
   };
 }
