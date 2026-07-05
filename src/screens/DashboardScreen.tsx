@@ -527,6 +527,8 @@ export default function DashboardScreen({ navigation }: any) {
                         { label: `IPCA (${IPCA_12M}% aa)`, color: colors.warning, values: comp.benchmark },
                       ]}
                       labels={[comp.labels[0], comp.labels[comp.labels.length - 1]]}
+                      yFormatter={(v) => `${v >= 0 ? '+' : ''}${v.toFixed(1)}%`}
+                      legendFormatter={(v) => `${v >= 0 ? '+' : ''}${v.toFixed(2)}%`}
                     />
                   </View>
                 );

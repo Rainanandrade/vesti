@@ -4,19 +4,20 @@
 export type PatrimonySnap = { date: string; total: number; invested: number };
 
 export type ComparisonSeries = {
-  labels: string[];      // datas no formato "dd/mm"
-  portfolio: number[];   // valores absolutos R$
-  benchmark: number[];   // projeção do que a carteira valeria se seguisse o benchmark
+  labels: string[];
+  portfolio: number[];   // rentabilidade % da carteira em cada ponto (L/P/investido)
+  benchmark: number[];   // rentabilidade % do benchmark capitalizado
   portfolioReturnPct: number;
   benchmarkReturnPct: number;
 };
 
 /**
- * Constrói série comparativa contra um benchmark de taxa anual.
- * benchmarkYearlyRatePct = 4 pra IPCA ~4%, 10 pra Ibov 10% etc.
+ * Constrói série comparativa em % de rentabilidade (não em R$).
+ * Assim, quando o user aporta, a linha da carteira NÃO sobe enganosamente —
+ * o aporte só reduz o retorno % (dilui a base) ou mantém igual.
  *
- * A projeção do benchmark parte do MESMO valor inicial da carteira e capitaliza
- * pela taxa anual pro-rata pelos dias decorridos. Assim comparação é justa.
+ * Portfolio series: (total - invested) / invested × 100 em cada snapshot
+ * Benchmark series: taxa acumulada capitalizada dia a dia
  */
 export function buildComparisonSeries(
   snapshots: PatrimonySnap[],
@@ -35,15 +36,16 @@ export function buildComparisonSeries(
 
   for (const s of sorted) {
     const daysSinceStart = (new Date(s.date).getTime() - startMs) / (24 * 60 * 60 * 1000);
-    const projected = first.total * Math.pow(1 + rateDaily, daysSinceStart);
-    portfolio.push(s.total);
-    benchmark.push(projected);
+    const portfolioReturn = s.invested > 0 ? ((s.total - s.invested) / s.invested) * 100 : 0;
+    const benchmarkReturn = (Math.pow(1 + rateDaily, daysSinceStart) - 1) * 100;
+    portfolio.push(portfolioReturn);
+    benchmark.push(benchmarkReturn);
     const [, mm, dd] = s.date.split('-');
     labels.push(`${dd}/${mm}`);
   }
 
   const last = sorted[sorted.length - 1];
-  const portfolioReturnPct = first.total > 0 ? ((last.total - first.total) / first.total) * 100 : 0;
+  const portfolioReturnPct = last.invested > 0 ? ((last.total - last.invested) / last.invested) * 100 : 0;
   const daysTotal = (new Date(last.date).getTime() - startMs) / (24 * 60 * 60 * 1000);
   const benchmarkReturnPct = (Math.pow(1 + rateDaily, daysTotal) - 1) * 100;
 
@@ -79,12 +81,14 @@ export function computeReturnMetrics(snapshots: PatrimonySnap[], riskFreeAnnualP
   const daysSpan = (lastDate - firstDate) / (24 * 60 * 60 * 1000);
   if (daysSpan < 30) return null; // pouco tempo pra métricas confiáveis
 
-  const values = clean.map((s) => s.total);
+  // Usa RETORNO ACUMULADO em cada ponto (L/P/investido) — não o valor absoluto.
+  // Assim aportes não são contabilizados como retorno.
+  const returnsPct = clean.map((s) => s.invested > 0 ? ((s.total - s.invested) / s.invested) : 0);
 
+  // Variação diária do retorno acumulado (delta % entre dias consecutivos).
   const dailyReturns: number[] = [];
-  for (let i = 1; i < values.length; i++) {
-    const prev = values[i - 1];
-    if (prev > 0) dailyReturns.push((values[i] - prev) / prev);
+  for (let i = 1; i < returnsPct.length; i++) {
+    dailyReturns.push(returnsPct[i] - returnsPct[i - 1]);
   }
   if (dailyReturns.length < 2) return null;
 
@@ -93,15 +97,16 @@ export function computeReturnMetrics(snapshots: PatrimonySnap[], riskFreeAnnualP
   const stdDaily = Math.sqrt(variance);
   const volAnnual = stdDaily * Math.sqrt(252) * 100;
 
-  let peak = values[0];
+  // Max drawdown sobre a série de retornos acumulados (%)
+  let peak = returnsPct[0];
   let maxDD = 0;
-  for (const v of values) {
-    if (v > peak) peak = v;
-    const dd = peak > 0 ? (peak - v) / peak : 0;
+  for (const r of returnsPct) {
+    if (r > peak) peak = r;
+    const dd = peak - r; // em pontos %
     if (dd > maxDD) maxDD = dd;
   }
 
-  const totalReturn = (values[values.length - 1] - values[0]) / values[0];
+  const totalReturn = returnsPct[returnsPct.length - 1]; // já em fração
   // Anualização por dias REAIS, e cap em 90 dias mínimo pra evitar extrapolação absurda
   const daysForAnnualization = Math.max(90, daysSpan);
   const annualizedReturn = (Math.pow(1 + totalReturn, 365 / daysForAnnualization) - 1) * 100;
