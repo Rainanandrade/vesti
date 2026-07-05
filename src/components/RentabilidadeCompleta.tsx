@@ -40,12 +40,13 @@ export default function RentabilidadeCompleta({ snapshots, privacyMode }: Props)
 
   const canRender = filtered.length >= 2;
 
-  // Rentabilidade da carteira no período
+  // Rentabilidade CORRETA: L/P sobre investido (não diferença de patrimônio,
+  // pois isso incluiria aportes como se fossem retorno).
+  // Fórmula: (total_atual - total_investido) / total_investido
   const portfolioReturnPct = useMemo(() => {
     if (!canRender) return 0;
-    const first = filtered[0].total;
-    const last = filtered[filtered.length - 1].total;
-    return first > 0 ? ((last - first) / first) * 100 : 0;
+    const last = filtered[filtered.length - 1];
+    return last.invested > 0 ? ((last.total - last.invested) / last.invested) * 100 : 0;
   }, [filtered, canRender]);
 
   const daysInPeriod = useMemo(() => {
@@ -55,20 +56,23 @@ export default function RentabilidadeCompleta({ snapshots, privacyMode }: Props)
     return Math.max(1, Math.round((t1 - t0) / (24 * 60 * 60 * 1000)));
   }, [filtered, canRender]);
 
-  // Rentabilidade nos últimos 12 meses e último mês (independente do filtro)
+  // Rentabilidade nos últimos 12 meses e último mês (independente do filtro).
+  // Cada card mostra o retorno REAL no fim do período: L/P / investido.
   const stats = useMemo(() => {
     const now = Date.now();
     const iso = (offset: number) => new Date(now - offset * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
     const window = (days: number): { returnPct: number; days: number } => {
       const from = iso(days);
       const inWindow = clean.filter((s) => s.date >= from);
-      if (inWindow.length < 2) return { returnPct: 0, days: 0 };
-      const first = inWindow[0].total;
-      const last = inWindow[inWindow.length - 1].total;
-      const t0 = new Date(inWindow[0].date).getTime();
-      const t1 = new Date(inWindow[inWindow.length - 1].date).getTime();
+      if (inWindow.length < 1) return { returnPct: 0, days: 0 };
+      const last = inWindow[inWindow.length - 1];
+      const returnPct = last.invested > 0 ? ((last.total - last.invested) / last.invested) * 100 : 0;
+      // Dias de exposição no período
+      const first = inWindow[0];
+      const t0 = new Date(first.date).getTime();
+      const t1 = new Date(last.date).getTime();
       const d = Math.max(1, Math.round((t1 - t0) / (24 * 60 * 60 * 1000)));
-      return { returnPct: first > 0 ? ((last - first) / first) * 100 : 0, days: d };
+      return { returnPct, days: d };
     };
     return {
       total: window(100000),
@@ -78,15 +82,14 @@ export default function RentabilidadeCompleta({ snapshots, privacyMode }: Props)
   }, [clean]);
 
   // Séries do gráfico: carteira + benchmarks ativos.
-  // Cada série é a rentabilidade ACUMULADA em % desde o início do período.
+  // Carteira: L/P sobre investido EM CADA DIA (retorno real, não diff de patrimônio).
   const chartSeries = useMemo(() => {
     if (!canRender) return [];
     const t0 = new Date(filtered[0].date).getTime();
-    const first = filtered[0].total;
 
-    // Série da carteira: % de rentabilidade acumulada em cada ponto
+    // Série da carteira: retorno % em cada ponto (L/P / investido daquele dia)
     const portfolioValues = filtered.map((s) => {
-      return first > 0 ? ((s.total - first) / first) * 100 : 0;
+      return s.invested > 0 ? ((s.total - s.invested) / s.invested) * 100 : 0;
     });
 
     const series: Array<{ label: string; color: string; values: number[] }> = [
