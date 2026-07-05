@@ -33,6 +33,7 @@ import { computeReceivedProventos, groupProventosByMonth } from '../utils/receiv
 import { MONTH_NAMES_PT } from '../data/dividends';
 import IbovespaComparison from '../components/IbovespaComparison';
 import GestoresComparison from '../components/GestoresComparison';
+import RentabilidadeCompleta from '../components/RentabilidadeCompleta';
 import { computePortfolioStats } from '../utils/portfolio';
 import PortfolioChart from '../components/PortfolioChart';
 import AllocationConfig from '../components/AllocationConfig';
@@ -235,25 +236,16 @@ export default function PortfolioScreen({ navigation }: any) {
           const stats = computePortfolioStats(activeWallet?.assets || [], priceMap);
           return (
             <>
-              <Card style={{ marginBottom: spacing.md }}>
-                <Text style={{ fontSize: fontSize.title, fontWeight: '700', color: colors.text, marginBottom: spacing.sm }}>📈 Rentabilidade</Text>
-                <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                  <View>
-                    <Text style={{ fontSize: fontSize.tiny, color: colors.textTertiary, fontWeight: '700' }}>RETORNO TOTAL</Text>
-                    <Text style={{ fontSize: fontSize.title, fontWeight: 'bold', color: stats.profitPct >= 0 ? colors.success : colors.danger, marginTop: 2 }}>
-                      {fmtPct(stats.profitPct, privacyMode)}
-                    </Text>
-                  </View>
-                  <View style={{ alignItems: 'flex-end' }}>
-                    <Text style={{ fontSize: fontSize.tiny, color: colors.textTertiary, fontWeight: '700' }}>DIAS DE CARTEIRA</Text>
-                    <Text style={{ fontSize: fontSize.title, fontWeight: 'bold', color: colors.text, marginTop: 2 }}>{Math.round(stats.weightedDays)}</Text>
-                  </View>
-                </View>
-              </Card>
+              {/* Nova tela estilo Kinvo: cards + gráfico multi-benchmark */}
+              <RentabilidadeCompleta snapshots={snapshots} privacyMode={privacyMode} />
+
+              {/* Ibovespa detalhado (mantém componente antigo) */}
               {stats.weightedDays >= 7 && (
-                <Card>
-                  <IbovespaComparison portfolioReturnPct={stats.profitPct} daysOfHistory={stats.weightedDays} snapshots={snapshots} />
-                </Card>
+                <View style={{ marginTop: spacing.md }}>
+                  <Card>
+                    <IbovespaComparison portfolioReturnPct={stats.profitPct} daysOfHistory={stats.weightedDays} snapshots={snapshots} />
+                  </Card>
+                </View>
               )}
 
               {stats.weightedDays >= 30 && (
