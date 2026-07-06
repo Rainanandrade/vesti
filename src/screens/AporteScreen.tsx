@@ -31,6 +31,8 @@ import Card from '../components/Card';
 import Button from '../components/Button';
 import { TICKERS, TickerInfo } from '../data/tickers';
 import { evaluateAssetForProfile } from '../utils/strategyMatch';
+import AllocationDelta from '../components/AllocationDelta';
+import HowItWorksAporte from '../components/HowItWorksAporte';
 
 const QUICK = [100, 300, 500, 1000];
 
@@ -245,9 +247,9 @@ export default function AporteScreen() {
         style={{ flex: 1 }}
       >
         <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
-          <Text style={styles.pageTitle}>Aportar</Text>
+          <Text style={styles.pageTitle}>💰 Novo aporte</Text>
           <Text style={styles.pageSub}>
-            Diga quanto você vai investir e eu sugiro como distribuir conforme seu perfil <Text style={styles.bold}>{profile.type}</Text>.
+            Você diz quanto vai investir. A IA analisa seu perfil <Text style={styles.bold}>{profile.type}</Text>, a preferência <Text style={styles.bold}>{profile.preference || 'sem preferência'}</Text> e sua carteira atual — e recomenda como distribuir.
           </Text>
 
           <Card style={styles.inputCard}>
@@ -283,6 +285,18 @@ export default function AporteScreen() {
                 </TouchableOpacity>
               ))}
             </View>
+            {/* Preview do valor — mostra o significado do aporte na carteira */}
+            {numeric >= 1 && current.total > 0 && (
+              <View style={styles.previewBox}>
+                <Ionicons name="calculator-outline" size={14} color={colors.primary} />
+                <Text style={styles.previewText}>
+                  Esse aporte representa <Text style={{ fontWeight: '800', color: colors.text }}>
+                    {((numeric / (current.total + numeric)) * 100).toFixed(1)}%
+                  </Text> da sua carteira nova (patrimônio total ficará {fmtBRL(current.total + numeric, privacyMode)}).
+                </Text>
+              </View>
+            )}
+
             <Button
               title="Sugerir distribuição"
               onPress={handleSimulate}
@@ -410,26 +424,13 @@ export default function AporteScreen() {
                 </View>
               )}
 
-              <Text style={styles.sectionTitle}>Carteira depois</Text>
+              <Text style={styles.sectionTitle}>Como sua carteira fica depois</Text>
               <Card>
-                <Text style={styles.allocTitle}>Alocação alvo (perfil {profile.type})</Text>
-                <AllocBar
-                  rf={result.targetPct.renda_fixa}
-                  rv={result.targetPct.renda_variavel}
-                  intl={result.targetPct.internacional}
+                <AllocationDelta
+                  currentPct={result.afterPct}
+                  targetPct={result.targetPct}
+                  showTitle={false}
                 />
-                <View style={{ height: spacing.md }} />
-                <Text style={styles.allocTitle}>Como sua carteira ficará</Text>
-                <AllocBar
-                  rf={result.afterPct.renda_fixa}
-                  rv={result.afterPct.renda_variavel}
-                  intl={result.afterPct.internacional}
-                />
-                <View style={styles.legendRow}>
-                  <Legend color={colors.primary} label={`RF ${result.afterPct.renda_fixa.toFixed(0)}%`} />
-                  <Legend color={colors.success} label={`RV ${result.afterPct.renda_variavel.toFixed(0)}%`} />
-                  <Legend color={colors.warning} label={`Int ${result.afterPct.internacional.toFixed(0)}%`} />
-                </View>
               </Card>
 
               <View style={styles.disclaimer}>
@@ -443,23 +444,64 @@ export default function AporteScreen() {
             </>
           )}
 
-          {!showSuggestions && !aiResult && current.total > 0 && (
-            <>
-              <Text style={styles.sectionTitle}>Sua carteira hoje</Text>
-              <Card>
-                <Text style={styles.allocTitle}>Patrimônio: {fmtBRL(current.total, privacyMode)}</Text>
-                <AllocBar
-                  rf={current.currentPct.renda_fixa}
-                  rv={current.currentPct.renda_variavel}
-                  intl={current.currentPct.internacional}
-                />
-                <View style={styles.legendRow}>
-                  <Legend color={colors.primary} label={`RF ${current.currentPct.renda_fixa.toFixed(0)}%`} />
-                  <Legend color={colors.success} label={`RV ${current.currentPct.renda_variavel.toFixed(0)}%`} />
-                  <Legend color={colors.warning} label={`Int ${current.currentPct.internacional.toFixed(0)}%`} />
-                </View>
-              </Card>
-            </>
+          {!showSuggestions && !aiResult && current.total > 0 && (() => {
+            const targetAlloc = profile?.targetAllocation || {};
+            const targetPct = {
+              renda_fixa: (targetAlloc.tesouro || 0) + (targetAlloc.cdb || 0),
+              renda_variavel: (targetAlloc.acao || 0) + (targetAlloc.fii || 0) + (targetAlloc.etf || 0),
+              internacional: (targetAlloc.internacional || 0),
+            };
+            // Se ninguém definiu, usa padrão baseado no tipo de perfil
+            const hasTarget = targetPct.renda_fixa + targetPct.renda_variavel + targetPct.internacional > 0;
+            const defaultsByType: Record<string, typeof targetPct> = {
+              conservador: { renda_fixa: 70, renda_variavel: 20, internacional: 10 },
+              moderado: { renda_fixa: 40, renda_variavel: 45, internacional: 15 },
+              agressivo: { renda_fixa: 20, renda_variavel: 60, internacional: 20 },
+            };
+            const finalTarget = hasTarget ? targetPct : (defaultsByType[profile.type] || defaultsByType.moderado);
+
+            return (
+              <>
+                <Card style={{ marginTop: spacing.md }}>
+                  <View style={styles.walletHeader}>
+                    <Text style={styles.walletLabel}>PATRIMÔNIO ATUAL</Text>
+                    <Text style={styles.walletValue}>{fmtBRL(current.total, privacyMode)}</Text>
+                  </View>
+                  <AllocationDelta
+                    currentPct={current.currentPct}
+                    targetPct={finalTarget}
+                  />
+                </Card>
+
+                {/* Insight rápido: onde tá desbalanceado */}
+                {(() => {
+                  const gaps = [
+                    { key: 'renda_fixa' as const, label: 'Renda Fixa', diff: finalTarget.renda_fixa - current.currentPct.renda_fixa },
+                    { key: 'renda_variavel' as const, label: 'Renda Variável', diff: finalTarget.renda_variavel - current.currentPct.renda_variavel },
+                    { key: 'internacional' as const, label: 'Internacional', diff: finalTarget.internacional - current.currentPct.internacional },
+                  ];
+                  const maxGap = gaps.reduce((max, g) => g.diff > max.diff ? g : max, gaps[0]);
+                  if (maxGap.diff < 3) return null;
+                  return (
+                    <View style={styles.insightBox}>
+                      <Ionicons name="bulb" size={16} color={colors.warning} />
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.insightTitle}>💡 Dica pro próximo aporte</Text>
+                        <Text style={styles.insightText}>
+                          Sua carteira está com <Text style={{ fontWeight: '800' }}>{maxGap.diff.toFixed(1)} pontos abaixo</Text> da meta em <Text style={{ fontWeight: '800' }}>{maxGap.label}</Text>. Considere aportar mais nessa classe pra rebalancear.
+                        </Text>
+                      </View>
+                    </View>
+                  );
+                })()}
+
+                <HowItWorksAporte />
+              </>
+            );
+          })()}
+
+          {!showSuggestions && !aiResult && current.total === 0 && (
+            <HowItWorksAporte />
           )}
         </ScrollView>
       </KeyboardAvoidingView>
@@ -968,6 +1010,14 @@ const styles = StyleSheet.create({
   buyBtnText: { color: colors.textLight, fontWeight: '700', fontSize: fontSize.body, marginLeft: 6 },
 
   allocTitle: { fontSize: fontSize.body, color: colors.textSecondary, marginBottom: spacing.sm },
+  walletHeader: { marginBottom: spacing.md, paddingBottom: spacing.sm, borderBottomWidth: 1, borderColor: colors.divider },
+  walletLabel: { fontSize: fontSize.tiny, color: colors.textTertiary, fontWeight: '800', textTransform: 'uppercase' },
+  walletValue: { fontSize: fontSize.heading, fontWeight: '900', color: colors.text, marginTop: 4 },
+  insightBox: { flexDirection: 'row', gap: spacing.sm as any, backgroundColor: colors.warningLight, padding: spacing.md, borderRadius: radius.md, marginTop: spacing.sm, marginBottom: spacing.sm, borderLeftWidth: 3, borderLeftColor: colors.warning },
+  insightTitle: { fontSize: fontSize.small, fontWeight: '800', color: colors.text },
+  insightText: { fontSize: fontSize.small, color: colors.text, marginTop: 4, lineHeight: 18 },
+  previewBox: { flexDirection: 'row', alignItems: 'center', gap: 6 as any, backgroundColor: colors.primaryLight, padding: spacing.sm, borderRadius: radius.md, marginTop: spacing.md },
+  previewText: { flex: 1, fontSize: fontSize.small, color: colors.textSecondary, lineHeight: 18 },
   bar: { flexDirection: 'row', height: 14, borderRadius: 7, overflow: 'hidden', backgroundColor: colors.divider },
   barFill: { height: 14 },
   legendRow: { flexDirection: 'row', flexWrap: 'wrap', marginTop: spacing.sm },
