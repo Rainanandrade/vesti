@@ -170,13 +170,6 @@ function MainTabs() {
         name="Aportar"
         component={AporteScreen}
         options={{ tabBarLabel: '' }}
-        listeners={({ navigation: nav }) => ({
-          tabPress: (e) => {
-            // Em vez de navegar pra AporteScreen, abre o modal de Nova operação
-            e.preventDefault();
-            globalOperationModalRef.current?.open();
-          },
-        })}
       />
       <Tab.Screen name="Metas" component={GoalsScreen} />
       <Tab.Screen name="Aprender" component={LearnScreen} />
