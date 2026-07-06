@@ -12,7 +12,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, fontSize, radius, spacing } from '../theme/colors';
-import { GLOSSARY, GlossaryTerm } from '../data/glossary';
+import { GLOSSARY, GlossaryTerm, CATEGORY_LABELS, GlossaryCategory } from '../data/glossary';
 import { Lesson, LESSONS, TRAILS, getTipOfWeek } from '../data/lessons';
 import Card from '../components/Card';
 import Button from '../components/Button';
@@ -468,15 +468,36 @@ function LessonView({ lesson, onBack }: { lesson: Lesson; onBack: () => void }) 
 
 function GlossarioTab({ onSelectTerm }: { onSelectTerm: (t: GlossaryTerm) => void }) {
   const [query, setQuery] = useState('');
-  const filtered = useMemo(
-    () =>
-      GLOSSARY.filter(
-        (t) =>
-          t.term.toLowerCase().includes(query.toLowerCase()) ||
-          t.short.toLowerCase().includes(query.toLowerCase()),
-      ),
-    [query],
-  );
+  const [activeCategory, setActiveCategory] = useState<GlossaryCategory | 'all'>('all');
+
+  const filtered = useMemo(() => {
+    const q = query.toLowerCase().trim();
+    return GLOSSARY.filter((t) => {
+      const matchesQuery = !q
+        || t.term.toLowerCase().includes(q)
+        || t.short.toLowerCase().includes(q)
+        || t.full.toLowerCase().includes(q);
+      const matchesCategory = activeCategory === 'all' || t.category === activeCategory;
+      return matchesQuery && matchesCategory;
+    });
+  }, [query, activeCategory]);
+
+  // Agrupa por categoria (só quando não tem busca ativa)
+  const grouped = useMemo(() => {
+    if (query.trim()) return null;
+    const map = new Map<GlossaryCategory | 'sem_categoria', GlossaryTerm[]>();
+    for (const t of filtered) {
+      const key = (t.category || 'sem_categoria') as any;
+      if (!map.has(key)) map.set(key, []);
+      map.get(key)!.push(t);
+    }
+    return map;
+  }, [filtered, query]);
+
+  const categories: Array<{ id: GlossaryCategory | 'all'; label: string }> = [
+    { id: 'all', label: 'Todos' },
+    ...(Object.entries(CATEGORY_LABELS) as Array<[GlossaryCategory, string]>).map(([id, label]) => ({ id, label })),
+  ];
 
   return (
     <ScrollView contentContainerStyle={styles.scroll}>
@@ -491,19 +512,57 @@ function GlossarioTab({ onSelectTerm }: { onSelectTerm: (t: GlossaryTerm) => voi
         />
       </View>
 
+      {/* Chips de categoria */}
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: spacing.sm }} contentContainerStyle={{ paddingRight: spacing.md }}>
+        {categories.map((c) => (
+          <TouchableOpacity
+            key={c.id}
+            onPress={() => setActiveCategory(c.id)}
+            style={[styles.catChip, activeCategory === c.id && styles.catChipActive]}
+          >
+            <Text style={[styles.catChipText, activeCategory === c.id && styles.catChipTextActive]}>
+              {c.label}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </ScrollView>
+
       <Text style={styles.glossaryCount}>{filtered.length} termos</Text>
 
-      {filtered.map((t) => (
-        <TouchableOpacity key={t.term} onPress={() => onSelectTerm(t)} activeOpacity={0.7}>
-          <Card style={styles.termCard}>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.termTitle}>{t.term}</Text>
-              <Text style={styles.termShort}>{t.short}</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={20} color={colors.textTertiary} />
-          </Card>
-        </TouchableOpacity>
-      ))}
+      {grouped ? (
+        // Modo agrupado por categoria
+        Array.from(grouped.entries()).map(([cat, terms]) => (
+          <View key={cat} style={{ marginTop: spacing.md }}>
+            <Text style={styles.categoryHeader}>
+              {cat === 'sem_categoria' ? 'Outros' : CATEGORY_LABELS[cat as GlossaryCategory]}
+            </Text>
+            {terms.map((t) => (
+              <TouchableOpacity key={t.term} onPress={() => onSelectTerm(t)} activeOpacity={0.7}>
+                <Card style={styles.termCard}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.termTitle}>{t.term}</Text>
+                    <Text style={styles.termShort}>{t.short}</Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={20} color={colors.textTertiary} />
+                </Card>
+              </TouchableOpacity>
+            ))}
+          </View>
+        ))
+      ) : (
+        // Modo busca — lista plana
+        filtered.map((t) => (
+          <TouchableOpacity key={t.term} onPress={() => onSelectTerm(t)} activeOpacity={0.7}>
+            <Card style={styles.termCard}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.termTitle}>{t.term}</Text>
+                <Text style={styles.termShort}>{t.short}</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color={colors.textTertiary} />
+            </Card>
+          </TouchableOpacity>
+        ))
+      )}
     </ScrollView>
   );
 }
@@ -519,13 +578,44 @@ function TermView({ term, onBack }: { term: GlossaryTerm; onBack: () => void }) 
         <View style={{ width: 26 }} />
       </View>
       <ScrollView contentContainerStyle={styles.scroll}>
+        {term.category && (
+          <Text style={styles.categoryTag}>{CATEGORY_LABELS[term.category]}</Text>
+        )}
         <Text style={styles.term}>{term.term}</Text>
         <Text style={styles.short}>{term.short}</Text>
         <Text style={styles.full}>{term.full}</Text>
+
         <View style={styles.exampleBox}>
           <Text style={styles.exampleLabel}>💡 Exemplo do dia-a-dia</Text>
           <Text style={styles.exampleText}>{term.example}</Text>
         </View>
+
+        {term.goodFor && (
+          <View style={styles.goodBox}>
+            <Text style={styles.goodLabel}>✅ Quando faz sentido</Text>
+            <Text style={styles.goodText}>{term.goodFor}</Text>
+          </View>
+        )}
+
+        {term.watchOut && (
+          <View style={styles.watchBox}>
+            <Text style={styles.watchLabel}>⚠️ Fique atento</Text>
+            <Text style={styles.watchText}>{term.watchOut}</Text>
+          </View>
+        )}
+
+        {term.seeAlso && term.seeAlso.length > 0 && (
+          <View style={styles.seeAlsoBox}>
+            <Text style={styles.seeAlsoLabel}>🔗 Veja também</Text>
+            <View style={styles.seeAlsoChips}>
+              {term.seeAlso.map((t) => (
+                <View key={t} style={styles.seeAlsoChip}>
+                  <Text style={styles.seeAlsoChipText}>{t}</Text>
+                </View>
+              ))}
+            </View>
+          </View>
+        )}
       </ScrollView>
     </SafeAreaView>
   );
@@ -598,6 +688,23 @@ const styles = StyleSheet.create({
   exampleBox: { backgroundColor: colors.primaryLight, padding: spacing.md, borderRadius: radius.md, marginTop: spacing.sm },
   exampleLabel: { fontSize: fontSize.body, fontWeight: '600', color: colors.primaryDark },
   exampleText: { fontSize: fontSize.bodyLarge, color: colors.text, marginTop: spacing.xs, lineHeight: 22 },
+  goodBox: { backgroundColor: colors.successLight, padding: spacing.md, borderRadius: radius.md, marginTop: spacing.sm, borderLeftWidth: 3, borderLeftColor: colors.success },
+  goodLabel: { fontSize: fontSize.body, fontWeight: '700', color: colors.success },
+  goodText: { fontSize: fontSize.body, color: colors.text, marginTop: 4, lineHeight: 20 },
+  watchBox: { backgroundColor: colors.warningLight, padding: spacing.md, borderRadius: radius.md, marginTop: spacing.sm, borderLeftWidth: 3, borderLeftColor: colors.warning },
+  watchLabel: { fontSize: fontSize.body, fontWeight: '700', color: colors.warning },
+  watchText: { fontSize: fontSize.body, color: colors.text, marginTop: 4, lineHeight: 20 },
+  seeAlsoBox: { marginTop: spacing.md, paddingTop: spacing.sm, borderTopWidth: 1, borderColor: colors.divider },
+  seeAlsoLabel: { fontSize: fontSize.small, color: colors.textSecondary, fontWeight: '700', marginBottom: 6 },
+  seeAlsoChips: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 as any },
+  seeAlsoChip: { backgroundColor: colors.surface, paddingHorizontal: 10, paddingVertical: 4, borderRadius: radius.pill, borderWidth: 1, borderColor: colors.divider },
+  seeAlsoChipText: { fontSize: fontSize.small, color: colors.primary, fontWeight: '700' },
+  categoryTag: { fontSize: fontSize.tiny, color: colors.textTertiary, fontWeight: '700', textTransform: 'uppercase', marginBottom: 8 },
+  categoryHeader: { fontSize: fontSize.small, color: colors.textSecondary, fontWeight: '800', textTransform: 'uppercase', marginTop: spacing.md, marginBottom: spacing.sm, letterSpacing: 0.5 },
+  catChip: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: radius.pill, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.divider, marginRight: 6 },
+  catChipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
+  catChipText: { fontSize: fontSize.small, color: colors.text, fontWeight: '700' },
+  catChipTextActive: { color: colors.textLight },
 
   warningBox: { flexDirection: 'row', backgroundColor: colors.warningLight, padding: spacing.md, borderRadius: radius.md, marginTop: spacing.sm },
   warningText: { flex: 1, fontSize: fontSize.body, color: colors.text, marginLeft: spacing.sm, lineHeight: 20 },

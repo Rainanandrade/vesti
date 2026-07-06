@@ -31,6 +31,18 @@ export default function InfoTooltip({ termName }: { termName: string }) {
                 <Text style={styles.exampleLabel}>💡 Exemplo</Text>
                 <Text style={styles.exampleText}>{term.example}</Text>
               </View>
+              {term.goodFor && (
+                <View style={styles.goodBox}>
+                  <Text style={styles.goodLabel}>✅ Quando faz sentido</Text>
+                  <Text style={styles.goodText}>{term.goodFor}</Text>
+                </View>
+              )}
+              {term.watchOut && (
+                <View style={styles.watchBox}>
+                  <Text style={styles.watchLabel}>⚠️ Fique atento</Text>
+                  <Text style={styles.watchText}>{term.watchOut}</Text>
+                </View>
+              )}
             </ScrollView>
           </Pressable>
         </Pressable>
@@ -66,4 +78,10 @@ const styles = StyleSheet.create({
   },
   exampleLabel: { fontSize: fontSize.body, fontWeight: '600', color: colors.primaryDark, marginBottom: 4 },
   exampleText: { fontSize: fontSize.body, color: colors.text, lineHeight: 20 },
+  goodBox: { backgroundColor: colors.successLight, padding: spacing.md, borderRadius: radius.md, marginTop: spacing.sm, borderLeftWidth: 3, borderLeftColor: colors.success },
+  goodLabel: { fontSize: fontSize.small, fontWeight: '800', color: colors.success, marginBottom: 4 },
+  goodText: { fontSize: fontSize.body, color: colors.text, lineHeight: 20 },
+  watchBox: { backgroundColor: colors.warningLight, padding: spacing.md, borderRadius: radius.md, marginTop: spacing.sm, borderLeftWidth: 3, borderLeftColor: colors.warning },
+  watchLabel: { fontSize: fontSize.small, fontWeight: '800', color: colors.warning, marginBottom: 4 },
+  watchText: { fontSize: fontSize.body, color: colors.text, lineHeight: 20 },
 });
