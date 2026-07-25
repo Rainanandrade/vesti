@@ -13,6 +13,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, fontSize, radius, spacing } from '../theme/colors';
+import { checkPassword } from '../utils/passwordStrength';
 import Button from '../components/Button';
 import Logo from '../components/Logo';
 import { useApp } from '../context/AppContext';
@@ -45,7 +46,14 @@ export default function AuthScreen() {
       }
       return;
     }
-    if (password.length < 6) {
+    // Validação de senha forte só no cadastro
+    if (mode === 'signup') {
+      const check = checkPassword(password);
+      if (!check.isValid) {
+        setErrorMsg('Senha fraca: ' + check.issues.join(', '));
+        return;
+      }
+    } else if (password.length < 6) {
       setErrorMsg('A senha precisa ter pelo menos 6 caracteres.');
       return;
     }
@@ -201,11 +209,35 @@ export default function AuthScreen() {
                 <Text style={styles.label}>Senha</Text>
                 <TextInput
                   style={styles.input}
-                  placeholder="Mínimo 6 caracteres"
+                  placeholder={mode === 'signup' ? '8+ chars, 1 maiúsc, 1 número' : 'Mínimo 6 caracteres'}
                   value={password}
                   onChangeText={setPassword}
                   secureTextEntry
                 />
+                {mode === 'signup' && password.length > 0 && (() => {
+                  const check = checkPassword(password);
+                  const color = check.strength === 'strong' ? colors.success
+                    : check.strength === 'medium' ? colors.warning
+                    : colors.danger;
+                  const label = check.strength === 'strong' ? 'Forte'
+                    : check.strength === 'medium' ? 'Média'
+                    : 'Fraca';
+                  return (
+                    <View style={{ marginTop: 6 }}>
+                      <View style={{ height: 6, backgroundColor: colors.divider, borderRadius: 3, overflow: 'hidden' }}>
+                        <View style={{ width: `${check.score}%`, height: '100%', backgroundColor: color }} />
+                      </View>
+                      <Text style={{ fontSize: fontSize.tiny, color, fontWeight: '700', marginTop: 4 }}>
+                        Força: {label} ({check.score}/100)
+                      </Text>
+                      {check.issues.length > 0 && (
+                        <Text style={{ fontSize: fontSize.tiny, color: colors.textTertiary, marginTop: 2, lineHeight: 14 }}>
+                          Falta: {check.issues.join(' · ')}
+                        </Text>
+                      )}
+                    </View>
+                  );
+                })()}
               </View>
 
               {errorMsg && (

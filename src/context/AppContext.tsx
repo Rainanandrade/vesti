@@ -94,6 +94,7 @@ type AppContextType = {
 
   updateUserName: (name: string) => Promise<void>;
   clearAllUserData: () => Promise<void>;
+  deleteAccount: () => Promise<{ ok: boolean; error?: string }>;
   refreshFromCloud: () => Promise<void>;
   pro: ProStatus;
   pretendFree: boolean;
@@ -779,6 +780,21 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setCompletedLessons({});
   }, [userId]);
 
+  const deleteAccount = useCallback(async (): Promise<{ ok: boolean; error?: string }> => {
+    if (!userId) return { ok: false, error: 'Não autenticado' };
+    try {
+      // Chama RPC no Supabase que apaga tudo em cascata (dados + audit log).
+      const { data, error } = await supabase.rpc('delete_my_account');
+      if (error) return { ok: false, error: error.message };
+      if (!data?.ok) return { ok: false, error: data?.error || 'Falha ao excluir conta' };
+      // Faz signOut pra invalidar o token local
+      await supabase.auth.signOut();
+      return { ok: true };
+    } catch (e: any) {
+      return { ok: false, error: e?.message || 'Erro desconhecido' };
+    }
+  }, [userId]);
+
   const recordSnapshot = useCallback(
     async (total: number, invested: number) => {
       if (!userId || total <= 0) return;
@@ -897,6 +913,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         recordSnapshot,
         updateUserName,
         clearAllUserData,
+        deleteAccount,
         refreshFromCloud,
         pro: proStatus,
         pretendFree,

@@ -55,6 +55,7 @@ export default function SettingsScreen({ navigation }: any) {
     activeWallet,
     updateUserName,
     clearAllUserData,
+    deleteAccount,
     pro,
     pretendFree,
     setPretendFree,
@@ -164,6 +165,22 @@ Pra detalhe operação a operação, posso exportar o JSON completo no Vesti.`;
         }
       },
       { confirmLabel: 'Apagar tudo', destructive: true },
+    );
+  };
+
+  const handleDeleteAccount = () => {
+    confirmAction(
+      'Excluir conta permanentemente',
+      'Vai apagar SUA CONTA e TODOS os seus dados (carteiras, operações, proventos, perfil, tudo). Você não vai conseguir recuperar depois. Tem certeza?',
+      async () => {
+        const res = await deleteAccount();
+        if (res.ok) {
+          Alert.alert('Conta excluída', 'Sua conta foi permanentemente removida. Adeus 👋');
+        } else {
+          Alert.alert('Erro', res.error || 'Não foi possível excluir agora.');
+        }
+      },
+      { confirmLabel: 'Sim, excluir tudo', destructive: true },
     );
   };
 
@@ -593,13 +610,28 @@ Pra detalhe operação a operação, posso exportar o JSON completo no Vesti.`;
         </TouchableOpacity>
 
         <TouchableOpacity onPress={handleClearData}>
-          <Card>
+          <Card style={{ marginBottom: spacing.sm }}>
             <View style={styles.row}>
               <Ionicons name="trash-bin-outline" size={22} color={colors.danger} />
               <View style={{ flex: 1, marginLeft: spacing.md }}>
                 <Text style={[styles.rowTitle, { color: colors.danger }]}>Limpar todos os dados</Text>
                 <Text style={styles.rowSub}>
                   Apaga carteiras, operações, proventos, metas e watchlist. Conta permanece.
+                </Text>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color={colors.textTertiary} />
+            </View>
+          </Card>
+        </TouchableOpacity>
+
+        <TouchableOpacity onPress={handleDeleteAccount}>
+          <Card style={{ borderColor: colors.danger, borderWidth: 1 }}>
+            <View style={styles.row}>
+              <Ionicons name="person-remove" size={22} color={colors.danger} />
+              <View style={{ flex: 1, marginLeft: spacing.md }}>
+                <Text style={[styles.rowTitle, { color: colors.danger }]}>Excluir conta permanentemente</Text>
+                <Text style={styles.rowSub}>
+                  Apaga TUDO (dados + conta). Direito garantido pela LGPD. Sem volta.
                 </Text>
               </View>
               <Ionicons name="chevron-forward" size={20} color={colors.textTertiary} />

@@ -2,6 +2,7 @@
 // pra o projeto não pausar por inatividade (plano gratuito pausa após 7 dias).
 
 import { createClient } from '@supabase/supabase-js';
+import { rateLimitOrReject } from './_lib/rateLimit.js';
 
 const SUPABASE_URL =
   process.env.SUPABASE_URL || 'https://ihardigeybszuknwixnd.supabase.co';
@@ -10,6 +11,8 @@ const SUPABASE_ANON_KEY =
   'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImloYXJkaWdleWJzenVrbndpeG5kIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAxOTM5NzcsImV4cCI6MjA5NTc2OTk3N30.ETMwaGfujbRCwje8L401am6xnM0EX-B1vvb4EFTLUxQ';
 
 export default async function handler(req, res) {
+  // 60 pings/min por IP — o suficiente pro cron + uptime robot, bloqueia abuso.
+  if (!(await rateLimitOrReject(req, res, { limit: 60, windowMs: 60_000, prefix: 'ping' }))) return;
   try {
     const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
       auth: { persistSession: false, autoRefreshToken: false },
