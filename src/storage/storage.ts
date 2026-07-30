@@ -90,6 +90,8 @@ export const KEYS = {
   GOALS_REACHED: 'goals_reached',
   PRIVACY_MODE: 'privacy_mode',
   LAST_SEEN_VERSION: 'last_seen_version',
+  // Rate limit local de tentativas de reset de PIN (anti brute-force)
+  PIN_RESET_ATTEMPTS: 'pin_reset_attempts',
 };
 
 export const SECURE_KEYS = {

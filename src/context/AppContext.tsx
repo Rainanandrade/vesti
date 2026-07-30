@@ -47,6 +47,7 @@ type AppContextType = {
   pinVerified: boolean;
   markPinVerified: () => void;
   resetPinSession: () => void;
+  resetPinWithPassword: (password: string, newPin: string) => Promise<{ ok: boolean; error?: string; lockedUntil?: number }>;
 
   profile: Profile | null;
   setProfile: (p: Profile) => Promise<void>;
@@ -458,6 +459,108 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const markPinVerified = useCallback(() => setPinVerified(true), []);
   const resetPinSession = useCallback(() => setPinVerified(false), []);
+
+  /**
+   * Reset de PIN com re-autenticação por SENHA da conta.
+   *
+   * Segurança anti-roubo: se alguém rouba o celular desbloqueado com a sessão
+   * ativa, o PIN é a barreira. Por isso o reset exige a SENHA — algo que o
+   * ladrão não tem. Nunca reseta só com o dispositivo em mãos.
+   *
+   * Camadas:
+   * - Rate limit local persistido: 3 tentativas / 15 min (sobrevive a restart do app)
+   * - Após 3 falhas: bloqueia por 15 min E derruba a sessão (força login completo)
+   * - Registra tentativas no audit_log do Supabase
+   */
+  const resetPinWithPassword = useCallback(
+    async (password: string, newPin: string): Promise<{ ok: boolean; error?: string; lockedUntil?: number }> => {
+      const email = user?.email;
+      if (!email) return { ok: false, error: 'Sessão inválida. Faça login novamente.' };
+      if (!/^\d{4}$/.test(newPin)) return { ok: false, error: 'O novo PIN precisa ter 4 dígitos.' };
+
+      // 1) Checa rate limit local
+      const now = Date.now();
+      const stored = await Storage.get<{ count: number; firstAt: number; lockedUntil?: number }>(
+        KEYS.PIN_RESET_ATTEMPTS,
+      );
+      const WINDOW_MS = 15 * 60 * 1000;
+      const MAX_TRIES = 3;
+
+      if (stored?.lockedUntil && now < stored.lockedUntil) {
+        return {
+          ok: false,
+          error: 'Muitas tentativas erradas. Aguarde antes de tentar de novo.',
+          lockedUntil: stored.lockedUntil,
+        };
+      }
+
+      // Janela expirou → zera contador
+      const inWindow = stored && now - stored.firstAt < WINDOW_MS;
+      const attemptCount = inWindow ? stored!.count : 0;
+
+      // 2) Re-autentica com a senha (prova de identidade)
+      const { error: authError } = await supabase.auth.signInWithPassword({ email, password });
+
+      if (authError) {
+        const nextCount = attemptCount + 1;
+        const shouldLock = nextCount >= MAX_TRIES;
+        const lockedUntil = shouldLock ? now + WINDOW_MS : undefined;
+
+        await Storage.set(KEYS.PIN_RESET_ATTEMPTS, {
+          count: nextCount,
+          firstAt: inWindow ? stored!.firstAt : now,
+          lockedUntil,
+        });
+
+        // Registra tentativa falha (best-effort, não bloqueia o fluxo)
+        supabase
+          .from('audit_log')
+          .insert({
+            user_id: userId,
+            action: 'pin.reset_failed',
+            entity_type: 'auth',
+            details: { attempt: nextCount, at: new Date().toISOString() },
+          })
+          .then(() => {}, () => {});
+
+        if (shouldLock) {
+          // Derruba a sessão: força login completo. Protege contra brute-force
+          // com o aparelho em mãos.
+          await supabase.auth.signOut();
+          return {
+            ok: false,
+            error: 'Senha errada 3 vezes. Por segurança, você foi desconectado. Faça login novamente.',
+            lockedUntil,
+          };
+        }
+
+        const left = MAX_TRIES - nextCount;
+        return {
+          ok: false,
+          error: `Senha incorreta. ${left} ${left === 1 ? 'tentativa' : 'tentativas'} restante${left === 1 ? '' : 's'} antes do bloqueio.`,
+        };
+      }
+
+      // 3) Senha correta → grava novo PIN e limpa rate limit
+      await Secure.set(SECURE_KEYS.PIN, newPin);
+      setHasPin(true);
+      setPinVerified(true);
+      await Storage.remove(KEYS.PIN_RESET_ATTEMPTS);
+
+      supabase
+        .from('audit_log')
+        .insert({
+          user_id: userId,
+          action: 'pin.reset_success',
+          entity_type: 'auth',
+          details: { at: new Date().toISOString() },
+        })
+        .then(() => {}, () => {});
+
+      return { ok: true };
+    },
+    [user?.email, userId],
+  );
 
   const setProfile = useCallback(async (p: Profile) => {
     setProfileState(p);
@@ -878,6 +981,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         pinVerified,
         markPinVerified,
         resetPinSession,
+        resetPinWithPassword,
         profile,
         setProfile,
         resetProfile,

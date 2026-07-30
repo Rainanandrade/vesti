@@ -1,5 +1,18 @@
 import { useEffect, useState } from 'react';
-import { Alert, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Alert,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, fontSize, radius, spacing } from '../theme/colors';
@@ -12,7 +25,49 @@ const MAX_ATTEMPTS = 5;
 const LOCKOUT_MS = 60_000;
 
 export default function PinScreen() {
-  const { hasPin, setPin, verifyPin, markPinVerified, signOut, user } = useApp();
+  const { hasPin, setPin, verifyPin, markPinVerified, signOut, user, resetPinWithPassword } = useApp();
+
+  // Fluxo "Esqueci meu PIN": pede a SENHA da conta antes de deixar criar novo PIN
+  const [resetOpen, setResetOpen] = useState(false);
+  const [resetPassword, setResetPassword] = useState('');
+  const [resetNewPin, setResetNewPin] = useState('');
+  const [resetConfirmPin, setResetConfirmPin] = useState('');
+  const [resetLoading, setResetLoading] = useState(false);
+  const [resetError, setResetError] = useState<string | null>(null);
+
+  const closeReset = () => {
+    setResetOpen(false);
+    setResetPassword('');
+    setResetNewPin('');
+    setResetConfirmPin('');
+    setResetError(null);
+  };
+
+  const submitReset = async () => {
+    setResetError(null);
+    if (!resetPassword) {
+      setResetError('Digite a senha da sua conta.');
+      return;
+    }
+    if (!/^\d{4}$/.test(resetNewPin)) {
+      setResetError('O novo PIN precisa ter exatamente 4 dígitos.');
+      return;
+    }
+    if (resetNewPin !== resetConfirmPin) {
+      setResetError('Os PINs não conferem. Digite o mesmo nos dois campos.');
+      return;
+    }
+    setResetLoading(true);
+    const res = await resetPinWithPassword(resetPassword, resetNewPin);
+    setResetLoading(false);
+    if (res.ok) {
+      closeReset();
+      Alert.alert('PIN redefinido', 'Seu novo PIN já está ativo.');
+    } else {
+      setResetError(res.error || 'Não foi possível redefinir agora.');
+      setResetPassword('');
+    }
+  };
   const isSetup = !hasPin;
   const [step, setStep] = useState<'first' | 'confirm'>('first');
   const [firstPin, setFirstPin] = useState('');
@@ -143,10 +198,105 @@ export default function PinScreen() {
       </View>
 
       {!isSetup && (
-        <TouchableOpacity onPress={signOut} style={styles.logoutBtn}>
-          <Text style={styles.logoutText}>Sair da conta</Text>
-        </TouchableOpacity>
+        <View style={styles.footerActions}>
+          <TouchableOpacity onPress={() => setResetOpen(true)}>
+            <Text style={styles.forgotText}>Esqueci meu PIN</Text>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={signOut}>
+            <Text style={styles.logoutText}>Sair da conta</Text>
+          </TouchableOpacity>
+        </View>
       )}
+
+      {/* Modal: redefinir PIN com senha da conta */}
+      <Modal visible={resetOpen} transparent animationType="slide" onRequestClose={closeReset}>
+        <Pressable style={styles.backdrop} onPress={closeReset}>
+          <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+            style={{ width: '100%' }}
+          >
+            <Pressable style={styles.sheet} onPress={(e) => e.stopPropagation()}>
+              <ScrollView keyboardShouldPersistTaps="handled">
+                <View style={styles.sheetHeader}>
+                  <Ionicons name="shield-checkmark" size={22} color={colors.primary} />
+                  <Text style={styles.sheetTitle}>Redefinir PIN</Text>
+                </View>
+
+                <View style={styles.securityNote}>
+                  <Ionicons name="lock-closed" size={14} color={colors.warning} />
+                  <Text style={styles.securityNoteText}>
+                    Por segurança, confirme a <Text style={{ fontWeight: '800' }}>senha da sua conta</Text>. Isso
+                    impede que alguém com o seu celular em mãos troque o PIN.
+                  </Text>
+                </View>
+
+                <Text style={styles.fieldLabel}>Senha da conta</Text>
+                <TextInput
+                  style={styles.fieldInput}
+                  value={resetPassword}
+                  onChangeText={setResetPassword}
+                  placeholder="Sua senha de login"
+                  placeholderTextColor={colors.textTertiary}
+                  secureTextEntry
+                  autoCapitalize="none"
+                />
+
+                <Text style={styles.fieldLabel}>Novo PIN (4 dígitos)</Text>
+                <TextInput
+                  style={styles.fieldInput}
+                  value={resetNewPin}
+                  onChangeText={(t) => setResetNewPin(t.replace(/\D/g, '').slice(0, 4))}
+                  placeholder="••••"
+                  placeholderTextColor={colors.textTertiary}
+                  keyboardType="number-pad"
+                  secureTextEntry
+                  maxLength={4}
+                />
+
+                <Text style={styles.fieldLabel}>Confirme o novo PIN</Text>
+                <TextInput
+                  style={styles.fieldInput}
+                  value={resetConfirmPin}
+                  onChangeText={(t) => setResetConfirmPin(t.replace(/\D/g, '').slice(0, 4))}
+                  placeholder="••••"
+                  placeholderTextColor={colors.textTertiary}
+                  keyboardType="number-pad"
+                  secureTextEntry
+                  maxLength={4}
+                />
+
+                {resetError && (
+                  <View style={styles.errorBox}>
+                    <Ionicons name="alert-circle" size={16} color={colors.danger} />
+                    <Text style={styles.errorBoxText}>{resetError}</Text>
+                  </View>
+                )}
+
+                <TouchableOpacity
+                  style={[styles.sheetPrimaryBtn, resetLoading && { opacity: 0.6 }]}
+                  onPress={submitReset}
+                  disabled={resetLoading}
+                >
+                  {resetLoading ? (
+                    <ActivityIndicator color={colors.textLight} />
+                  ) : (
+                    <Text style={styles.sheetPrimaryText}>Redefinir PIN</Text>
+                  )}
+                </TouchableOpacity>
+
+                <TouchableOpacity onPress={closeReset} style={styles.sheetCancelBtn}>
+                  <Text style={styles.sheetCancelText}>Cancelar</Text>
+                </TouchableOpacity>
+
+                <Text style={styles.sheetFootnote}>
+                  Não lembra a senha? Saia da conta e use "Esqueci minha senha" na tela de login — o link vai
+                  pro seu email.
+                </Text>
+              </ScrollView>
+            </Pressable>
+          </KeyboardAvoidingView>
+        </Pressable>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -179,7 +329,82 @@ const styles = StyleSheet.create({
   },
   keyText: { fontSize: 28, fontWeight: '500', color: colors.text },
   logoutBtn: { alignItems: 'center', paddingBottom: spacing.xl },
-  logoutText: { color: colors.primary, fontSize: fontSize.body },
+  logoutText: { color: colors.textSecondary, fontSize: fontSize.body },
+  footerActions: { alignItems: 'center', paddingBottom: spacing.xl, gap: spacing.md as any },
+  forgotText: { color: colors.primary, fontSize: fontSize.body, fontWeight: '700' },
+
+  // Modal de reset de PIN
+  backdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    justifyContent: 'flex-end',
+  },
+  sheet: {
+    backgroundColor: colors.background,
+    borderTopLeftRadius: radius.xl,
+    borderTopRightRadius: radius.xl,
+    padding: spacing.lg,
+    maxHeight: '88%',
+  },
+  sheetHeader: { flexDirection: 'row', alignItems: 'center', gap: 8 as any, marginBottom: spacing.md },
+  sheetTitle: { fontSize: fontSize.title, fontWeight: '800', color: colors.text },
+  securityNote: {
+    flexDirection: 'row',
+    gap: 8 as any,
+    backgroundColor: colors.warningLight,
+    padding: spacing.md,
+    borderRadius: radius.md,
+    borderLeftWidth: 3,
+    borderLeftColor: colors.warning,
+    marginBottom: spacing.md,
+  },
+  securityNoteText: { flex: 1, fontSize: fontSize.small, color: colors.text, lineHeight: 18 },
+  fieldLabel: {
+    fontSize: fontSize.small,
+    color: colors.textSecondary,
+    fontWeight: '700',
+    marginTop: spacing.sm,
+    marginBottom: 6,
+  },
+  fieldInput: {
+    borderWidth: 1,
+    borderColor: colors.divider,
+    borderRadius: radius.md,
+    padding: spacing.md,
+    fontSize: fontSize.body,
+    color: colors.text,
+    backgroundColor: colors.surface,
+  },
+  errorBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8 as any,
+    backgroundColor: colors.dangerLight,
+    borderWidth: 1,
+    borderColor: colors.danger,
+    padding: spacing.sm,
+    borderRadius: radius.md,
+    marginTop: spacing.md,
+  },
+  errorBoxText: { flex: 1, color: colors.danger, fontWeight: '700', fontSize: fontSize.small, lineHeight: 18 },
+  sheetPrimaryBtn: {
+    backgroundColor: colors.primary,
+    padding: spacing.md,
+    borderRadius: radius.md,
+    alignItems: 'center',
+    marginTop: spacing.lg,
+  },
+  sheetPrimaryText: { color: colors.textLight, fontWeight: '800', fontSize: fontSize.bodyLarge },
+  sheetCancelBtn: { alignItems: 'center', paddingVertical: spacing.md },
+  sheetCancelText: { color: colors.textSecondary, fontWeight: '700' },
+  sheetFootnote: {
+    fontSize: fontSize.tiny,
+    color: colors.textTertiary,
+    textAlign: 'center',
+    lineHeight: 16,
+    fontStyle: 'italic',
+    marginTop: spacing.sm,
+  },
   lockoutBox: {
     flexDirection: 'row',
     alignItems: 'center',
