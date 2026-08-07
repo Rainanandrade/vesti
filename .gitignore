@@ -49,3 +49,6 @@ google-play-key.json
 google-services.json
 AuthKey_*.p8
 *.itmsp/
+
+# Isolated Codex/Superpowers development worktrees
+.worktrees/
