@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, Platform, ScrollView, Share, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -9,7 +9,10 @@ import { safeBackToTabs } from '../utils/navigation';
 import { useApp } from '../context/AppContext';
 
 const PLAN_MONTHLY = 9.90;
-const PLAN_YEARLY = 99.00; // 2 meses grátis (12 × 9,90 = 118,80)
+const PLAN_YEARLY = 99.00; // economia de ~17% (12 × 9,90 = 118,80)
+
+// Assinatura é vendida fora das lojas, no site do Vesti.
+const CHECKOUT_URL = 'vesti-nine.vercel.app/pro';
 
 type Feature = { icon: any; title: string; desc: string; available: 'now' | 'soon' };
 
@@ -31,10 +34,32 @@ export default function ProSubscribeScreen({ navigation, route }: any) {
   const [selectedPlan, setSelectedPlan] = useState<'monthly' | 'yearly'>(initialPlan);
 
   const handleSubscribe = () => {
-    // TODO: integrar Mercado Pago Suscripciones (próxima sessão)
+    // Assinatura é vendida FORA das lojas, no site do Vesti.
+    // No app nativo (iOS/Android) não abrimos checkout — apenas orientamos,
+    // o que mantém conformidade com as regras das lojas.
+    const planLabel = selectedPlan === 'yearly' ? 'anual (R$ 99/ano)' : 'mensal (R$ 9,90/mês)';
+
+    if (Platform.OS === 'web') {
+      Alert.alert(
+        'Assinar Vesti Pro',
+        `Checkout do plano ${planLabel} em breve. Estamos finalizando a integração de pagamento.`,
+      );
+      return;
+    }
+
     Alert.alert(
-      'Assinar Vesti Pro',
-      `Pagamento via Mercado Pago em breve. Enquanto isso, você tem trial grátis de 7 dias ativo.\n\nPlano ${selectedPlan === 'yearly' ? 'anual (R$ 99)' : 'mensal (R$ 9,90)'} escolhido.`,
+      'Assinatura pelo site',
+      `A assinatura do Vesti Pro é feita no nosso site, pelo navegador.\n\nAcesse ${CHECKOUT_URL} e entre com a mesma conta. Assim que o pagamento for confirmado, o Pro é liberado aqui automaticamente.`,
+      [
+        { text: 'Entendi', style: 'cancel' },
+        {
+          text: 'Compartilhar endereço',
+          onPress: () =>
+            Share.share({
+              message: `Assine o Vesti Pro em ${CHECKOUT_URL}`,
+            }).catch(() => {}),
+        },
+      ],
     );
   };
 
@@ -61,11 +86,11 @@ export default function ProSubscribeScreen({ navigation, route }: any) {
           <Text style={styles.heroSubtitle}>
             Seu consultor de dividendos e IR automatizado.
           </Text>
-          {pro.isTrial && pro.daysLeft != null && (
+          {pro.isPaid && pro.expiresAt != null && (
             <View style={styles.trialBadge}>
-              <Ionicons name="time-outline" size={14} color={colors.textLight} />
+              <Ionicons name="checkmark-circle" size={14} color={colors.textLight} />
               <Text style={styles.trialText}>
-                Você tem {pro.daysLeft} {pro.daysLeft === 1 ? 'dia' : 'dias'} de trial
+                Assinatura ativa · renova em {new Date(pro.expiresAt).toLocaleDateString('pt-BR')}
               </Text>
             </View>
           )}
@@ -114,9 +139,21 @@ export default function ProSubscribeScreen({ navigation, route }: any) {
         <TouchableOpacity style={styles.subscribeBtn} onPress={handleSubscribe} activeOpacity={0.85}>
           <Ionicons name="diamond" size={18} color={colors.textLight} />
           <Text style={styles.subscribeText}>
-            Assinar plano {selectedPlan === 'yearly' ? 'anual · R$ 99' : 'mensal · R$ 9,90'}
+            {Platform.OS === 'web'
+              ? `Assinar plano ${selectedPlan === 'yearly' ? 'anual · R$ 99' : 'mensal · R$ 9,90'}`
+              : 'Como assinar'}
           </Text>
         </TouchableOpacity>
+
+        {Platform.OS !== 'web' && (
+          <View style={styles.webNoteBox}>
+            <Ionicons name="globe-outline" size={16} color={colors.primary} />
+            <Text style={styles.webNoteText}>
+              A assinatura é feita no site do Vesti, pelo navegador. Depois de pagar, o Pro é liberado
+              aqui automaticamente na mesma conta.
+            </Text>
+          </View>
+        )}
 
         {/* Features */}
         <Text style={styles.sectionLabel}>Tudo que vem com o Pro</Text>
@@ -170,6 +207,16 @@ const styles = StyleSheet.create({
   planBadge: { position: 'absolute', top: -10, backgroundColor: colors.primary, paddingHorizontal: 10, paddingVertical: 3, borderRadius: radius.pill },
   subscribeBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 as any, backgroundColor: colors.primary, padding: spacing.lg, borderRadius: radius.md, marginBottom: spacing.lg },
   subscribeText: { color: colors.textLight, fontWeight: '800', fontSize: fontSize.bodyLarge },
+  webNoteBox: {
+    flexDirection: 'row',
+    gap: 8 as any,
+    alignItems: 'flex-start',
+    backgroundColor: colors.primaryLight,
+    padding: spacing.md,
+    borderRadius: radius.md,
+    marginBottom: spacing.lg,
+  },
+  webNoteText: { flex: 1, fontSize: fontSize.small, color: colors.text, lineHeight: 18 },
   planBadgeText: { color: colors.textLight, fontSize: 9, fontWeight: '900', letterSpacing: 0.5 },
   planName: { fontSize: fontSize.body, color: colors.textSecondary, fontWeight: '700', marginTop: 4 },
   planPrice: { fontSize: fontSize.heading, fontWeight: '900', color: colors.text, marginTop: 6 },

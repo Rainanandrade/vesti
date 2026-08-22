@@ -57,8 +57,6 @@ export default function SettingsScreen({ navigation }: any) {
     clearAllUserData,
     deleteAccount,
     pro,
-    pretendFree,
-    setPretendFree,
   } = useApp();
   const [nameModalOpen, setNameModalOpen] = useState(false);
   const [editName, setEditName] = useState(user?.name || '');
@@ -342,13 +340,11 @@ Pra detalhe operação a operação, posso exportar o JSON completo no Vesti.`;
               </View>
               <View style={{ flex: 1, marginLeft: spacing.md }}>
                 <Text style={styles.proTitle}>
-                  {pro.isPaid ? 'Vesti Pro ativo' : pro.isTrial ? 'Trial Vesti Pro' : 'Assinar Vesti Pro'}
+                  {pro.isPaid ? 'Vesti Pro ativo' : 'Assinar Vesti Pro'}
                 </Text>
                 <Text style={styles.proSub}>
                   {pro.isPaid
-                    ? `Sua assinatura vai até ${new Date(pro.expiresAt!).toLocaleDateString('pt-BR')}`
-                    : pro.isTrial
-                    ? `${pro.daysLeft} ${pro.daysLeft === 1 ? 'dia restante' : 'dias restantes'} · Toque pra assinar`
+                    ? `Sua assinatura renova em ${new Date(pro.expiresAt!).toLocaleDateString('pt-BR')}`
                     : 'Alertas, IR automático, IA consultora, sincronização com corretora'}
                 </Text>
               </View>
@@ -364,19 +360,6 @@ Pra detalhe operação a operação, posso exportar o JSON completo no Vesti.`;
         <ProToolRow icon="analytics-outline" title="Simulador de aportes" desc="Monte Carlo pra planejar longo prazo" navigation={navigation} route="Backtest" />
         <ProToolRow icon="document-text-outline" title="Relatórios PDF" desc="Extrato mensal e informe anual IRPF" navigation={navigation} route="Relatorios" />
         <ProToolRow icon="people-outline" title="Compartilhar carteira" desc="Dê acesso pra cônjuge ou planejador" navigation={navigation} route="ShareWallets" />
-
-        <Card style={{ marginBottom: spacing.sm, borderStyle: 'dashed', borderWidth: 1, borderColor: colors.divider }}>
-          <View style={styles.row}>
-            <Ionicons name="flask-outline" size={22} color={colors.warning} />
-            <View style={{ flex: 1, marginLeft: spacing.md }}>
-              <Text style={styles.rowTitle}>Ver como usuário Free</Text>
-              <Text style={styles.rowSub}>
-                Simula que você não é Pro. Útil pra testar os popups de paywall.
-              </Text>
-            </View>
-            <Switch value={pretendFree} onValueChange={setPretendFree} />
-          </View>
-        </Card>
 
         <Text style={styles.sectionTitle}>Perfil financeiro</Text>
         <TouchableOpacity onPress={() => navigation?.navigate('Preference')}>

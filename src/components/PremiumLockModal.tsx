@@ -116,7 +116,7 @@ export default function PremiumLockModal({
               </TouchableOpacity>
             </View>
 
-            <Text style={styles.trialLine}>🎁 7 dias grátis · cancele quando quiser</Text>
+            <Text style={styles.trialLine}>🔒 Cancele quando quiser · sem fidelidade</Text>
           </ScrollView>
 
           <View style={styles.footer}>

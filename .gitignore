@@ -52,3 +52,8 @@ AuthKey_*.p8
 
 # Isolated Codex/Superpowers development worktrees
 .worktrees/
+
+# Arquivos de trabalho fora do escopo do app
+build_resumes.py
+output/
+tmp/
