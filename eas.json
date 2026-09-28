@@ -23,16 +23,6 @@
     }
   },
   "submit": {
-    "production": {
-      "ios": {
-        "appleId": "PREENCHER_SEU_EMAIL_APPLE_ID",
-        "ascAppId": "PREENCHER_DEPOIS_DE_CRIAR_APP_NO_APP_STORE_CONNECT",
-        "appleTeamId": "PREENCHER_DEPOIS_DE_CRIAR_CONTA_DEV"
-      },
-      "android": {
-        "serviceAccountKeyPath": "./google-play-key.json",
-        "track": "internal"
-      }
-    }
+    "production": {}
   }
 }
