@@ -37,14 +37,7 @@ export async function listSharesOfWallet(walletId: string): Promise<WalletShare[
 }
 
 export async function listReceivedShares(): Promise<WalletShare[]> {
-  const { data: userRes } = await supabase.auth.getUser();
-  const email = userRes.user?.email;
-  if (!email) return [];
-  const { data, error } = await supabase
-    .from('wallet_shares')
-    .select('*')
-    .eq('invited_email', email)
-    .order('created_at', { ascending: false });
+  const { data, error } = await supabase.rpc('list_my_wallet_invitations');
   if (error) throw new Error(error.message);
   return (data || []).map(fromRow);
 }
@@ -77,13 +70,7 @@ export async function inviteToWallet(
 }
 
 export async function acceptShare(id: string): Promise<void> {
-  const { data: userRes } = await supabase.auth.getUser();
-  const uid = userRes.user?.id;
-  if (!uid) throw new Error('Não autenticado');
-  const { error } = await supabase
-    .from('wallet_shares')
-    .update({ status: 'accepted', invited_user_id: uid, accepted_at: new Date().toISOString() })
-    .eq('id', id);
+  const { error } = await supabase.rpc('accept_wallet_invitation', { share_id: id });
   if (error) throw new Error(error.message);
 }
 

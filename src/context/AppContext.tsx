@@ -21,6 +21,9 @@ export type Wallet = {
   name: string;
   assets: Asset[];
   createdAt: number;
+  ownerId?: string;
+  sharedRole?: 'viewer' | 'editor';
+  readOnly?: boolean;
 };
 
 export type User = {
@@ -194,19 +197,32 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const { data: wts } = await supabase
       .from('wallets')
       .select('*')
-      .eq('user_id', uid)
       .order('created_at', { ascending: true });
 
     const { data: ats } = await supabase
       .from('assets')
-      .select('*')
-      .eq('user_id', uid);
+      .select('*');
+
+    const { data: receivedShares } = await supabase.rpc('list_my_wallet_invitations');
+    const acceptedShares = new Map<string, 'viewer' | 'editor'>(
+      (receivedShares || [])
+        .filter((share: any) => share.status === 'accepted')
+        .map(
+          (share: any): [string, 'viewer' | 'editor'] => [
+            share.wallet_id,
+            share.role as 'viewer' | 'editor',
+          ],
+        ),
+    );
 
     if (wts) {
       const walletList: Wallet[] = wts.map((w: any) => ({
         id: w.id,
         name: w.name,
         createdAt: new Date(w.created_at).getTime(),
+        ownerId: w.user_id,
+        sharedRole: w.user_id === uid ? undefined : acceptedShares.get(w.id),
+        readOnly: w.user_id !== uid,
         assets: (ats || [])
           .filter((a: any) => a.wallet_id === w.id)
           .map((a: any) => ({
@@ -223,8 +239,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
           })),
       }));
       setWallets(walletList);
-      const active = wts.find((w: any) => w.is_active);
-      setActiveWalletIdState(active?.id || walletList[0]?.id || null);
+      const active = wts.find((w: any) => w.user_id === uid && w.is_active);
+      const firstOwned = walletList.find((wallet) => wallet.ownerId === uid);
+      setActiveWalletIdState(active?.id || firstOwned?.id || walletList[0]?.id || null);
     }
 
     // Goals reached
@@ -594,11 +611,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const setActiveWalletId = useCallback(async (id: string) => {
     setActiveWalletIdState(id);
-    if (userId) {
+    const selected = wallets.find((wallet) => wallet.id === id);
+    if (userId && selected && !selected.readOnly) {
       await supabase.from('wallets').update({ is_active: false }).eq('user_id', userId);
       await supabase.from('wallets').update({ is_active: true }).eq('id', id);
     }
-  }, [userId]);
+  }, [userId, wallets]);
 
   const createWallet = useCallback(async (name: string): Promise<Wallet> => {
     if (!userId) throw new Error('Not authenticated');
@@ -608,24 +626,36 @@ export function AppProvider({ children }: { children: ReactNode }) {
       .select()
       .single();
     if (error || !data) throw error;
-    const w: Wallet = { id: data.id, name: data.name, assets: [], createdAt: Date.now() };
+    const w: Wallet = {
+      id: data.id,
+      name: data.name,
+      assets: [],
+      createdAt: Date.now(),
+      ownerId: userId,
+      readOnly: false,
+    };
     setWallets((prev) => [...prev, w]);
     if (wallets.length === 0) setActiveWalletIdState(w.id);
     return w;
   }, [userId, wallets.length]);
 
   const deleteWallet = useCallback(async (id: string) => {
-    await supabase.from('wallets').delete().eq('id', id);
+    const wallet = wallets.find((item) => item.id === id);
+    if (!wallet || wallet.readOnly) throw new Error('Esta carteira compartilhada é somente leitura.');
+    const { error } = await supabase.from('wallets').delete().eq('id', id);
+    if (error) throw new Error(translateDbError(error.message));
     setWallets((prev) => {
       const next = prev.filter((w) => w.id !== id);
       if (activeWalletId === id) setActiveWalletIdState(next[0]?.id || null);
       return next;
     });
-  }, [activeWalletId]);
+  }, [activeWalletId, wallets]);
 
   const addAsset = useCallback(async (walletId: string, asset: Asset) => {
     if (!userId) throw new Error('Você não está logado. Faça login novamente.');
-    const existing = wallets.find((w) => w.id === walletId)?.assets.find((a) => a.symbol === asset.symbol);
+    const wallet = wallets.find((item) => item.id === walletId);
+    if (!wallet || wallet.readOnly) throw new Error('Esta carteira compartilhada é somente leitura.');
+    const existing = wallet.assets.find((a) => a.symbol === asset.symbol);
     if (existing && existing.id) {
       const totalQty = existing.quantity + asset.quantity;
       const avg = (existing.avgPrice * existing.quantity + asset.avgPrice * asset.quantity) / totalQty;
@@ -681,7 +711,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [userId, wallets]);
 
   const removeAsset = useCallback(async (walletId: string, symbol: string) => {
-    const target = wallets.find((w) => w.id === walletId)?.assets.find((a) => a.symbol === symbol);
+    const wallet = wallets.find((item) => item.id === walletId);
+    if (!wallet || wallet.readOnly) throw new Error('Esta carteira compartilhada é somente leitura.');
+    const target = wallet.assets.find((a) => a.symbol === symbol);
     if (target?.id) {
       const { error } = await supabase.from('assets').delete().eq('id', target.id);
       if (error) throw new Error(translateDbError(error.message));
@@ -694,7 +726,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [wallets]);
 
   const updateAsset = useCallback(async (walletId: string, symbol: string, patch: Partial<Asset>) => {
-    const target = wallets.find((w) => w.id === walletId)?.assets.find((a) => a.symbol === symbol);
+    const wallet = wallets.find((item) => item.id === walletId);
+    if (!wallet || wallet.readOnly) throw new Error('Esta carteira compartilhada é somente leitura.');
+    const target = wallet.assets.find((a) => a.symbol === symbol);
     if (target?.id) {
       const dbPatch: any = {};
       if (patch.quantity !== undefined) dbPatch.quantity = patch.quantity;
@@ -898,8 +932,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
       const { data, error } = await supabase.rpc('delete_my_account');
       if (error) return { ok: false, error: error.message };
       if (!data?.ok) return { ok: false, error: data?.error || 'Falha ao excluir conta' };
-      // Faz signOut pra invalidar o token local
-      await supabase.auth.signOut();
+      // A conta já não existe no servidor; a limpeza local não pode transformar
+      // uma exclusão concluída em falso erro por causa do token agora inválido.
+      await supabase.auth.signOut({ scope: 'local' }).catch(() => undefined);
       return { ok: true };
     } catch (e: any) {
       return { ok: false, error: e?.message || 'Erro desconhecido' };

@@ -9,7 +9,7 @@
     "web": "expo start --web",
     "test": "node --test tests/*.test.js",
     "typecheck": "tsc --noEmit --pretty false",
-    "check:js": "for f in api/*.js api/_lib/*.js scripts/*.js src/utils/*.js; do node --check \"$f\" || exit 1; done",
+    "check:js": "find api scripts src/utils -type f -name '*.js' -exec node --check {} \\;",
     "expo:check": "expo install --check",
     "verify": "npm test && npm run typecheck && npm run check:js && npm run expo:check"
   },
