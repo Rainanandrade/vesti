@@ -24,3 +24,10 @@ test('verification scripts are available', () => {
     assert.equal(typeof scripts[name], 'string', `missing npm script: ${name}`);
   }
 });
+
+test('rate limiting supports the Redis variable names already configured on Vercel', () => {
+  const rateLimit = fs.readFileSync(path.join(root, 'api/_lib/rateLimit.js'), 'utf8');
+
+  assert.match(rateLimit, /KV_REST_API_URL/);
+  assert.match(rateLimit, /KV_REST_API_TOKEN/);
+});

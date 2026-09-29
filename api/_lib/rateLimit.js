@@ -1,6 +1,6 @@
 // Rate limit distribuído (Upstash Redis) com fallback pra memória.
 //
-// Quando UPSTASH_REDIS_REST_URL e UPSTASH_REDIS_REST_TOKEN estão setadas,
+// Quando as credenciais REST do Redis estão setadas,
 // usa o sliding window do @upstash/ratelimit — funciona entre cold starts,
 // múltiplas regiões e múltiplas instâncias.
 //
@@ -9,8 +9,10 @@
 import { Ratelimit } from '@upstash/ratelimit';
 import { Redis } from '@upstash/redis';
 
-const UPSTASH_URL = process.env.UPSTASH_REDIS_REST_URL || '';
-const UPSTASH_TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN || '';
+const UPSTASH_URL =
+  process.env.UPSTASH_REDIS_REST_URL || process.env.KV_REST_API_URL || '';
+const UPSTASH_TOKEN =
+  process.env.UPSTASH_REDIS_REST_TOKEN || process.env.KV_REST_API_TOKEN || '';
 const upstashEnabled = !!(UPSTASH_URL && UPSTASH_TOKEN);
 
 let redis = null;
