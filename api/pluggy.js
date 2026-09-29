@@ -6,6 +6,7 @@ import { setCors } from './_lib/cors.js';
 import { authOrReject } from './_lib/auth.js';
 import { rateLimitOrReject } from './_lib/rateLimit.js';
 import { pluggyFetch } from './_lib/pluggy.js';
+import { paidEntitlementOrReject } from './_lib/entitlement.js';
 
 const SUPABASE_URL = process.env.SUPABASE_URL || 'https://ihardigeybszuknwixnd.supabase.co';
 const SUPABASE_SERVICE_ROLE = process.env.SUPABASE_SERVICE_ROLE || '';
@@ -105,8 +106,8 @@ async function handleConnectToken(req, res, user) {
   };
   const r = await pluggyFetch('/connect_token', { method: 'POST', body: JSON.stringify(body) });
   if (!r.ok) {
-    const txt = await r.text().catch(() => '');
-    return res.status(502).json({ error: 'Falha ao gerar token Pluggy', detail: txt.slice(0, 300) });
+    console.error('[pluggy connect] provider rejected request', r.status);
+    return res.status(502).json({ error: 'Falha ao iniciar a conexão bancária.' });
   }
   const data = await r.json();
   return res.status(200).json({ accessToken: data.accessToken });
@@ -122,7 +123,8 @@ async function handleSync(req, res, user) {
     const result = await syncInvestmentsForItem(sb, user.id, itemId);
     return res.status(200).json({ ok: true, ...result });
   } catch (e) {
-    return res.status(502).json({ error: 'Falha no sync', detail: String(e).slice(0, 300) });
+    console.error('[pluggy sync] failed');
+    return res.status(502).json({ error: 'Falha ao sincronizar investimentos.' });
   }
 }
 
@@ -203,6 +205,7 @@ export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Método não permitido' });
   const user = await authOrReject(req, res);
   if (!user) return;
+  if (!(await paidEntitlementOrReject(req, res, user))) return;
   if (!(await rateLimitOrReject(req, res, { limit: 12, windowMs: 60_000, prefix: `pluggy-${action}` }))) return;
 
   if (action === 'connect-token') return handleConnectToken(req, res, user);

@@ -7,6 +7,8 @@ import { setCors } from './_lib/cors.js';
 import { rateLimitOrReject } from './_lib/rateLimit.js';
 import { checkBodySize, sanitizeProfile, sanitizeAssets, sanitizeString, sanitizeNumber } from './_lib/validate.js';
 import { fetchWithTimeout } from './_lib/fetch.js';
+import { paidEntitlementOrReject } from './_lib/entitlement.js';
+import { validateAiText } from './_lib/aiResponse.js';
 
 const GROQ_API_KEY = process.env.GROQ_API_KEY || '';
 
@@ -36,15 +38,14 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'Método não permitido' });
   if (!checkBodySize(req, res)) return;
-  if (!(await rateLimitOrReject(req, res, { limit: 10, windowMs: 60_000, prefix: 'ai-diag' }))) return;
 
   const user = await authOrReject(req, res);
   if (!user) return;
+  if (!(await paidEntitlementOrReject(req, res, user))) return;
+  if (!(await rateLimitOrReject(req, res, { limit: 10, windowMs: 60_000, prefix: 'ai-diag' }))) return;
 
   if (!GROQ_API_KEY) {
-    return res.status(503).json({
-      error: 'IA não configurada. Adicione GROQ_API_KEY no Vercel.',
-    });
+    return res.status(503).json({ error: 'IA temporariamente indisponível.' });
   }
 
   const rawBody = req.body || {};
@@ -107,16 +108,16 @@ ${question ? `O usuário tem uma pergunta específica adicional: "${question}". 
     });
 
     if (!r.ok) {
-      const text = await r.text();
-      return res.status(r.status).json({ error: `Erro Groq: ${text.slice(0, 300)}` });
+      console.error('[ai-diagnostic] provider rejected request', r.status);
+      return res.status(502).json({ error: 'Não foi possível gerar o diagnóstico agora.' });
     }
 
     const json = await r.json();
-    const content = json?.choices?.[0]?.message?.content;
-    if (!content) return res.status(502).json({ error: 'Resposta vazia da IA' });
+    const content = validateAiText(json?.choices?.[0]?.message?.content);
 
     return res.status(200).json({ diagnostic: content });
   } catch (err) {
-    return res.status(500).json({ error: String(err) });
+    console.error('[ai-diagnostic] failed');
+    return res.status(502).json({ error: 'Não foi possível gerar o diagnóstico agora.' });
   }
 }

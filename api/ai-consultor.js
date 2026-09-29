@@ -5,6 +5,9 @@ import { authOrReject } from './_lib/auth.js';
 import { setCors } from './_lib/cors.js';
 import { rateLimitOrReject } from './_lib/rateLimit.js';
 import { fetchWithTimeout } from './_lib/fetch.js';
+import { paidEntitlementOrReject } from './_lib/entitlement.js';
+import { validateAiText } from './_lib/aiResponse.js';
+import { checkBodySize, sanitizeAssets, sanitizeMarketMap, sanitizeProfile, sanitizeString } from './_lib/validate.js';
 
 const GROQ_API_KEY = process.env.GROQ_API_KEY || '';
 const MODEL = 'llama-3.3-70b-versatile';
@@ -28,7 +31,7 @@ function summarizeAssets(assets = [], quotes = {}, dividends = {}) {
     const value = price * a.quantity;
     const rent = a.avgPrice > 0 ? ((price - a.avgPrice) / a.avgPrice) * 100 : 0;
     const info = dividends[a.symbol];
-    const dyEst = info?.averageAmount && info?.frequency
+    const dyEst = price > 0 && info?.averageAmount && info?.frequency
       ? ((info.averageAmount * ({ monthly: 12, quarterly: 4, semestral: 2, annual: 1 }[info.frequency] || 12)) / price) * 100
       : null;
     return { symbol: a.symbol, type: a.type, valueBRL: value, weightPct: 0, rentPct: rent, dyEst };
@@ -86,17 +89,25 @@ export default async function handler(req, res) {
   setCors(req, res);
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'Método não permitido' });
+  if (!checkBodySize(req, res)) return;
 
   const user = await authOrReject(req, res);
   if (!user) return;
+  if (!(await paidEntitlementOrReject(req, res, user))) return;
   if (!(await rateLimitOrReject(req, res, { limit: 8, windowMs: 60_000, prefix: 'ai-cons' }))) return;
 
-  if (!GROQ_API_KEY) return res.status(500).json({ error: 'IA não configurada (GROQ_API_KEY ausente)' });
+  if (!GROQ_API_KEY) return res.status(503).json({ error: 'IA temporariamente indisponível.' });
 
-  const { assets = [], quotes = {}, dividends = {}, profile, question } = req.body || {};
+  const rawBody = req.body || {};
+  const assets = sanitizeAssets(rawBody.assets);
   if (!Array.isArray(assets) || assets.length === 0) {
     return res.status(400).json({ error: 'Carteira vazia — adicione ativos pra receber análise.' });
   }
+  const symbols = assets.map((asset) => asset.symbol);
+  const quotes = sanitizeMarketMap(rawBody.quotes, symbols);
+  const dividends = sanitizeMarketMap(rawBody.dividends, symbols);
+  const profile = sanitizeProfile(rawBody.profile);
+  const question = sanitizeString(rawBody.question, 300);
 
   const summary = summarizeAssets(assets, quotes, dividends);
 
@@ -118,13 +129,14 @@ export default async function handler(req, res) {
       }),
     });
     if (!groqResp.ok) {
-      const txt = await groqResp.text().catch(() => '');
-      return res.status(502).json({ error: 'Falha na IA', detail: txt.slice(0, 200) });
+      console.error('[ai-consultor] provider rejected request', groqResp.status);
+      return res.status(502).json({ error: 'Não foi possível gerar a análise agora.' });
     }
     const data = await groqResp.json();
-    const answer = data?.choices?.[0]?.message?.content?.trim() || 'Sem resposta.';
+    const answer = validateAiText(data?.choices?.[0]?.message?.content);
     return res.status(200).json({ answer, summaryUsed: summary });
   } catch (e) {
-    return res.status(500).json({ error: 'Erro ao consultar IA', detail: String(e).slice(0, 200) });
+    console.error('[ai-consultor] failed');
+    return res.status(502).json({ error: 'Não foi possível gerar a análise agora.' });
   }
 }

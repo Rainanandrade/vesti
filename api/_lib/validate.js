@@ -18,7 +18,14 @@ export function isValidRange(r) {
  */
 export function checkBodySize(req, res, maxBytes = MAX_BODY_BYTES) {
   const len = Number(req.headers?.['content-length'] || 0);
-  if (len > maxBytes) {
+  let parsedBytes = 0;
+  try {
+    parsedBytes = Buffer.byteLength(JSON.stringify(req.body ?? {}), 'utf8');
+  } catch {
+    res.status(400).json({ error: 'Payload inválido' });
+    return false;
+  }
+  if (len > maxBytes || parsedBytes > maxBytes) {
     res.status(413).json({ error: 'Payload muito grande' });
     return false;
   }
@@ -33,16 +40,16 @@ export function sanitizeProfile(p) {
   if (!p || typeof p !== 'object') return null;
   const out = {
     type: typeof p.type === 'string' ? p.type.slice(0, 40) : 'moderado',
-    score: typeof p.score === 'number' ? p.score : 0,
+    score: sanitizeNumber(p.score, { min: 0, max: 100 }),
     description: typeof p.description === 'string' ? p.description.slice(0, 400) : '',
     preference: typeof p.preference === 'string' ? p.preference.slice(0, 40) : undefined,
     strategy: null,
   };
   if (p.strategy && typeof p.strategy === 'object') {
     out.strategy = {
-      renda_fixa: Number(p.strategy.renda_fixa) || 0,
-      renda_variavel: Number(p.strategy.renda_variavel) || 0,
-      internacional: Number(p.strategy.internacional) || 0,
+      renda_fixa: sanitizeNumber(p.strategy.renda_fixa, { min: 0, max: 100 }),
+      renda_variavel: sanitizeNumber(p.strategy.renda_variavel, { min: 0, max: 100 }),
+      internacional: sanitizeNumber(p.strategy.internacional, { min: 0, max: 100 }),
     };
   }
   return out;
@@ -50,14 +57,42 @@ export function sanitizeProfile(p) {
 
 export function sanitizeAssets(arr, maxItems = 100) {
   if (!Array.isArray(arr)) return [];
-  return arr.slice(0, maxItems).map((a) => ({
-    symbol: typeof a?.symbol === 'string' ? a.symbol.slice(0, 12).toUpperCase().replace(/[^A-Z0-9]/g, '') : '',
-    type: typeof a?.type === 'string' ? a.type.slice(0, 10) : 'outro',
-    quantity: Number(a?.quantity) || 0,
-    avgPrice: Number(a?.avgPrice) || 0,
-    currentValue: Number(a?.currentValue) || 0,
-    profitPct: Number(a?.profitPct) || 0,
-  }));
+  return arr
+    .slice(0, maxItems)
+    .map((a) => ({
+      symbol: typeof a?.symbol === 'string' ? a.symbol.slice(0, 12).toUpperCase().replace(/[^A-Z0-9]/g, '') : '',
+      type: typeof a?.type === 'string' ? a.type.slice(0, 10) : 'outro',
+      quantity: sanitizeNumber(a?.quantity),
+      avgPrice: sanitizeNumber(a?.avgPrice),
+      currentValue: sanitizeNumber(a?.currentValue),
+      profitPct: sanitizeNumber(a?.profitPct, { min: -100, max: 10000 }),
+    }))
+    .filter((asset) => asset.symbol);
+}
+
+export function sanitizeMarketMap(value, symbols, maxItems = 100) {
+  if (!value || typeof value !== 'object') return {};
+  const allowed = new Set(symbols.slice(0, maxItems));
+  const out = {};
+  for (const [symbol, row] of Object.entries(value).slice(0, maxItems)) {
+    if (!allowed.has(symbol) || !row || typeof row !== 'object') continue;
+    out[symbol] = {
+      regularMarketPrice: sanitizeNumber(row.regularMarketPrice),
+      averageAmount: sanitizeNumber(row.averageAmount),
+      frequency: ['monthly', 'quarterly', 'semestral', 'annual'].includes(row.frequency)
+        ? row.frequency
+        : undefined,
+    };
+  }
+  return out;
+}
+
+export function sanitizeBrokers(value, maxItems = 20) {
+  if (!Array.isArray(value)) return [];
+  return value.slice(0, maxItems).map((broker) => ({
+    name: sanitizeString(broker?.name, 80),
+    limitations: sanitizeString(broker?.limitations, 240),
+  })).filter((broker) => broker.name);
 }
 
 export function sanitizeString(s, max = 500) {

@@ -6,8 +6,10 @@
 import { authOrReject } from './_lib/auth.js';
 import { setCors } from './_lib/cors.js';
 import { rateLimitOrReject } from './_lib/rateLimit.js';
-import { checkBodySize, sanitizeProfile, sanitizeNumber } from './_lib/validate.js';
+import { checkBodySize, sanitizeAssets, sanitizeBrokers, sanitizeProfile, sanitizeNumber } from './_lib/validate.js';
 import { fetchWithTimeout } from './_lib/fetch.js';
+import { paidEntitlementOrReject } from './_lib/entitlement.js';
+import { normalizeAllocationResponse } from './_lib/aiResponse.js';
 
 const GROQ_API_KEY = process.env.GROQ_API_KEY || '';
 const BRAPI_TOKEN = process.env.BRAPI_TOKEN || '';
@@ -34,6 +36,12 @@ const CURATED = {
   ],
   internacional: ['IVVB11', 'NASD11', 'WRLD11', 'SPXI11', 'BITH11'],
 };
+
+const ALLOWED_PICKS = new Set([
+  ...CURATED.renda_fixa_options.map((option) => option.symbol),
+  ...CURATED.renda_variavel,
+  ...CURATED.internacional,
+]);
 
 async function fetchQuoteAndFundamentals(symbol) {
   if (!BRAPI_TOKEN) return { symbol };
@@ -135,14 +143,13 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'Método não permitido' });
   if (!checkBodySize(req, res)) return;
-  if (!(await rateLimitOrReject(req, res, { limit: 10, windowMs: 60_000, prefix: 'ai-sug' }))) return;
   const user = await authOrReject(req, res);
   if (!user) return;
+  if (!(await paidEntitlementOrReject(req, res, user))) return;
+  if (!(await rateLimitOrReject(req, res, { limit: 10, windowMs: 60_000, prefix: 'ai-sug' }))) return;
 
   if (!GROQ_API_KEY) {
-    return res.status(503).json({
-      error: 'IA não configurada. Adicione GROQ_API_KEY no Vercel.',
-    });
+    return res.status(503).json({ error: 'IA temporariamente indisponível.' });
   }
 
   const rawBody = req.body || {};
@@ -151,8 +158,8 @@ export default async function handler(req, res) {
   if (!amount || !profile) {
     return res.status(400).json({ error: 'amount e profile são obrigatórios' });
   }
-  const currentAssets = Array.isArray(rawBody.currentAssets) ? rawBody.currentAssets.slice(0, 100) : [];
-  const brokers = Array.isArray(rawBody.brokers) ? rawBody.brokers.slice(0, 20) : [];
+  const currentAssets = sanitizeAssets(rawBody.currentAssets);
+  const brokers = sanitizeBrokers(rawBody.brokers);
 
   // Pré-busca dados reais (rápido, em paralelo)
   const [rvData, intlData] = await Promise.all([
@@ -179,7 +186,7 @@ PERFIL DO INVESTIDOR:
           ? '(IMPORTANTE: misture dividendos e crescimento)'
           : ''
   }
-- Estratégia alvo: ${profile.strategy.renda_fixa}% renda fixa, ${profile.strategy.renda_variavel}% renda variável, ${profile.strategy.internacional}% internacional
+- Estratégia alvo: RF ${profile.strategy?.renda_fixa || 0}% · RV ${profile.strategy?.renda_variavel || 0}% · Internacional ${profile.strategy?.internacional || 0}%
 - Descrição: ${profile.description}
 ${
   Array.isArray(brokers) && brokers.length > 0
@@ -223,13 +230,15 @@ Diversifique respeitando o perfil. Cite números reais (DY, P/L, preço) no reas
     });
 
     if (!r.ok) {
-      const text = await r.text();
-      return res.status(r.status).json({ error: `Erro Groq: ${text.slice(0, 300)}` });
+      console.error('[ai-suggest] provider rejected request', r.status);
+      return res.status(502).json({ error: 'Não foi possível gerar sugestões agora.' });
     }
 
     const json = await r.json();
     const content = json?.choices?.[0]?.message?.content;
-    if (!content) return res.status(502).json({ error: 'Resposta vazia da IA' });
+    if (typeof content !== 'string' || content.length > 12_000) {
+      return res.status(502).json({ error: 'A IA retornou uma resposta inválida.' });
+    }
 
     let parsed;
     try {
@@ -238,20 +247,10 @@ Diversifique respeitando o perfil. Cite números reais (DY, P/L, preço) no reas
       return res.status(502).json({ error: 'IA retornou JSON inválido' });
     }
 
-    // Validação: corrige soma se IA errou matemática
-    if (Array.isArray(parsed.picks)) {
-      const totalPicked = parsed.picks.reduce((s, p) => s + (Number(p.amount) || 0), 0);
-      if (Math.abs(totalPicked - amount) > 0.5) {
-        // Reescala proporcional pra somar exato
-        parsed.picks = parsed.picks.map((p) => ({
-          ...p,
-          amount: Math.round(((Number(p.amount) || 0) * amount) / totalPicked * 100) / 100,
-        }));
-      }
-    }
-
-    return res.status(200).json(parsed);
+    const validated = normalizeAllocationResponse(parsed, amount, ALLOWED_PICKS);
+    return res.status(200).json(validated);
   } catch (err) {
-    return res.status(500).json({ error: String(err) });
+    console.error('[ai-suggest] failed');
+    return res.status(502).json({ error: 'Não foi possível gerar sugestões agora.' });
   }
 }
