@@ -6,6 +6,7 @@ import { Wallet } from '../context/AppContext';
 import { Quote } from '../api/brapi';
 import { DividendInfo } from '../api/dividends';
 import { computeReceivedProventos } from './receivedProventos';
+import { escapeHtml } from './html';
 
 const monthNames = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
 
@@ -66,10 +67,10 @@ export function buildMonthlyReport(
       const price = quotes[a.symbol]?.regularMarketPrice ?? a.avgPrice;
       const value = price * a.quantity;
       const inv = a.avgPrice * a.quantity;
-      const rent = ((value - inv) / inv) * 100;
+      const rent = inv > 0 ? ((value - inv) / inv) * 100 : 0;
       return `<tr>
-        <td><strong>${a.symbol}</strong> — ${a.name}</td>
-        <td class="right">${a.quantity}</td>
+        <td><strong>${escapeHtml(a.symbol)}</strong> — ${escapeHtml(a.name)}</td>
+        <td class="right">${escapeHtml(a.quantity)}</td>
         <td class="right">${fmt(a.avgPrice)}</td>
         <td class="right">${fmt(price)}</td>
         <td class="right">${fmt(value)}</td>
@@ -82,17 +83,17 @@ export function buildMonthlyReport(
     ? '<tr><td colspan="4" style="text-align:center;color:#888;padding:16px;">Sem proventos registrados neste mês.</td></tr>'
     : monthProventos.map((p) => `
       <tr>
-        <td>${p.date.split('-').reverse().join('/')}</td>
-        <td><strong>${p.symbol}</strong></td>
+        <td>${escapeHtml(p.date.split('-').reverse().join('/'))}</td>
+        <td><strong>${escapeHtml(p.symbol)}</strong></td>
         <td>${p.kind === 'dividendo' ? 'Dividendo' : p.kind === 'jcp' ? 'JCP' : 'Rendimento'}</td>
         <td class="right green">${fmt(p.amount)}</td>
       </tr>`).join('');
 
   return `<!doctype html>
-<html><head><meta charset="utf-8"><title>Extrato ${monthName}/${year} — Vesti</title><style>${baseCss()}</style></head>
+<html><head><meta charset="utf-8"><title>Extrato ${escapeHtml(monthName)}/${year} — Vesti</title><style>${baseCss()}</style></head>
 <body>
   <h1><span class="brand">Vesti</span></h1>
-  <p class="meta">Extrato de ${monthName} de ${year} · ${userName}</p>
+  <p class="meta">Extrato de ${escapeHtml(monthName)} de ${year} · ${escapeHtml(userName)}</p>
 
   <h2>Resumo da carteira</h2>
   <table>
@@ -149,7 +150,7 @@ export function buildAnnualReport(
 
   const proventosRows = [...bySymbol.entries()].sort((a, b) => b[1].total - a[1].total).map(([sym, v]) => `
     <tr>
-      <td><strong>${sym}</strong></td>
+      <td><strong>${escapeHtml(sym)}</strong></td>
       <td class="right">${fmt(v.dividendo)}</td>
       <td class="right">${fmt(v.jcp)}</td>
       <td class="right">${fmt(v.rendimento)}</td>
@@ -161,9 +162,9 @@ export function buildAnnualReport(
   const posicaoRows = assets.map((a) => {
     const price = quotes[a.symbol]?.regularMarketPrice ?? a.avgPrice;
     return `<tr>
-      <td><strong>${a.symbol}</strong></td>
-      <td>${a.name}</td>
-      <td class="right">${a.quantity}</td>
+      <td><strong>${escapeHtml(a.symbol)}</strong></td>
+      <td>${escapeHtml(a.name)}</td>
+      <td class="right">${escapeHtml(a.quantity)}</td>
       <td class="right">${fmt(a.avgPrice)}</td>
       <td class="right">${fmt(price)}</td>
       <td class="right">${fmt(price * a.quantity)}</td>
@@ -174,7 +175,7 @@ export function buildAnnualReport(
 <html><head><meta charset="utf-8"><title>Informe anual ${year} — Vesti</title><style>${baseCss()}</style></head>
 <body>
   <h1><span class="brand">Vesti</span></h1>
-  <p class="meta">Informe de rendimentos ${year} · ${userName}</p>
+  <p class="meta">Informe de rendimentos ${year} · ${escapeHtml(userName)}</p>
   <p class="meta">Uso: base pra declaração de IRPF. Consulte seu contador.</p>
 
   <h2>Resumo do ano</h2>
@@ -212,10 +213,20 @@ export async function openReport(html: string, title: string) {
   if (Platform.OS === 'web') {
     const blob = new Blob([html], { type: 'text/html' });
     const url = URL.createObjectURL(blob);
-    const win = (globalThis as any).window?.open(url, '_blank');
-    if (!win) {
+    const documentRef = (globalThis as any).document;
+    if (!documentRef) {
+      URL.revokeObjectURL(url);
       Alert.alert('Bloqueado', 'Permita janelas popup pra ver o relatório.');
+      return;
     }
+    const anchor = documentRef.createElement('a');
+    anchor.href = url;
+    anchor.target = '_blank';
+    anchor.rel = 'noopener noreferrer';
+    documentRef.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 60_000);
   } else {
     // Mobile: abre a URL em base64 no navegador do sistema.
     // Solução completa via expo-print virá em release futura.

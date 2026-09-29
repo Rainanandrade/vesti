@@ -680,34 +680,38 @@ export function AppProvider({ children }: { children: ReactNode }) {
   );
 
   const setProfile = useCallback(async (p: Profile) => {
-    setProfileState(p);
     if (userId) {
       // upsert garante criação caso o trigger não tenha rodado
-      await supabase.from('profiles').upsert(
-        { id: userId, name: user?.name || 'Usuário', financial_profile: p, onboarding_done: true },
-        { onConflict: 'id' },
+      assertMutation(
+        await supabase.from('profiles').upsert(
+          { id: userId, name: user?.name || 'Usuário', financial_profile: p, onboarding_done: true },
+          { onConflict: 'id' },
+        ),
       );
     }
+    setProfileState(p);
   }, [userId, user]);
 
   const resetProfile = useCallback(async () => {
     // Apaga financial_profile mas mantém o user
-    setProfileState(null);
     if (userId) {
-      await supabase
-        .from('profiles')
-        .update({ financial_profile: null })
-        .eq('id', userId);
+      assertMutation(
+        await supabase
+          .from('profiles')
+          .update({ financial_profile: null })
+          .eq('id', userId),
+      );
     }
+    setProfileState(null);
   }, [userId]);
 
   const setActiveWalletId = useCallback(async (id: string) => {
-    setActiveWalletIdState(id);
     const selected = wallets.find((wallet) => wallet.id === id);
     if (userId && selected && !selected.readOnly) {
-      await supabase.from('wallets').update({ is_active: false }).eq('user_id', userId);
-      await supabase.from('wallets').update({ is_active: true }).eq('id', id);
+      assertMutation(await supabase.from('wallets').update({ is_active: false }).eq('user_id', userId));
+      assertMutation(await supabase.from('wallets').update({ is_active: true }).eq('id', id));
     }
+    setActiveWalletIdState(id);
   }, [userId, wallets]);
 
   const createWallet = useCallback(async (name: string): Promise<Wallet> => {
@@ -840,52 +844,59 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const togglePrivacy = useCallback(async () => {
     const next = !privacyMode;
+    if (userId) {
+      assertMutation(await supabase.from('profiles').update({ privacy_mode: next }).eq('id', userId));
+    }
     setPrivacyMode(next);
-    if (userId) await supabase.from('profiles').update({ privacy_mode: next }).eq('id', userId);
   }, [privacyMode, userId]);
 
   const addToWatchlist = useCallback(
     async (item: Omit<WatchlistItem, 'addedAt'>) => {
       if (!userId) throw new Error('Não autenticado');
       const newItem: WatchlistItem = { ...item, addedAt: Date.now() };
+      assertMutation(
+        await supabase.from('watchlist').upsert({
+          user_id: userId,
+          symbol: item.symbol,
+          name: item.name,
+          type: item.type,
+          target_price: item.targetPrice ?? null,
+        }),
+      );
       setWatchlist((prev) => {
         if (prev.some((x) => x.symbol === item.symbol)) return prev;
         return [newItem, ...prev];
       });
-      const { error } = await supabase.from('watchlist').upsert({
-        user_id: userId,
-        symbol: item.symbol,
-        name: item.name,
-        type: item.type,
-        target_price: item.targetPrice ?? null,
-      });
-      if (error) throw new Error(translateDbError(error.message));
     },
     [userId],
   );
 
   const removeFromWatchlist = useCallback(
     async (symbol: string) => {
-      setWatchlist((prev) => prev.filter((w) => w.symbol !== symbol));
       if (userId) {
-        await supabase.from('watchlist').delete().eq('user_id', userId).eq('symbol', symbol);
+        assertMutation(
+          await supabase.from('watchlist').delete().eq('user_id', userId).eq('symbol', symbol),
+        );
       }
+      setWatchlist((prev) => prev.filter((w) => w.symbol !== symbol));
     },
     [userId],
   );
 
   const setWatchlistTarget = useCallback(
     async (symbol: string, targetPrice: number | null) => {
+      if (userId) {
+        assertMutation(
+          await supabase
+            .from('watchlist')
+            .update({ target_price: targetPrice })
+            .eq('user_id', userId)
+            .eq('symbol', symbol),
+        );
+      }
       setWatchlist((prev) =>
         prev.map((w) => (w.symbol === symbol ? { ...w, targetPrice: targetPrice ?? undefined } : w)),
       );
-      if (userId) {
-        await supabase
-          .from('watchlist')
-          .update({ target_price: targetPrice })
-          .eq('user_id', userId)
-          .eq('symbol', symbol);
-      }
     },
     [userId],
   );
@@ -935,10 +946,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const removeOperation = useCallback(
     async (id: string) => {
-      setOperations((prev) => prev.filter((o) => o.id !== id));
       if (userId) {
-        await supabase.from('operations').delete().eq('id', id);
+        assertMutation(await supabase.from('operations').delete().eq('id', id));
       }
+      setOperations((prev) => prev.filter((o) => o.id !== id));
     },
     [userId],
   );
@@ -979,10 +990,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const removeProvento = useCallback(
     async (id: string) => {
-      setProventos((prev) => prev.filter((p) => p.id !== id));
       if (userId) {
-        await supabase.from('proventos').delete().eq('id', id);
+        assertMutation(await supabase.from('proventos').delete().eq('id', id));
       }
+      setProventos((prev) => prev.filter((p) => p.id !== id));
     },
     [userId],
   );
@@ -991,8 +1002,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     async (name: string) => {
       const trimmed = name.trim();
       if (!trimmed || !userId) return;
+      assertMutation(await supabase.from('profiles').update({ name: trimmed }).eq('id', userId));
       setUser((prev) => (prev ? { ...prev, name: trimmed } : prev));
-      await supabase.from('profiles').update({ name: trimmed }).eq('id', userId);
     },
     [userId],
   );
@@ -1001,7 +1012,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     if (!userId) return;
     // Apaga tudo do usuário (carteiras, ativos, operações, proventos, snapshots,
     // watchlist, metas, lições). O profile e auth.user permanecem.
-    await Promise.all([
+    const results = await Promise.all([
       supabase.from('assets').delete().eq('user_id', userId),
       supabase.from('wallets').delete().eq('user_id', userId),
       supabase.from('operations').delete().eq('user_id', userId),
@@ -1011,6 +1022,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       supabase.from('goals_reached').delete().eq('user_id', userId),
       supabase.from('lessons_completed').delete().eq('user_id', userId),
     ]);
+    results.forEach(assertMutation);
     setWallets([]);
     setActiveWalletIdState(null);
     setOperations([]);
@@ -1051,7 +1063,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
         )
         .select()
         .single();
-      if (error || !data) return;
+      if (error) throw new Error(translateDbError(error.message));
+      if (!data) throw new Error('Sem resposta do servidor. Tente de novo.');
       setSnapshots((prev) => {
         const without = prev.filter((s) => s.date !== today);
         return [
@@ -1065,40 +1078,40 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const markVersionSeen = useCallback(
     async (version: string) => {
-      await Storage.set(KEYS.LAST_SEEN_VERSION, version);
-      setLastSeenVersion(version);
       // Persiste TAMBÉM na nuvem (Supabase) pra sobreviver a clear de cache
       // e funcionar entre dispositivos
       if (userId) {
-        try {
-          const updated = { ...(profile || {}), lastSeenVersion: version };
+        const updated = { ...(profile || {}), lastSeenVersion: version };
+        assertMutation(
           await supabase
             .from('profiles')
             .update({ financial_profile: updated })
-            .eq('id', userId);
-        } catch (err) {
-          console.warn('failed to persist version online', err);
-        }
+            .eq('id', userId),
+        );
       }
+      await Storage.set(KEYS.LAST_SEEN_VERSION, version);
+      setLastSeenVersion(version);
     },
     [userId, profile],
   );
 
   const recordLesson = useCallback(async (lessonId: string, quizScore: number) => {
-    setCompletedLessons((prev) => ({ ...prev, [lessonId]: quizScore }));
     if (userId) {
-      await supabase
-        .from('lessons_completed')
-        .upsert({ user_id: userId, lesson_id: lessonId, quiz_score: quizScore });
+      assertMutation(
+        await supabase
+          .from('lessons_completed')
+          .upsert({ user_id: userId, lesson_id: lessonId, quiz_score: quizScore }),
+      );
     }
+    setCompletedLessons((prev) => ({ ...prev, [lessonId]: quizScore }));
   }, [userId]);
 
   const recordGoal = useCallback(async (value: number) => {
     if (goalsReached.includes(value)) return;
-    setGoalsReached((prev) => [...prev, value]);
     if (userId) {
-      await supabase.from('goals_reached').upsert({ user_id: userId, value });
+      assertMutation(await supabase.from('goals_reached').upsert({ user_id: userId, value }));
     }
+    setGoalsReached((prev) => [...prev, value]);
   }, [goalsReached, userId]);
 
   const activeWallet = wallets.find((w) => w.id === activeWalletId) || null;
@@ -1173,6 +1186,12 @@ export function useApp() {
   const ctx = useContext(AppContext);
   if (!ctx) throw new Error('useApp must be used within AppProvider');
   return ctx;
+}
+
+function assertMutation(result: { error?: { message?: string } | null }): void {
+  if (result.error) {
+    throw new Error(translateDbError(result.error.message || 'Falha ao salvar alteração'));
+  }
 }
 
 function translateDbError(msg: string): string {
