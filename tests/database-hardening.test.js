@@ -41,6 +41,7 @@ test('account deletion removes the auth user and identifying audit records', () 
   assert.match(sql, /delete from public\.audit_log where user_id = uid/);
   assert.match(sql, /delete from public\.wallet_shares[\s\S]*invited_user_id = uid/);
   assert.match(sql, /delete from auth\.users where id = uid/);
+  assert.match(sql, /drop function if exists public\.delete_my_account\(\)/);
   assert.match(sql, /revoke all on function public\.delete_my_account/);
   assert.match(sql, /grant execute on function public\.delete_my_account\(\) to authenticated/);
 });

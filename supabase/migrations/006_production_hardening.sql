@@ -2,6 +2,8 @@
 -- Authorization, invitation lifecycle, and complete account deletion.
 -- Idempotent: safe to run more than once.
 
+begin;
+
 -- ---------------------------------------------------------------------------
 -- Wallet and asset authorization
 -- ---------------------------------------------------------------------------
@@ -200,6 +202,10 @@ alter table public.operations
   add column if not exists fees numeric check (fees is null or fees >= 0),
   add column if not exists withholding_tax numeric check (withholding_tax is null or withholding_tax >= 0);
 
+-- PostgreSQL cannot change a function's return type with CREATE OR REPLACE.
+-- Drop only the previous no-argument account-deletion function, then recreate it.
+drop function if exists public.delete_my_account();
+
 create or replace function public.delete_my_account()
 returns jsonb
 language plpgsql
@@ -246,3 +252,5 @@ $$;
 
 revoke all on function public.delete_my_account() from public, anon;
 grant execute on function public.delete_my_account() to authenticated;
+
+commit;
