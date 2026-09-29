@@ -9,6 +9,7 @@ import { useApp } from '../context/AppContext';
 import OnboardingScreen from '../screens/OnboardingScreen';
 import AuthScreen from '../screens/AuthScreen';
 import PinScreen from '../screens/PinScreen';
+import PasswordRecoveryScreen from '../screens/PasswordRecoveryScreen';
 import ProfileQuizScreen from '../screens/ProfileQuizScreen';
 import DashboardScreen from '../screens/DashboardScreen';
 import PortfolioScreen from '../screens/PortfolioScreen';
@@ -209,7 +210,7 @@ function MainStack() {
 }
 
 export default function RootNavigator() {
-  const { loading, onboardingDone, user, hasPin, pinVerified, profile } = useApp();
+  const { loading, onboardingDone, user, hasPin, pinVerified, profile, passwordRecoveryActive } = useApp();
 
   if (loading) {
     return (
@@ -222,7 +223,9 @@ export default function RootNavigator() {
   return (
     <NavigationContainer ref={navigationRef}>
       <Stack.Navigator screenOptions={{ headerShown: false }}>
-        {!onboardingDone ? (
+        {passwordRecoveryActive ? (
+          <Stack.Screen name="PasswordRecovery" component={PasswordRecoveryScreen} />
+        ) : !onboardingDone ? (
           <Stack.Screen name="Onboarding" component={OnboardingScreen} />
         ) : !user ? (
           <Stack.Screen name="Auth" component={AuthScreen} />

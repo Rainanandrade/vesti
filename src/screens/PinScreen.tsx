@@ -21,11 +21,17 @@ import Logo from '../components/Logo';
 
 const PIN_LENGTH = 4;
 
-const MAX_ATTEMPTS = 5;
-const LOCKOUT_MS = 60_000;
-
 export default function PinScreen() {
-  const { hasPin, setPin, verifyPin, markPinVerified, signOut, user, resetPinWithPassword } = useApp();
+  const {
+    hasPin,
+    setPin,
+    verifyPin,
+    pinLockout,
+    markPinVerified,
+    signOut,
+    user,
+    resetPinWithPassword,
+  } = useApp();
 
   // Fluxo "Esqueci meu PIN": pede a SENHA da conta antes de deixar criar novo PIN
   const [resetOpen, setResetOpen] = useState(false);
@@ -73,9 +79,8 @@ export default function PinScreen() {
   const [firstPin, setFirstPin] = useState('');
   const [pin, setPinState] = useState('');
   const [shake, setShake] = useState(false);
-  const [attempts, setAttempts] = useState(0);
-  const [lockedUntil, setLockedUntil] = useState<number | null>(null);
   const [tick, setTick] = useState(0);
+  const lockedUntil = pinLockout.lockedUntil;
 
   // Re-render por segundo enquanto está em lockout
   useEffect(() => {
@@ -95,41 +100,41 @@ export default function PinScreen() {
   }, [pin]);
 
   const handleComplete = async () => {
-    if (isSetup) {
-      if (step === 'first') {
-        setFirstPin(pin);
-        setStep('confirm');
-        setPinState('');
-      } else {
-        if (pin === firstPin) {
-          await setPin(pin);
-        } else {
-          Alert.alert('PIN não confere', 'Tente novamente.');
-          setStep('first');
-          setFirstPin('');
+    try {
+      if (isSetup) {
+        if (step === 'first') {
+          setFirstPin(pin);
+          setStep('confirm');
           setPinState('');
+        } else {
+          if (pin === firstPin) {
+            await setPin(pin);
+          } else {
+            Alert.alert('PIN não confere', 'Tente novamente.');
+            setStep('first');
+            setFirstPin('');
+            setPinState('');
+          }
         }
-      }
-    } else {
-      const ok = await verifyPin(pin);
-      if (ok) {
-        setAttempts(0);
-        setLockedUntil(null);
-        markPinVerified();
       } else {
-        const next = attempts + 1;
-        setAttempts(next);
-        setShake(true);
-        setPinState('');
-        setTimeout(() => setShake(false), 400);
-        if (next >= MAX_ATTEMPTS) {
-          setLockedUntil(Date.now() + LOCKOUT_MS);
-          Alert.alert(
-            'Muitas tentativas',
-            'Você errou 5 vezes. Espera 1 minuto antes de tentar novamente, ou faz logout pra recomeçar.',
-          );
+        const result = await verifyPin(pin);
+        if (result.ok) {
+          markPinVerified();
+        } else {
+          setPinState('');
+          setShake(true);
+          setTimeout(() => setShake(false), 400);
+          if (result.lockedUntil) {
+            Alert.alert(
+              'Muitas tentativas',
+              'Você errou 5 vezes. Aguarde 1 minuto antes de tentar novamente, ou saia da conta.',
+            );
+          }
         }
       }
+    } catch {
+      setPinState('');
+      Alert.alert('Não foi possível salvar', 'O dispositivo não conseguiu proteger o PIN. Tente novamente.');
     }
   };
 

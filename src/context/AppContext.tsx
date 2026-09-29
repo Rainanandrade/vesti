@@ -1,7 +1,12 @@
 import { createContext, useContext, useEffect, useState, ReactNode, useCallback } from 'react';
-import { Storage, KEYS, Secure, SECURE_KEYS } from '../storage/storage';
+import { Linking } from 'react-native';
+import { Storage, KEYS, Secure, SECURE_KEYS, pinLockoutKey } from '../storage/storage';
 import { Profile } from '../data/profileQuiz';
 import { supabase } from '../services/supabase';
+import { isPinLocked, normalizePinLockout, registerPinFailure } from '../utils/pinLockout';
+
+type PinLockoutState = { attempts: number; lockedUntil: number | null };
+type PinVerification = PinLockoutState & { ok: boolean };
 
 export type Asset = {
   id?: string;
@@ -43,10 +48,13 @@ type AppContextType = {
   signIn: (email: string, password: string) => Promise<{ ok: boolean; error?: string }>;
   signOut: () => Promise<void>;
   resetPassword: (email: string) => Promise<{ ok: boolean; error?: string }>;
+  passwordRecoveryActive: boolean;
+  completePasswordRecovery: (password: string) => Promise<{ ok: boolean; error?: string }>;
 
   hasPin: boolean;
   setPin: (pin: string) => Promise<void>;
-  verifyPin: (pin: string) => Promise<boolean>;
+  verifyPin: (pin: string) => Promise<PinVerification>;
+  pinLockout: PinLockoutState;
   pinVerified: boolean;
   markPinVerified: () => void;
   resetPinSession: () => void;
@@ -160,6 +168,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [userId, setUserId] = useState<string | null>(null);
   const [hasPin, setHasPin] = useState(false);
   const [pinVerified, setPinVerified] = useState(false);
+  const [pinLockout, setPinLockout] = useState<PinLockoutState>({ attempts: 0, lockedUntil: null });
+  const [passwordRecoveryActive, setPasswordRecoveryActive] = useState(false);
   const [profile, setProfileState] = useState<Profile | null>(null);
   const [wallets, setWallets] = useState<Wallet[]>([]);
   const [activeWalletId, setActiveWalletIdState] = useState<string | null>(null);
@@ -345,6 +355,28 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  const handleRecoveryUrl = useCallback(async (url: string) => {
+    if (!url.startsWith('vesti://password-recovery')) return;
+    const params = getAuthParams(url);
+    const code = params.get('code');
+    const accessToken = params.get('access_token');
+    const refreshToken = params.get('refresh_token');
+
+    if (code) {
+      const { error } = await supabase.auth.exchangeCodeForSession(code);
+      if (error) throw error;
+    } else if (accessToken && refreshToken) {
+      const { error } = await supabase.auth.setSession({
+        access_token: accessToken,
+        refresh_token: refreshToken,
+      });
+      if (error) throw error;
+    } else {
+      return;
+    }
+    setPasswordRecoveryActive(true);
+  }, []);
+
   // Init: detecta sessão existente e dados locais (PIN, onboarding)
   useEffect(() => {
     (async () => {
@@ -376,6 +408,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       // upsert responder, refresh dispara e volta o valor antigo).
       // Só recarrega em eventos que realmente mudam o usuário.
       const shouldReload = event === 'SIGNED_IN' || event === 'USER_UPDATED' || event === 'INITIAL_SESSION';
+      if (event === 'PASSWORD_RECOVERY') setPasswordRecoveryActive(true);
       if (session?.user) {
         setUserId(session.user.id);
         if (shouldReload) await loadUserData(session.user.id, session.user.email || '');
@@ -392,8 +425,31 @@ export function AppProvider({ children }: { children: ReactNode }) {
         setPinVerified(false);
       }
     });
-    return () => sub.subscription.unsubscribe();
-  }, [loadUserData]);
+    Linking.getInitialURL()
+      .then((url) => (url ? handleRecoveryUrl(url) : undefined))
+      .catch((error) => console.warn('Password recovery link failed', error));
+    const linkSubscription = Linking.addEventListener('url', ({ url }) => {
+      handleRecoveryUrl(url).catch((error) => console.warn('Password recovery link failed', error));
+    });
+    return () => {
+      sub.subscription.unsubscribe();
+      linkSubscription.remove();
+    };
+  }, [handleRecoveryUrl, loadUserData]);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!userId) {
+      setPinLockout({ attempts: 0, lockedUntil: null });
+      return;
+    }
+    Storage.get<PinLockoutState>(pinLockoutKey(userId)).then((stored) => {
+      if (!cancelled) setPinLockout(normalizePinLockout(stored));
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [userId]);
 
   const proStatus: ProStatus = (() => {
     const now = Date.now();
@@ -467,24 +523,54 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setGoalsReached([]);
     setCompletedLessons({});
     setPinVerified(false);
+    setPasswordRecoveryActive(false);
   }, []);
 
   const resetPassword = useCallback(async (email: string) => {
-    const { error } = await supabase.auth.resetPasswordForEmail(email);
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: 'vesti://password-recovery',
+    });
     if (error) return { ok: false, error: friendlyError(error.message) };
+    return { ok: true };
+  }, []);
+
+  const completePasswordRecovery = useCallback(async (password: string) => {
+    const { error } = await supabase.auth.updateUser({ password });
+    if (error) return { ok: false, error: friendlyError(error.message) };
+    setPasswordRecoveryActive(false);
     return { ok: true };
   }, []);
 
   const setPin = useCallback(async (pin: string) => {
     await Secure.set(SECURE_KEYS.PIN, pin);
+    if (userId) await Storage.removeRequired(pinLockoutKey(userId));
+    setPinLockout({ attempts: 0, lockedUntil: null });
     setHasPin(true);
     setPinVerified(true);
-  }, []);
+  }, [userId]);
 
-  const verifyPin = useCallback(async (pin: string): Promise<boolean> => {
+  const verifyPin = useCallback(async (pin: string): Promise<PinVerification> => {
+    if (!userId) return { ok: false, attempts: 0, lockedUntil: null };
+    const storedLockout = await Storage.get<PinLockoutState>(pinLockoutKey(userId));
+    const current = normalizePinLockout(storedLockout);
+    if (isPinLocked(current)) {
+      setPinLockout(current);
+      return { ok: false, ...current };
+    }
+
     const stored = await Secure.get(SECURE_KEYS.PIN);
-    return stored === pin;
-  }, []);
+    if (stored === pin) {
+      await Storage.removeRequired(pinLockoutKey(userId));
+      const cleared = { attempts: 0, lockedUntil: null };
+      setPinLockout(cleared);
+      return { ok: true, ...cleared };
+    }
+
+    const next = registerPinFailure(current);
+    await Storage.setRequired(pinLockoutKey(userId), next);
+    setPinLockout(next);
+    return { ok: false, ...next };
+  }, [userId]);
 
   const markPinVerified = useCallback(() => setPinVerified(true), []);
   const resetPinSession = useCallback(() => setPinVerified(false), []);
@@ -572,6 +658,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
       // 3) Senha correta → grava novo PIN e limpa rate limit
       await Secure.set(SECURE_KEYS.PIN, newPin);
+      if (userId) await Storage.removeRequired(pinLockoutKey(userId));
+      setPinLockout({ attempts: 0, lockedUntil: null });
       setHasPin(true);
       setPinVerified(true);
       await Storage.remove(KEYS.PIN_RESET_ATTEMPTS);
@@ -1026,9 +1114,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
         signIn,
         signOut,
         resetPassword,
+        passwordRecoveryActive,
+        completePasswordRecovery,
         hasPin,
         setPin,
         verifyPin,
+        pinLockout,
         pinVerified,
         markPinVerified,
         resetPinSession,
@@ -1104,4 +1195,17 @@ function friendlyError(msg: string): string {
   if (m.includes('password should be')) return 'A senha precisa ter pelo menos 6 caracteres';
   if (m.includes('invalid email')) return 'Email inválido';
   return msg;
+}
+
+function getAuthParams(url: string): URLSearchParams {
+  const params = new URLSearchParams();
+  const queryIndex = url.indexOf('?');
+  const hashIndex = url.indexOf('#');
+  for (const index of [queryIndex, hashIndex]) {
+    if (index < 0) continue;
+    const end = index === queryIndex && hashIndex > index ? hashIndex : url.length;
+    const section = url.slice(index + 1, end);
+    new URLSearchParams(section).forEach((value, key) => params.set(key, value));
+  }
+  return params;
 }

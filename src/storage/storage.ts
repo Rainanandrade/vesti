@@ -33,6 +33,14 @@ export const Storage = {
     }
   },
 
+  async setRequired<T>(key: string, value: T): Promise<void> {
+    await AsyncStorage.setItem(key, JSON.stringify(value));
+  },
+
+  async removeRequired(key: string): Promise<void> {
+    await AsyncStorage.removeItem(key);
+  },
+
   async clearAll(): Promise<void> {
     try {
       await AsyncStorage.clear();
@@ -58,26 +66,18 @@ export const Secure = {
     }
   },
   async set(key: string, value: string): Promise<void> {
-    try {
-      if (useFallback) {
-        await AsyncStorage.setItem(`secure:${key}`, value);
-        return;
-      }
-      await SecureStore.setItemAsync(key, value);
-    } catch {
-      // ignore
+    if (useFallback) {
+      await AsyncStorage.setItem(`secure:${key}`, value);
+      return;
     }
+    await SecureStore.setItemAsync(key, value);
   },
   async remove(key: string): Promise<void> {
-    try {
-      if (useFallback) {
-        await AsyncStorage.removeItem(`secure:${key}`);
-        return;
-      }
-      await SecureStore.deleteItemAsync(key);
-    } catch {
-      // ignore
+    if (useFallback) {
+      await AsyncStorage.removeItem(`secure:${key}`);
+      return;
     }
+    await SecureStore.deleteItemAsync(key);
   },
 };
 
@@ -92,7 +92,12 @@ export const KEYS = {
   LAST_SEEN_VERSION: 'last_seen_version',
   // Rate limit local de tentativas de reset de PIN (anti brute-force)
   PIN_RESET_ATTEMPTS: 'pin_reset_attempts',
+  PIN_LOCKOUT_PREFIX: 'pin_lockout',
 };
+
+export function pinLockoutKey(userId: string): string {
+  return `${KEYS.PIN_LOCKOUT_PREFIX}:${userId}`;
+}
 
 export const SECURE_KEYS = {
   PASSWORD: 'auth_password',
