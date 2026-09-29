@@ -33,6 +33,8 @@ export default function OperacoesScreen({ navigation }: any) {
   const [search, setSearch] = useState('');
   const [quantity, setQuantity] = useState('');
   const [price, setPrice] = useState('');
+  const [fees, setFees] = useState('');
+  const [withholdingTax, setWithholdingTax] = useState('');
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
   const [saving, setSaving] = useState(false);
   const [filterMonth, setFilterMonth] = useState(new Date().toISOString().slice(0, 7));
@@ -85,6 +87,8 @@ export default function OperacoesScreen({ navigation }: any) {
   const handleAdd = async () => {
     const qty = parseFloat(quantity.replace(',', '.'));
     const pr = parseFormattedNumber(price);
+    const operationFees = parseFormattedNumber(fees);
+    const operationWithholding = parseFormattedNumber(withholdingTax);
     if (!symbol.trim()) return Alert.alert('Atenção', 'Informe o ticker');
     if (!isFinite(qty) || qty <= 0) return Alert.alert('Atenção', 'Quantidade inválida');
     if (!isFinite(pr) || pr <= 0) return Alert.alert('Atenção', 'Preço inválido');
@@ -98,6 +102,8 @@ export default function OperacoesScreen({ navigation }: any) {
         assetType,
         quantity: qty,
         price: pr,
+        fees: operationFees,
+        withholdingTax: operationWithholding,
         date,
       });
       setAddOpen(false);
@@ -105,6 +111,8 @@ export default function OperacoesScreen({ navigation }: any) {
       setSearch('');
       setQuantity('');
       setPrice('');
+      setFees('');
+      setWithholdingTax('');
       setDate(new Date().toISOString().slice(0, 10));
     } catch (e: any) {
       Alert.alert('Erro', e?.message || 'Não foi possível salvar.');
@@ -185,7 +193,7 @@ export default function OperacoesScreen({ navigation }: any) {
                 {fmtBRL(summary.fii.vendido + summary.etf.vendido, privacyMode)}
               </Text>
               <View style={styles.fiiBadge}>
-                <Text style={styles.fiiBadgeText}>FII isento</Text>
+                <Text style={styles.fiiBadgeText}>sem isenção na venda</Text>
               </View>
             </View>
           </View>
@@ -357,6 +365,28 @@ export default function OperacoesScreen({ navigation }: any) {
                 placeholder="AAAA-MM-DD"
                 autoCapitalize="none"
               />
+
+              <Text style={styles.label}>Custos e taxas (R$)</Text>
+              <TextInput
+                style={styles.input}
+                value={fees}
+                onChangeText={(t) => setFees(formatCurrencyInput(t))}
+                placeholder="0,00"
+                keyboardType="decimal-pad"
+              />
+
+              {type === 'sell' && (
+                <>
+                  <Text style={styles.label}>IR retido na fonte — IRRF (R$)</Text>
+                  <TextInput
+                    style={styles.input}
+                    value={withholdingTax}
+                    onChangeText={(t) => setWithholdingTax(formatCurrencyInput(t))}
+                    placeholder="0,00"
+                    keyboardType="decimal-pad"
+                  />
+                </>
+              )}
 
               {parseFloat(quantity.replace(',', '.')) > 0 && parseFormattedNumber(price) > 0 && (
                 <View style={styles.totalPreview}>

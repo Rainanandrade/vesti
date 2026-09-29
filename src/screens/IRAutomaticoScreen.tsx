@@ -63,7 +63,9 @@ export default function IRAutomaticoScreen({ navigation }: any) {
                     </View>
                   ) : (
                     <View style={[styles.dueBadge, { backgroundColor: colors.successLight }]}>
-                      <Text style={[styles.dueText, { color: colors.success }]}>Sem IR</Text>
+                      <Text style={[styles.dueText, { color: colors.success }]}>
+                        {m.carriedDarfOut > 0 ? 'A acumular' : 'Sem IR'}
+                      </Text>
                     </View>
                   )}
                 </View>
@@ -71,7 +73,7 @@ export default function IRAutomaticoScreen({ navigation }: any) {
                 {/* Swing trade */}
                 {m.swingProfitLoss !== 0 && (
                   <View style={styles.section}>
-                    <Text style={styles.sectionLabel}>Swing trade (ações + ETFs)</Text>
+                    <Text style={styles.sectionLabel}>Swing trade (ações)</Text>
                     <View style={styles.row}>
                       <Text style={styles.rowLabel}>Vendas do mês</Text>
                       <Text style={styles.rowValue}>{fmtBRL(m.swingSalesVolume)}</Text>
@@ -87,6 +89,22 @@ export default function IRAutomaticoScreen({ navigation }: any) {
                     )}
                     {m.taxByCategory.swing > 0 && (
                       <Text style={styles.taxNote}>IR swing (15%): {fmtBRL(m.taxByCategory.swing)}</Text>
+                    )}
+                  </View>
+                )}
+
+                {/* ETF */}
+                {m.etfProfitLoss !== 0 && (
+                  <View style={styles.section}>
+                    <Text style={styles.sectionLabel}>ETFs (sem isenção de R$ 20 mil)</Text>
+                    <View style={styles.row}>
+                      <Text style={styles.rowLabel}>Lucro/Prejuízo</Text>
+                      <Text style={[styles.rowValue, { color: m.etfProfitLoss >= 0 ? colors.success : colors.danger }]}>
+                        {fmtBRL(m.etfProfitLoss)}
+                      </Text>
+                    </View>
+                    {m.taxByCategory.etf > 0 && (
+                      <Text style={styles.taxNote}>IR ETF (15%): {fmtBRL(m.taxByCategory.etf)}</Text>
                     )}
                   </View>
                 )}
@@ -139,13 +157,23 @@ export default function IRAutomaticoScreen({ navigation }: any) {
                     </Text>
                   </View>
                 )}
+                {m.carriedDarfOut > 0 && (
+                  <Text style={styles.note}>
+                    Imposto de {fmtBRL(m.carriedDarfOut)} acumulado para o próximo DARF (mínimo de R$ 10).
+                  </Text>
+                )}
+                {m.incompleteCostBasis && (
+                  <Text style={styles.taxNote}>
+                    Há venda sem histórico de compra suficiente; revise os lançamentos antes de pagar.
+                  </Text>
+                )}
               </Card>
             );
           })}
 
           <Text style={styles.footnote}>
             Cálculo aproximado. Consulte seu contador em casos de dúvida ou grandes valores.
-            Regras: swing isento até R$ 20k/mês, day trade sempre 20%, FII sempre 20%, compensação de prejuízos entre meses do mesmo tipo.
+            Regras: somente vendas comuns de ações têm isenção até R$ 20 mil/mês. ETFs, day trade e FIIs não têm essa isenção. Prejuízos são compensados apenas na mesma categoria.
           </Text>
         </ProLock>
       </ScrollView>

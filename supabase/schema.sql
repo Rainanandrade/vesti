@@ -85,6 +85,8 @@ create table if not exists public.operations (
   asset_type text default 'acao' check (asset_type in ('acao', 'fii', 'etf', 'daytrade')),
   quantity numeric not null,
   price numeric not null,
+  fees numeric check (fees is null or fees >= 0),
+  withholding_tax numeric check (withholding_tax is null or withholding_tax >= 0),
   date date not null,
   notes text,
   created_at timestamptz default now()

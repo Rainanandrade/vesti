@@ -196,6 +196,10 @@ grant execute on function public.accept_wallet_invitation(uuid) to authenticated
 -- Complete, transactional account deletion
 -- ---------------------------------------------------------------------------
 
+alter table public.operations
+  add column if not exists fees numeric check (fees is null or fees >= 0),
+  add column if not exists withholding_tax numeric check (withholding_tax is null or withholding_tax >= 0);
+
 create or replace function public.delete_my_account()
 returns jsonb
 language plpgsql

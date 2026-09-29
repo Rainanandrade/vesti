@@ -128,6 +128,8 @@ export type Operation = {
   assetType: 'acao' | 'fii' | 'etf' | 'daytrade';
   quantity: number;
   price: number;
+  fees?: number;
+  withholdingTax?: number;
   date: string;          // YYYY-MM-DD
   notes?: string;
   createdAt: number;
@@ -283,7 +285,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     // Operations (ledger pra IR)
     const { data: ops } = await supabase
       .from('operations')
-      .select('id, type, symbol, asset_type, quantity, price, date, notes, created_at')
+      .select('id, type, symbol, asset_type, quantity, price, fees, withholding_tax, date, notes, created_at')
       .eq('user_id', uid)
       .order('date', { ascending: false });
     if (ops) {
@@ -295,6 +297,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
           assetType: o.asset_type,
           quantity: Number(o.quantity),
           price: Number(o.price),
+          fees: Number(o.fees || 0),
+          withholdingTax: Number(o.withholding_tax || 0),
           date: o.date,
           notes: o.notes,
           createdAt: new Date(o.created_at).getTime(),
@@ -815,6 +819,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
           asset_type: op.assetType,
           quantity: op.quantity,
           price: op.price,
+          fees: op.fees || 0,
+          withholding_tax: op.withholdingTax || 0,
           date: op.date,
           notes: op.notes,
         })
@@ -828,6 +834,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
         assetType: data.asset_type,
         quantity: Number(data.quantity),
         price: Number(data.price),
+        fees: Number(data.fees || 0),
+        withholdingTax: Number(data.withholding_tax || 0),
         date: data.date,
         notes: data.notes,
         createdAt: new Date(data.created_at).getTime(),

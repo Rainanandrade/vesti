@@ -20,7 +20,7 @@ import ProLock from '../components/ProLock';
 import Isentometro from '../components/Isentometro';
 import { useApp } from '../context/AppContext';
 
-type Mode = 'acao' | 'fii' | 'daytrade' | 'dividendos';
+type Mode = 'acao' | 'etf' | 'fii' | 'daytrade' | 'dividendos';
 
 const MODE_INFO: Record<
   Mode,
@@ -31,6 +31,12 @@ const MODE_INFO: Record<
     rate: 0.15,
     code: '6015',
     note: 'Isento se total vendido no mês ≤ R$ 20.000. Acima disso, paga 15% sobre o lucro.',
+  },
+  etf: {
+    label: 'ETF (venda)',
+    rate: 0.15,
+    code: '6015',
+    note: '15% sobre o lucro em operações comuns. ETF não usa a isenção mensal de R$ 20 mil das ações.',
   },
   fii: {
     label: 'FII (venda)',
@@ -77,7 +83,7 @@ export default function IRCalculatorScreen({ navigation }: any) {
   const hasProfit = profit > 0;
   const irDue = isExempt || !hasProfit ? 0 : profit * info.rate;
   const liquido = profit - irDue;
-  const needsDarf = irDue > 0 && mode !== 'dividendos';
+  const needsDarf = irDue >= 10 && mode !== 'dividendos';
 
   // Cálculo dividendos
   const dividendoIrRetido = dividendoTipo === 'jcp' ? recebido * 0.15 : 0;
@@ -137,7 +143,7 @@ export default function IRCalculatorScreen({ navigation }: any) {
           <Text style={styles.sectionLabel}>Tipo de operação</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
             <View style={styles.modeRow}>
-              {(['acao', 'fii', 'daytrade', 'dividendos'] as Mode[]).map((m) => (
+              {(['acao', 'etf', 'fii', 'daytrade', 'dividendos'] as Mode[]).map((m) => (
                 <TouchableOpacity
                   key={m}
                   style={[styles.modeChip, mode === m && styles.modeChipActive]}
@@ -354,10 +360,14 @@ export default function IRCalculatorScreen({ navigation }: any) {
                       </View>
                       <View style={styles.darfBox}>
                         <Text style={styles.darfLabel}>Precisa emitir DARF?</Text>
-                        <Text style={[styles.darfCode, { color: colors.warning }]}>SIM</Text>
+                        <Text style={[styles.darfCode, { color: needsDarf ? colors.warning : colors.success }]}>
+                          {needsDarf ? 'SIM' : 'ACUMULE'}
+                        </Text>
                         <Text style={styles.darfCode}>{info.code}</Text>
                         <Text style={styles.darfNote}>
-                          Pague até o último dia útil do mês seguinte ao mês das operações.
+                          {needsDarf
+                            ? 'Pague até o último dia útil do mês seguinte ao mês das operações.'
+                            : 'DARF abaixo de R$ 10 não é emitido agora; some o valor ao imposto dos meses seguintes.'}
                         </Text>
                       </View>
                     </>

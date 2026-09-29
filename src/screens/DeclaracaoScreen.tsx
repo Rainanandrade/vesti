@@ -124,13 +124,14 @@ export default function DeclaracaoScreen({ navigation }: any) {
     lines.push(`Total vendido no ano: R$ ${totalSellOps.toFixed(2)}\n`);
 
     // Vendas mês a mês (pra preencher anexo mensal)
-    const sellsByMonth: Record<string, { acao: number; fii: number; dt: number }> = {};
+    const sellsByMonth: Record<string, { acao: number; etf: number; fii: number; dt: number }> = {};
     opsYear.filter((o) => o.type === 'sell').forEach((o) => {
       const mk = o.date.slice(0, 7);
-      const cur = sellsByMonth[mk] || { acao: 0, fii: 0, dt: 0 };
+      const cur = sellsByMonth[mk] || { acao: 0, etf: 0, fii: 0, dt: 0 };
       const val = o.price * o.quantity;
       if (o.assetType === 'daytrade') cur.dt += val;
       else if (o.assetType === 'fii') cur.fii += val;
+      else if (o.assetType === 'etf') cur.etf += val;
       else cur.acao += val;
       sellsByMonth[mk] = cur;
     });
@@ -140,6 +141,7 @@ export default function DeclaracaoScreen({ navigation }: any) {
         const [y, m] = mk.split('-');
         lines.push(`\n📅 ${MONTHS_PT[Number(m) - 1]}/${y}`);
         if (v.acao > 0) lines.push(`  Swing-trade ações: R$ ${v.acao.toFixed(2)}${v.acao <= 20000 ? ' (isento — abaixo de 20k)' : ' (TRIBUTADO 15%)'}`);
+        if (v.etf > 0) lines.push(`  ETFs: R$ ${v.etf.toFixed(2)} (TRIBUTADO 15% sobre lucro; sem isenção de 20k)`);
         if (v.fii > 0) lines.push(`  FIIs: R$ ${v.fii.toFixed(2)} (TRIBUTADO 20% sobre lucro)`);
         if (v.dt > 0) lines.push(`  Day-trade: R$ ${v.dt.toFixed(2)} (TRIBUTADO 20%)`);
       });
