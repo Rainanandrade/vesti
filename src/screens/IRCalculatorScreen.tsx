@@ -42,7 +42,7 @@ const MODE_INFO: Record<
     label: 'FII (venda)',
     rate: 0.2,
     code: '6015',
-    note: 'Sempre 20% sobre o lucro. FII NÃO tem isenção dos R$ 20k. Rendimentos mensais distribuídos são isentos.',
+    note: 'Sempre 20% sobre o lucro. FII NÃO tem isenção dos R$ 20 mil. Rendimentos distribuídos podem ser isentos quando cumprem os requisitos legais.',
   },
   daytrade: {
     label: 'Day-trade',
@@ -54,7 +54,7 @@ const MODE_INFO: Record<
     label: 'Dividendos / JCP',
     rate: 0.15,
     code: '—',
-    note: 'Dividendos de ações são isentos. JCP tem 15% retido na fonte (já descontado).',
+    note: 'Desde janeiro de 2026, dividendos acima de R$ 50 mil no mês, pagos pela mesma empresa à mesma pessoa física, têm IRRF de 10%. JCP mantém retenção de 15%.',
   },
 };
 
@@ -86,7 +86,13 @@ export default function IRCalculatorScreen({ navigation }: any) {
   const needsDarf = irDue >= 10 && mode !== 'dividendos';
 
   // Cálculo dividendos
-  const dividendoIrRetido = dividendoTipo === 'jcp' ? recebido * 0.15 : 0;
+  const dividendoTemRetencaoMensal = dividendoTipo === 'dividendo' && recebido > 50000;
+  const dividendoIrRetido =
+    dividendoTipo === 'jcp'
+      ? recebido * 0.15
+      : dividendoTemRetencaoMensal
+      ? recebido * 0.1
+      : 0;
   const dividendoLiquido = recebido - dividendoIrRetido;
 
   return (
@@ -208,23 +214,50 @@ export default function IRCalculatorScreen({ navigation }: any) {
                 <Card
                   style={[
                     styles.resultCard,
-                    dividendoTipo === 'dividendo'
+                    dividendoTipo === 'dividendo' && !dividendoTemRetencaoMensal
                       ? styles.resultCardExempt
                       : styles.resultCardOwe,
                   ]}
                 >
                   {dividendoTipo === 'dividendo' ? (
                     <>
-                      <Ionicons name="checkmark-circle" size={32} color={colors.success} />
-                      <Text style={styles.resultTitle}>Isento de IR</Text>
-                      <Text style={styles.resultBody}>
-                        Dividendos de ações são isentos de Imposto de Renda pra pessoa física (Lei 9.249/95). Você recebe os {fmtBRL(recebido)} líquidos.
+                      <Ionicons
+                        name={dividendoTemRetencaoMensal ? 'document-text' : 'checkmark-circle'}
+                        size={32}
+                        color={dividendoTemRetencaoMensal ? colors.warning : colors.success}
+                      />
+                      <Text style={styles.resultTitle}>
+                        {dividendoTemRetencaoMensal
+                          ? '10% retido na fonte'
+                          : 'Sem retenção mensal neste pagamento'}
                       </Text>
+                      {dividendoTemRetencaoMensal ? (
+                        <>
+                          <View style={styles.resultRow}>
+                            <Text style={styles.resultRowLabel}>Valor bruto:</Text>
+                            <Text style={styles.resultRowValue}>{fmtBRL(recebido)}</Text>
+                          </View>
+                          <View style={styles.resultRow}>
+                            <Text style={styles.resultRowLabel}>IRRF (10%):</Text>
+                            <Text style={styles.resultRowValue}>−{fmtBRL(dividendoIrRetido)}</Text>
+                          </View>
+                          <View style={styles.resultRow}>
+                            <Text style={styles.resultRowLabel}>Você recebe líquido:</Text>
+                            <Text style={[styles.resultRowValue, { color: colors.success, fontWeight: '700' }]}>
+                              {fmtBRL(dividendoLiquido)}
+                            </Text>
+                          </View>
+                        </>
+                      ) : (
+                        <Text style={styles.resultBody}>
+                          O valor informado não ultrapassa R$ 50 mil. O limite considera o total pago pela mesma empresa à mesma pessoa física no mesmo mês.
+                        </Text>
+                      )}
                       <View style={styles.darfBox}>
                         <Text style={styles.darfLabel}>Precisa emitir DARF?</Text>
                         <Text style={[styles.darfCode, { color: colors.success }]}>NÃO</Text>
                         <Text style={styles.darfNote}>
-                          Mas você precisa declarar na ficha "Rendimentos Isentos e Não Tributáveis" no IRPF anual.
+                          A fonte pagadora faz a retenção quando aplicável. Rendimentos anuais acima de R$ 600 mil podem entrar no regime anual de tributação mínima; o IRRF pode ser compensado na declaração.
                         </Text>
                       </View>
                     </>
@@ -261,13 +294,13 @@ export default function IRCalculatorScreen({ navigation }: any) {
               <View style={styles.tipBox}>
                 <Text style={styles.tipTitle}>💡 Casos especiais</Text>
                 <Text style={styles.tipText}>
-                  • <Text style={{ fontWeight: '700' }}>Rendimento de FII</Text>: ISENTO (atende 50+ cotistas, ≤10% da posse, fundo em bolsa).
+                  • <Text style={{ fontWeight: '700' }}>Rendimento de FII</Text>: pode ser isento quando cumpre os requisitos legais; ganho na venda continua tributado a 20%.
                 </Text>
                 <Text style={styles.tipText}>
-                  • <Text style={{ fontWeight: '700' }}>Dividendos de BDR</Text>: 30% retido nos EUA + declaração de exterior no IRPF.
+                  • <Text style={{ fontWeight: '700' }}>Dividendos de BDR</Text>: a tributação varia conforme o país e o recibo. Confira o informe da instituição depositária.
                 </Text>
                 <Text style={styles.tipText}>
-                  • <Text style={{ fontWeight: '700' }}>Reforma tributária</Text>: existe PL pra tributar dividendos em 15% a partir de 2027. Aguarde aprovação.
+                  • <Text style={{ fontWeight: '700' }}>Regra de 2026</Text>: a retenção mensal e a tributação mínima anual foram instituídas pela Lei 15.270/2025.
                 </Text>
               </View>
             </>

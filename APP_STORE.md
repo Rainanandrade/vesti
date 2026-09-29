@@ -39,12 +39,7 @@
    - **Bundle ID**: `com.rainangleidson.vesti` (vai aparecer após criar provisioning)
    - **SKU**: `vesti-app` (interno, qualquer string)
 4. Anotar o **ASC App ID** (numérico) e o **Team ID** (10 chars)
-5. Atualizar `eas.json` → seção `submit.production.ios`:
-   ```json
-   "appleId": "seu@email.com",
-   "ascAppId": "123456789",
-   "appleTeamId": "ABCDEFGHIJ"
-   ```
+5. Configurar as credenciais pelo fluxo seguro do EAS com `eas credentials` ou durante o primeiro `eas submit`. Não grave Apple ID, senha específica, ASC App ID ou Team ID no repositório.
 
 ---
 
@@ -75,7 +70,7 @@ PRINCIPAIS FUNCIONALIDADES
 • Próximos pagamentos confirmados
 
 📋 IR e Declaração
-• Isentômetro (R$ 20k/mês swing-trade)
+• Isentômetro de ações em operações comuns (R$ 20 mil/mês)
 • Calculadora de DARF mensal
 • Relatório Copia & Cola pra preencher no DIRPF
 • Códigos DIRPF (09 dividendos, 10 JCP)
@@ -154,6 +149,22 @@ Não oferecemos garantia de retorno nem aconselhamento financeiro personalizado.
 ---
 
 ## 5. Build e Submit via EAS
+
+### Credenciais externas de produção
+
+Configure as variáveis abaixo somente nos ambientes protegidos dos respectivos provedores (Vercel, Supabase e EAS). Nunca use o prefixo `EXPO_PUBLIC_` para segredos e nunca faça commit de arquivos `.env`:
+
+- `GROQ_API_KEY`
+- `BRAPI_TOKEN`
+- `SUPABASE_SERVICE_ROLE`
+- `PLUGGY_CLIENT_ID`
+- `PLUGGY_CLIENT_SECRET`
+- `UPSTASH_REDIS_REST_URL`
+- `UPSTASH_REDIS_REST_TOKEN`
+- `SUPABASE_URL`
+- `SUPABASE_ANON_KEY` (configuração pública do cliente, não uma chave administrativa)
+
+Antes da publicação, aplique a migração `006_production_hardening.sql`, autorize a URL `vesti://password-recovery` nos redirects do Supabase Auth e execute `npm run verify`.
 
 ### Primeira vez:
 

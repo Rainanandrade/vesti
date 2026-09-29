@@ -3,7 +3,7 @@
 
 export const APP_NAME = 'Vesti';
 export const SUPPORT_EMAIL = 'rainangleidson@protonmail.com';
-export const LEGAL_DATE = '17 de junho de 2026';
+export const LEGAL_DATE = '29 de setembro de 2026';
 
 export const PRIVACY_POLICY = `
 # Política de Privacidade
@@ -21,7 +21,7 @@ Vesti é um aplicativo de acompanhamento de carteira de investimentos. Não somo
 Coletamos as seguintes informações que você nos fornece diretamente:
 
 - **Identificação**: nome e endereço de email.
-- **Autenticação**: senha (armazenada de forma criptografada — nunca em texto puro).
+- **Autenticação**: credenciais processadas pelo Supabase Auth. O Vesti não mantém uma cópia local da senha da sua conta.
 - **Perfil financeiro**: respostas do questionário (perfil de risco, tolerância, objetivos).
 - **Carteira**: ativos adicionados manualmente, quantidades, preços médios.
 - **Corretoras selecionadas**: lista das corretoras que você indica usar.
@@ -31,9 +31,9 @@ Coletamos as seguintes informações que você nos fornece diretamente:
 
 ## 3. Como armazenamos seus dados
 
-Seus dados são armazenados em servidores do **Supabase** (localizados em São Paulo, Brasil) com criptografia em trânsito (HTTPS) e em repouso (AES-256). Cada usuário só consegue acessar os próprios dados (Row Level Security).
+Seus dados de conta e carteira são armazenados no **Supabase**, com tráfego protegido por HTTPS e regras de acesso por usuário (Row Level Security).
 
-O **PIN** e a **senha** ficam adicionalmente criptografados no seu próprio dispositivo via SecureStore (iOS Keychain / Android Keystore).
+O **PIN** do app é armazenado no mecanismo seguro nativo do dispositivo (iOS Keychain / Android Keystore). Na versão web, quando o PIN é habilitado, o navegador usa seu armazenamento local; por isso, não ative o PIN em dispositivos compartilhados.
 
 ## 4. Como usamos seus dados
 
@@ -70,7 +70,7 @@ Para exercer qualquer direito, envie um email para **${SUPPORT_EMAIL}** com o as
 
 ## 7. Exclusão da conta
 
-Você pode excluir sua conta a qualquer momento dentro do app em **Ajustes → Excluir conta**. Ao confirmar, todos os seus dados são apagados em até 30 dias dos nossos servidores e backups.
+Você pode excluir sua conta a qualquer momento dentro do app em **Ajustes → Excluir conta**. Ao confirmar, a conta e os dados ativos vinculados a ela são removidos. Cópias de segurança técnicas, quando existentes, seguem os prazos de retenção e descarte do provedor de infraestrutura.
 
 ## 8. Segurança técnica
 
@@ -80,7 +80,7 @@ Aplicamos as seguintes camadas pra proteger seus dados:
 - **JWT obrigatório** nos endpoints sensíveis (análises de IA, sugestão de aporte).
 - **Rate limit** nos endpoints públicos pra evitar abuso e proteção de quota.
 - **CORS restrito** ao domínio oficial do app.
-- **Senhas** hasheadas com bcrypt pelo Supabase Auth (nunca em texto puro).
+- **Credenciais de acesso** processadas pelo Supabase Auth; o Vesti não armazena a senha em seus próprios registros.
 - **PIN** armazenado no SecureStore do iOS/Android (Keychain/Keystore).
 - **Tráfego** sempre por HTTPS.
 - Não enviamos seu **nome ou email** pra IA — apenas dados financeiros agregados (perfil, ativos, totais).
