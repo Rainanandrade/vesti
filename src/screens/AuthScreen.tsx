@@ -110,15 +110,16 @@ export default function AuthScreen() {
         style={{ flex: 1 }}
       >
         <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
-          <View style={{ alignItems: 'center', marginBottom: spacing.lg }}>
-            <Logo size={88} />
+          <View style={styles.brandBlock}>
+            <Logo variant="wordmark" size={42} />
+            <View style={styles.brandRule} />
+            <Text style={styles.brandTitle}>Organize hoje. Decida melhor amanhã.</Text>
+            <Text style={styles.tagline}>Uma visão simples para cuidar da sua vida financeira.</Text>
           </View>
-          <Text style={styles.logo}>Vesti</Text>
-          <Text style={styles.tagline}>Sua carteira em tempo real</Text>
 
           {mode === 'sent' ? (
             <View style={styles.card}>
-              <Text style={styles.sentEmoji}>📬</Text>
+              <View style={styles.sentIcon}><Ionicons name="mail-open-outline" size={32} color={colors.primary} /></View>
               <Text style={styles.sentTitle}>Email enviado!</Text>
               <Text style={styles.sentText}>
                 {confirmationMsg ||
@@ -274,14 +275,16 @@ export default function AuthScreen() {
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.surface },
-  scroll: { padding: spacing.lg, paddingTop: spacing.xxl },
-  logo: { fontSize: fontSize.hero, fontWeight: 'bold', color: colors.primary, textAlign: 'center' },
-  tagline: { fontSize: fontSize.bodyLarge, color: colors.textSecondary, textAlign: 'center', marginBottom: spacing.xl },
+  safe: { flex: 1, backgroundColor: colors.background },
+  scroll: { width: '100%', maxWidth: 560, alignSelf: 'center', padding: spacing.lg, paddingTop: spacing.xl, paddingBottom: spacing.xxl },
+  brandBlock: { alignItems: 'center', marginBottom: spacing.xl },
+  brandRule: { width: 36, height: 3, borderRadius: radius.pill, backgroundColor: colors.primaryAccent, marginTop: spacing.lg, marginBottom: spacing.md },
+  brandTitle: { maxWidth: 430, fontSize: fontSize.heading, lineHeight: 34, fontWeight: '800', letterSpacing: -0.6, color: colors.text, textAlign: 'center' },
+  tagline: { maxWidth: 420, fontSize: fontSize.bodyLarge, lineHeight: 24, color: colors.textSecondary, textAlign: 'center', marginTop: spacing.sm },
   card: {
-    backgroundColor: colors.background,
-    borderRadius: radius.lg,
-    padding: spacing.lg,
+    backgroundColor: colors.surface,
+    borderRadius: radius.xl,
+    padding: spacing.xl,
     borderWidth: 1,
     borderColor: colors.border,
   },
@@ -331,7 +334,7 @@ const styles = StyleSheet.create({
   forgotTitle: { fontSize: fontSize.title, fontWeight: '700', color: colors.text },
   forgotSub: { fontSize: fontSize.body, color: colors.textSecondary, marginTop: spacing.xs, marginBottom: spacing.md, lineHeight: 20 },
 
-  sentEmoji: { fontSize: 64, textAlign: 'center' },
+  sentIcon: { width: 64, height: 64, borderRadius: 32, backgroundColor: colors.primaryLight, alignSelf: 'center', alignItems: 'center', justifyContent: 'center' },
   sentTitle: {
     fontSize: fontSize.title,
     fontWeight: 'bold',

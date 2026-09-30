@@ -1,127 +1,70 @@
-import { useRef, useState } from 'react';
-import {
-  Dimensions,
-  NativeScrollEvent,
-  NativeSyntheticEvent,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { useState } from 'react';
+import { Ionicons } from '@expo/vector-icons';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { colors, fontSize, radius, spacing } from '../theme/colors';
 import Button from '../components/Button';
+import Logo from '../components/Logo';
 import { useApp } from '../context/AppContext';
+import { palette, radii, space, typeScale } from '../theme/tokens';
 
-const { width } = Dimensions.get('window');
+type IconName = keyof typeof Ionicons.glyphMap;
 
-const slides = [
-  {
-    emoji: '📊',
-    title: 'Acompanhe sua carteira',
-    description: 'Veja todos os seus investimentos em um só lugar, com cotações em tempo real direto da B3.',
-    bg: '#E3F2FD',
-  },
-  {
-    emoji: '🎯',
-    title: 'Metas sem limite',
-    description: 'Defina metas progressivas e celebre cada conquista. Quanto mais você avança, novas metas aparecem.',
-    bg: '#FFF3E0',
-  },
-  {
-    emoji: '🤖',
-    title: 'Entenda cada decisão',
-    description: 'Explicações simples sobre P/L, dividendos e tudo mais. Sem precisar ser especialista pra investir bem.',
-    bg: '#E8F8EE',
-  },
+const slides: Array<{ eyebrow: string; title: string; description: string; icon: IconName; tint: string }> = [
+  { eyebrow: 'Tudo no lugar', title: 'Seu dinheiro, com mais clareza', description: 'Carteira, rendimentos e evolução reunidos numa visão simples para você saber onde está.', icon: 'pie-chart-outline', tint: palette.brandSoft },
+  { eyebrow: 'Planos possíveis', title: 'Transforme intenção em próximos passos', description: 'Organize metas e aportes com recomendações que respeitam o seu momento.', icon: 'flag-outline', tint: palette.accentSoft },
+  { eyebrow: 'Decisões conscientes', title: 'Entenda antes de decidir', description: 'O Vesti traduz seus números e explica o que merece atenção, sem complicar.', icon: 'sparkles-outline', tint: palette.successSoft },
 ];
 
 export default function OnboardingScreen() {
   const { finishOnboarding } = useApp();
-  const scrollRef = useRef<ScrollView>(null);
   const [page, setPage] = useState(0);
+  const slide = slides[page];
   const isLast = page === slides.length - 1;
 
-  const handleScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
-    const next = Math.round(e.nativeEvent.contentOffset.x / width);
-    if (next !== page) setPage(next);
-  };
-
-  const handleNext = () => {
-    if (isLast) finishOnboarding();
-    else scrollRef.current?.scrollTo({ x: width * (page + 1), animated: true });
-  };
-
   return (
-    <SafeAreaView style={styles.container} edges={['bottom']}>
-      <ScrollView
-        ref={scrollRef}
-        horizontal
-        pagingEnabled
-        showsHorizontalScrollIndicator={false}
-        onScroll={handleScroll}
-        scrollEventThrottle={16}
-      >
-        {slides.map((s, i) => (
-          <View key={i} style={[styles.slide, { width, backgroundColor: s.bg }]}>
-            <Text style={styles.emoji}>{s.emoji}</Text>
-            <Text style={styles.title}>{s.title}</Text>
-            <Text style={styles.description}>{s.description}</Text>
-          </View>
-        ))}
-      </ScrollView>
-
-      <View style={styles.bottom}>
-        <View style={styles.dots}>
-          {slides.map((_, i) => (
-            <View key={i} style={[styles.dot, page === i && styles.dotActive]} />
-          ))}
+    <SafeAreaView style={styles.safe}>
+      <View style={styles.shell}>
+        <View style={styles.topBar}>
+          <Logo variant="wordmark" size={32} />
+          {!isLast ? <Pressable accessibilityRole="button" onPress={finishOnboarding} hitSlop={12}><Text style={styles.skip}>Pular</Text></Pressable> : <View style={styles.skipPlaceholder} />}
         </View>
-        <Button title={isLast ? 'Começar' : 'Próximo'} onPress={handleNext} />
-        {!isLast && (
-          <Button
-            title="Pular"
-            variant="ghost"
-            onPress={() => finishOnboarding()}
-            style={{ marginTop: spacing.sm }}
-          />
-        )}
+        <View style={styles.content}>
+          <View style={[styles.illustration, { backgroundColor: slide.tint }]}>
+            <View style={styles.orbitLarge} />
+            <View style={styles.orbitSmall} />
+            <View style={styles.iconDisc}><Ionicons name={slide.icon} size={52} color={palette.brand} /></View>
+          </View>
+          <Text style={styles.eyebrow}>{slide.eyebrow}</Text>
+          <Text style={styles.title}>{slide.title}</Text>
+          <Text style={styles.description}>{slide.description}</Text>
+        </View>
+        <View style={styles.footer}>
+          <View style={styles.progress} accessibilityLabel={`Etapa ${page + 1} de ${slides.length}`}>
+            {slides.map((_, index) => <View key={index} style={[styles.progressTrack, index === page && styles.progressActive]} />)}
+          </View>
+          <Button title={isLast ? 'Começar agora' : 'Continuar'} onPress={() => isLast ? finishOnboarding() : setPage((current) => current + 1)} icon={<Ionicons name="arrow-forward" size={20} color={palette.canvasRaised} />} />
+        </View>
       </View>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background },
-  slide: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: spacing.xl,
-  },
-  emoji: { fontSize: 120, marginBottom: spacing.xl },
-  title: {
-    fontSize: fontSize.display,
-    fontWeight: 'bold',
-    color: colors.text,
-    textAlign: 'center',
-    marginBottom: spacing.md,
-  },
-  description: {
-    fontSize: fontSize.bodyLarge,
-    color: colors.textSecondary,
-    textAlign: 'center',
-    lineHeight: 24,
-    paddingHorizontal: spacing.md,
-  },
-  bottom: { paddingHorizontal: spacing.lg, paddingBottom: spacing.lg, paddingTop: spacing.lg },
-  dots: { flexDirection: 'row', justifyContent: 'center', marginBottom: spacing.lg },
-  dot: {
-    width: 8,
-    height: 8,
-    borderRadius: radius.pill,
-    backgroundColor: '#D1D5DB',
-    marginHorizontal: 4,
-  },
-  dotActive: { backgroundColor: colors.primary, width: 24 },
+  safe: { flex: 1, backgroundColor: palette.canvas },
+  shell: { flex: 1, width: '100%', maxWidth: 620, alignSelf: 'center', paddingHorizontal: space.xl },
+  topBar: { minHeight: 72, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  skip: { color: palette.brand, fontSize: typeScale.body, fontWeight: '700' },
+  skipPlaceholder: { width: 36 },
+  content: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingBottom: space.xl },
+  illustration: { width: 224, height: 224, borderRadius: 72, alignItems: 'center', justifyContent: 'center', overflow: 'hidden', marginBottom: space.xxl },
+  orbitLarge: { position: 'absolute', width: 170, height: 170, borderRadius: 85, borderWidth: 1, borderColor: 'rgba(91,76,240,0.18)' },
+  orbitSmall: { position: 'absolute', width: 112, height: 112, borderRadius: 56, borderWidth: 1, borderColor: 'rgba(91,76,240,0.24)' },
+  iconDisc: { width: 92, height: 92, borderRadius: 46, backgroundColor: palette.canvasRaised, alignItems: 'center', justifyContent: 'center' },
+  eyebrow: { color: palette.brand, fontSize: typeScale.label, fontWeight: '800', letterSpacing: 1.2, textTransform: 'uppercase', marginBottom: space.md },
+  title: { color: palette.ink, fontSize: typeScale.display, lineHeight: 44, fontWeight: '800', letterSpacing: -1.2, textAlign: 'center', maxWidth: 520 },
+  description: { color: palette.inkSecondary, fontSize: typeScale.bodyLarge, lineHeight: 26, textAlign: 'center', maxWidth: 470, marginTop: space.lg },
+  footer: { paddingBottom: space.lg },
+  progress: { flexDirection: 'row', gap: space.sm, justifyContent: 'center', marginBottom: space.xl },
+  progressTrack: { width: 28, height: 4, borderRadius: radii.pill, backgroundColor: palette.border },
+  progressActive: { width: 52, backgroundColor: palette.brand },
 });

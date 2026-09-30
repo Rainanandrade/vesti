@@ -185,7 +185,7 @@ export default function PinScreen() {
         ].map((row, r) => (
           <View key={r} style={styles.row}>
             {row.map((k, i) => {
-              if (k === '') return <View key={i} style={styles.key} />;
+              if (k === '') return <View key={i} style={styles.keySpacer} />;
               if (k === 'back')
                 return (
                   <TouchableOpacity key={i} style={styles.key} onPress={backspace}>
@@ -322,8 +322,8 @@ const styles = StyleSheet.create({
   },
   dotFilled: { backgroundColor: colors.primary, borderColor: colors.primary },
   shake: { transform: [{ translateX: 6 }] },
-  pad: { paddingHorizontal: spacing.xl, paddingBottom: spacing.xl },
-  row: { flexDirection: 'row', justifyContent: 'space-around', marginVertical: spacing.sm },
+  pad: { width: '100%', maxWidth: 360, alignSelf: 'center', paddingHorizontal: spacing.md, paddingBottom: spacing.xl },
+  row: { flexDirection: 'row', justifyContent: 'space-between', marginVertical: spacing.sm },
   key: {
     width: 72,
     height: 72,
@@ -333,6 +333,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   keyText: { fontSize: 28, fontWeight: '500', color: colors.text },
+  keySpacer: { width: 72, height: 72 },
   logoutBtn: { alignItems: 'center', paddingBottom: spacing.xl },
   logoutText: { color: colors.textSecondary, fontSize: fontSize.body },
   footerActions: { alignItems: 'center', paddingBottom: spacing.xl, gap: spacing.md as any },

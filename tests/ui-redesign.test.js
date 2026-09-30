@@ -44,3 +44,12 @@ test('user-facing screens and components contain no legacy brand colors', () => 
   const contents = ['src/screens', 'src/components'].flatMap((folder) => fs.readdirSync(path.join(root, folder)).filter((name) => name.endsWith('.tsx')).map((name) => read(`${folder}/${name}`)));
   assert.doesNotMatch(contents.join('\n'), /#0B5345|#073B30|#C9A961/i);
 });
+
+test('entry flows use the redesigned visual language', () => {
+  const onboarding = read('src/screens/OnboardingScreen.tsx');
+  const auth = read('src/screens/AuthScreen.tsx');
+  assert.match(onboarding, /Seu dinheiro, com mais clareza/);
+  assert.doesNotMatch(onboarding, /emoji:/);
+  assert.match(auth, /Organize hoje\. Decida melhor amanhã\./);
+  assert.match(read('src/screens/PinScreen.tsx'), /maxWidth: 360/);
+});
