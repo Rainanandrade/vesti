@@ -18,8 +18,8 @@ function baseCss(): string {
   return `
     * { box-sizing: border-box; }
     body { font-family: -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif; color: #1a1a1a; margin: 0; padding: 40px; max-width: 800px; margin: 0 auto; }
-    h1 { color: #0B5345; font-size: 28px; margin: 0 0 6px; }
-    h2 { color: #0B5345; font-size: 18px; border-bottom: 2px solid #C9A961; padding-bottom: 6px; margin-top: 32px; }
+    h1 { color: #5B4CF0; font-size: 28px; margin: 0 0 6px; }
+    h2 { color: #171A2C; font-size: 18px; border-bottom: 2px solid #F07A6A; padding-bottom: 6px; margin-top: 32px; }
     h3 { font-size: 14px; margin-top: 20px; color: #333; }
     p, td, th { font-size: 12px; line-height: 1.5; }
     table { width: 100%; border-collapse: collapse; margin: 12px 0; }
@@ -28,7 +28,7 @@ function baseCss(): string {
     .right { text-align: right; }
     .green { color: #16a34a; font-weight: 700; }
     .red { color: #dc2626; font-weight: 700; }
-    .brand { color: #0B5345; font-weight: 900; letter-spacing: -0.5px; }
+    .brand { color: #5B4CF0; font-weight: 900; letter-spacing: -0.5px; }
     .meta { color: #666; font-size: 11px; margin-top: 4px; }
     .footer { margin-top: 40px; padding-top: 12px; border-top: 1px solid #ccc; color: #888; font-size: 10px; text-align: center; }
     @media print {
@@ -37,7 +37,7 @@ function baseCss(): string {
       table { page-break-inside: avoid; }
       .no-print { display: none; }
     }
-    .btn { display: inline-block; background: #0B5345; color: white; padding: 10px 18px; border-radius: 6px; text-decoration: none; font-weight: 700; margin-top: 20px; }
+    .btn { display: inline-block; background: #5B4CF0; color: white; padding: 10px 18px; border-radius: 10px; text-decoration: none; font-weight: 700; margin-top: 20px; }
   `;
 }
 

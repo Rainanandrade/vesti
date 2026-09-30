@@ -45,7 +45,7 @@ export default function PremiumLockModal({
       <Pressable style={styles.backdrop} onPress={onClose}>
         <Pressable style={styles.sheet} onPress={(e) => e.stopPropagation()}>
           <LinearGradient
-            colors={[colors.primary, colors.primaryDark || '#0B5345']}
+            colors={[colors.primary, colors.primaryDark]}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
             style={styles.headerGradient}
@@ -232,7 +232,7 @@ const styles = StyleSheet.create({
   saveBadge: {
     position: 'absolute',
     top: -8,
-    backgroundColor: colors.gold || '#C9A961',
+    backgroundColor: colors.gold,
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: radius.pill,

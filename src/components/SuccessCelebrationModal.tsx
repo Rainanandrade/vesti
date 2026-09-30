@@ -18,7 +18,7 @@ const CONFETTI = Array.from({ length: 40 }).map((_, i) => ({
   x: Math.random() * 100,
   y: Math.random() * 60,
   rot: Math.random() * 360,
-  color: ['#C9A961', '#10B981', '#0B5345', '#DC2626', '#F59E0B', '#3B82F6', '#EC4899'][i % 7],
+  color: ['#5B4CF0', '#27866F', '#8E91F2', '#C94A5A', '#F07A6A', '#A8D8F0'][i % 6],
   shape: i % 3 === 0 ? 'circle' : 'rect',
   size: 6 + Math.random() * 8,
 }));

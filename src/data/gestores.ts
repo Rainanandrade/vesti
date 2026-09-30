@@ -20,7 +20,7 @@ export const GESTORES: Gestor[] = [
     description: 'Fundo do Luis Stuhlberger. Referência em multimercado no Brasil.',
     yearlyReturns: { '2020': 20.4, '2021': -0.9, '2022': 7.8, '2023': 8.7, '2024': 12.1, '2025': 9.3 },
     avgAnnualReturn: 9.6,
-    color: '#0B5345',
+    color: '#5B4CF0',
   },
   {
     id: 'dahlia',
@@ -29,7 +29,7 @@ export const GESTORES: Gestor[] = [
     description: 'Gestora Dahlia — estratégia long-biased em ações + posições táticas.',
     yearlyReturns: { '2020': 27.5, '2021': -5.4, '2022': 3.2, '2023': 17.8, '2024': 8.4, '2025': 6.1 },
     avgAnnualReturn: 9.6,
-    color: '#C9A961',
+    color: '#F07A6A',
   },
   {
     id: 'trigono',

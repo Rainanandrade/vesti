@@ -139,7 +139,7 @@ export const RELEASE_NOTES: ReleaseNote[] = [
       {
         emoji: '💚',
         title: 'Nova paleta exclusiva',
-        description: 'Esmeralda profundo (#0B5345) + Champagne dourado (#C9A961). Sofisticada, única no mercado fintech BR, inspirada em joalherias de alto padrão.',
+        description: 'A identidade anterior usava esmeralda e champagne. Ela foi substituída pela experiência clara e acolhedora atual.',
       },
       {
         emoji: '🎉',

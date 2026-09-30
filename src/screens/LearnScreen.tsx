@@ -18,6 +18,12 @@ import Card from '../components/Card';
 import Button from '../components/Button';
 import { useApp } from '../context/AppContext';
 import { Preference } from '../data/profileQuiz';
+import AppScreen from '../ui/AppScreen';
+import AppHeader from '../ui/AppHeader';
+import Section from '../ui/Section';
+import Surface from '../ui/Surface';
+import VestiPrompt from '../ui/VestiPrompt';
+import { palette, radii, space, typeScale } from '../theme/tokens';
 
 // Reordena os trilhos com base na preferência: pra dividendos coloca FIIs/RV
 // dividend payers primeiro; pra crescimento, RV growth primeiro
@@ -41,7 +47,7 @@ function reorderTrails(
 
 type Tab = 'aulas' | 'glossario';
 
-export default function LearnScreen() {
+export default function LearnScreen({ navigation }: any) {
   const { completedLessons } = useApp();
   const [tab, setTab] = useState<Tab>('aulas');
   const [selectedLesson, setSelectedLesson] = useState<Lesson | null>(null);
@@ -58,45 +64,25 @@ export default function LearnScreen() {
     return <TermView term={selectedTerm} onBack={() => setSelectedTerm(null)} />;
   }
 
-  return (
-    <SafeAreaView style={styles.safe} edges={['top']}>
-      <View style={styles.headerArea}>
-        <View style={styles.headerRow}>
-          <Text style={styles.pageTitle}>Aprenda</Text>
-          <View style={styles.progressPill}>
-            <Ionicons name="ribbon" size={14} color={colors.primary} />
-            <Text style={styles.progressPillText}>
-              {totalCompleted}/{totalLessons} aulas
-            </Text>
-          </View>
-        </View>
-        <View style={styles.tabs}>
-          <TouchableOpacity
-            style={[styles.tab, tab === 'aulas' && styles.tabActive]}
-            onPress={() => setTab('aulas')}
-          >
-            <Text style={[styles.tabText, tab === 'aulas' && styles.tabTextActive]}>Aulas</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.tab, tab === 'glossario' && styles.tabActive]}
-            onPress={() => setTab('glossario')}
-          >
-            <Text style={[styles.tabText, tab === 'glossario' && styles.tabTextActive]}>Glossário</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-
-      {tab === 'aulas' ? (
-        <AulasTab
-          onSelectLesson={setSelectedLesson}
-          completedLessons={completedLessons}
-        />
-      ) : (
-        <GlossarioTab onSelectTerm={setSelectedTerm} />
-      )}
-    </SafeAreaView>
-  );
+  const recommended = LESSONS.filter((lesson) => !(lesson.id in completedLessons)).slice(0, 4);
+  return <AppScreen>
+    <AppHeader eyebrow="No seu ritmo" title="Aprender" subtitle="Conteúdo claro para tomar decisões mais conscientes." onAvatar={() => navigation.navigate('Settings')} />
+    <Surface tone="brandSoft" style={redesignStyles.progress}>
+      <View style={redesignStyles.progressIcon}><Ionicons name="ribbon-outline" size={22} color={palette.brand} /></View>
+      <View style={{ flex: 1 }}><Text style={redesignStyles.progressTitle}>{totalCompleted} de {totalLessons} aulas</Text><Text style={redesignStyles.progressText}>Continue construindo sua confiança financeira.</Text></View>
+    </Surface>
+    <Section title="Recomendado para você" description="Continue pela próxima etapa da sua trilha.">
+      <Surface style={redesignStyles.list}>{(recommended.length ? recommended : LESSONS.slice(0, 4)).map((lesson, index, list) => <Pressable key={lesson.id} accessibilityRole="button" accessibilityLabel={`${lesson.title}, ${lesson.readMinutes} minutos`} onPress={() => setSelectedLesson(lesson)} style={({ pressed }) => [redesignStyles.lessonRow, index < list.length - 1 && redesignStyles.divider, pressed && { opacity: 0.65 }]}><View style={redesignStyles.lessonIcon}><Ionicons name="book-outline" size={19} color={palette.brand} /></View><View style={{ flex: 1 }}><Text style={redesignStyles.lessonTitle}>{lesson.title}</Text><Text style={redesignStyles.lessonText}>{lesson.summary}</Text><Text style={redesignStyles.lessonMeta}>{lesson.readMinutes} min · {TRAILS[lesson.trail].label}</Text></View><Ionicons name="chevron-forward" size={18} color={palette.inkMuted} /></Pressable>)}</Surface>
+    </Section>
+    <Section title="Explore também">
+      <View style={redesignStyles.explore}><Pressable onPress={() => navigation.navigate('News')} style={redesignStyles.exploreItem}><Ionicons name="newspaper-outline" size={22} color={palette.accent} /><Text style={redesignStyles.exploreTitle}>Notícias</Text><Text style={redesignStyles.exploreText}>Contexto para entender o mercado.</Text></Pressable><Pressable onPress={() => navigation.navigate('Rankings')} style={redesignStyles.exploreItem}><Ionicons name="podium-outline" size={22} color={palette.brand} /><Text style={redesignStyles.exploreTitle}>Rankings</Text><Text style={redesignStyles.exploreText}>Indicadores para estudar ativos.</Text></Pressable><Pressable onPress={() => setTab('glossario')} style={redesignStyles.exploreItem}><Ionicons name="library-outline" size={22} color={palette.success} /><Text style={redesignStyles.exploreTitle}>Glossário</Text><Text style={redesignStyles.exploreText}>Termos explicados sem complicação.</Text></Pressable></View>
+    </Section>
+    {tab === 'glossario' ? <Section title="Glossário"><GlossarioTab onSelectTerm={setSelectedTerm} /></Section> : null}
+    <VestiPrompt contextLabel="seu aprendizado" onPress={() => navigation.navigate('AIHub', { context: { source: 'learning' } })} />
+  </AppScreen>;
 }
+
+const redesignStyles = StyleSheet.create({ progress: { flexDirection: 'row', alignItems: 'center', gap: space.md }, progressIcon: { width: 46, height: 46, borderRadius: 23, backgroundColor: palette.canvasRaised, alignItems: 'center', justifyContent: 'center' }, progressTitle: { color: palette.ink, fontSize: typeScale.bodyLarge, fontWeight: '800' }, progressText: { color: palette.inkSecondary, fontSize: typeScale.label, marginTop: 3 }, list: { paddingVertical: space.xs }, lessonRow: { flexDirection: 'row', alignItems: 'center', gap: space.md, paddingVertical: space.md, minHeight: 86 }, divider: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: palette.divider }, lessonIcon: { width: 40, height: 40, borderRadius: radii.md, backgroundColor: palette.brandSoft, alignItems: 'center', justifyContent: 'center' }, lessonTitle: { color: palette.ink, fontSize: typeScale.body, fontWeight: '800' }, lessonText: { color: palette.inkSecondary, fontSize: typeScale.label, marginTop: 3 }, lessonMeta: { color: palette.inkMuted, fontSize: typeScale.caption, marginTop: 5 }, explore: { flexDirection: 'row', flexWrap: 'wrap', gap: space.md }, exploreItem: { flex: 1, minWidth: 160, padding: space.lg, backgroundColor: palette.canvasRaised, borderWidth: 1, borderColor: palette.border, borderRadius: radii.lg }, exploreTitle: { color: palette.ink, fontSize: typeScale.bodyLarge, fontWeight: '800', marginTop: space.md }, exploreText: { color: palette.inkSecondary, fontSize: typeScale.label, lineHeight: 18, marginTop: space.xs } });
 
 // =========================== AULAS ===========================
 

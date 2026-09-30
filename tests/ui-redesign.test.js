@@ -28,3 +28,19 @@ test('contextual assistant is accessible by name', () => {
   assert.match(prompt, /accessibilityLabel/);
   assert.match(prompt, /Pergunte ao Vesti/);
 });
+
+test('Investir consolidates portfolio activity and shared read-only state', () => {
+  const portfolio = read('src/screens/PortfolioScreen.tsx');
+  for (const label of ['Carteira', 'Proventos', 'Operações']) assert.match(portfolio, new RegExp(label));
+  assert.match(portfolio, /somente leitura/i);
+});
+
+test('Planejar keeps all planning tools reachable', () => {
+  const planning = read('src/screens/PlanningScreen.tsx');
+  for (const route of ['Aporte', 'Goals', 'DividendTarget', 'IRAutomatico', 'Declaracao', 'Relatorios', 'Backtest']) assert.match(planning, new RegExp(route));
+});
+
+test('user-facing screens and components contain no legacy brand colors', () => {
+  const contents = ['src/screens', 'src/components'].flatMap((folder) => fs.readdirSync(path.join(root, folder)).filter((name) => name.endsWith('.tsx')).map((name) => read(`${folder}/${name}`)));
+  assert.doesNotMatch(contents.join('\n'), /#0B5345|#073B30|#C9A961/i);
+});
