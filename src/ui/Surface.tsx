@@ -1,0 +1,4 @@
+import { ReactNode } from 'react'; import { StyleProp, StyleSheet, View, ViewStyle } from 'react-native'; import { elevation, palette, radii, space } from '../theme/tokens';
+type Tone = 'raised' | 'muted' | 'brandSoft' | 'transparent';
+export default function Surface({ children, tone = 'raised', style }: { children: ReactNode; tone?: Tone; style?: StyleProp<ViewStyle> }) { return <View style={[styles.base, tones[tone], style]}>{children}</View>; }
+const styles = StyleSheet.create({ base: { borderRadius: radii.lg, padding: space.lg } }); const tones: Record<Tone, ViewStyle> = { raised: { backgroundColor: palette.canvasRaised, borderWidth: 1, borderColor: palette.border, ...(elevation || {}) }, muted: { backgroundColor: palette.canvasMuted }, brandSoft: { backgroundColor: palette.brandSoft }, transparent: { backgroundColor: 'transparent', paddingHorizontal: 0 } };

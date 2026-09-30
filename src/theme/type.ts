@@ -1,0 +1,2 @@
+import { Platform } from 'react-native';
+export const fontFamily = { display: Platform.select({ ios: 'New York', android: 'serif', web: 'Georgia, serif', default: 'serif' }), body: Platform.select({ ios: 'System', android: 'sans-serif', web: 'Inter, system-ui, sans-serif', default: 'System' }), mono: Platform.select({ ios: 'SF Mono', android: 'monospace', web: 'ui-monospace, monospace', default: 'monospace' }) } as const;

@@ -1,6 +1,7 @@
 import { ReactNode } from 'react';
-import { ActivityIndicator, StyleProp, StyleSheet, Text, TouchableOpacity, ViewStyle } from 'react-native';
+import { ActivityIndicator, Pressable, StyleProp, StyleSheet, Text, ViewStyle } from 'react-native';
 import { colors, fontSize, radius, spacing } from '../theme/colors';
+import { haptics } from '../ui/haptics';
 
 type Variant = 'primary' | 'secondary' | 'ghost' | 'danger';
 
@@ -17,9 +18,9 @@ type Props = {
 export default function Button({ title, onPress, variant = 'primary', loading, disabled, style, icon }: Props) {
   const isDisabled = disabled || loading;
   return (
-    <TouchableOpacity
-      activeOpacity={0.8}
-      onPress={onPress}
+    <Pressable
+      accessibilityRole="button"
+      onPress={() => { if (variant === 'primary') haptics.select(); onPress(); }}
       disabled={isDisabled}
       style={[styles.base, variants[variant].container, isDisabled && styles.disabled, style]}
     >
@@ -33,7 +34,7 @@ export default function Button({ title, onPress, variant = 'primary', loading, d
           </Text>
         </>
       )}
-    </TouchableOpacity>
+    </Pressable>
   );
 }
 

@@ -1,8 +1,7 @@
 import { createNavigationContainerRef, NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { Ionicons } from '@expo/vector-icons';
-import { ActivityIndicator, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, View } from 'react-native';
 import { colors } from '../theme/colors';
 import { useApp } from '../context/AppContext';
 
@@ -33,6 +32,7 @@ import AporteScreen from '../screens/AporteScreen';
 import { globalOperationModalRef } from '../context/OperationModalContext';
 import GoalsScreen from '../screens/GoalsScreen';
 import LearnScreen from '../screens/LearnScreen';
+import PlanningScreen from '../screens/PlanningScreen';
 import SettingsScreen from '../screens/SettingsScreen';
 import LegalDocScreen from '../screens/LegalDocScreen';
 import PreferenceScreen from '../screens/PreferenceScreen';
@@ -113,14 +113,6 @@ function PortfolioStackNavigator() {
   );
 }
 
-function CenterTabButton({ focused }: { focused: boolean }) {
-  return (
-    <View style={[styles.centerBtn, focused && styles.centerBtnActive]}>
-      <Ionicons name="add" size={28} color={colors.textLight} />
-    </View>
-  );
-}
-
 function MainTabs() {
   const { width } = useWindowDimensions();
   const isDesktop = width >= DESKTOP_BREAKPOINT;
@@ -130,49 +122,15 @@ function MainTabs() {
       screenLayout={isDesktop
         ? ({ children }) => <View style={{ flex: 1, marginLeft: SIDEBAR_WIDTH }}>{children}</View>
         : undefined}
-      screenOptions={({ route }) => ({
+      screenOptions={{
         headerShown: false,
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.textTertiary,
-        tabBarStyle: {
-          borderTopColor: colors.divider,
-          borderTopWidth: 1,
-          paddingTop: 6,
-          height: 72,
-          paddingBottom: 10,
-          elevation: 12,
-          shadowColor: '#000',
-          shadowOpacity: 0.06,
-          shadowOffset: { width: 0, height: -2 },
-          shadowRadius: 8,
-        },
-        tabBarLabelStyle: { fontSize: 10, fontWeight: '700', marginTop: -2 },
-        tabBarIcon: ({ color, size, focused }) => {
-          if (route.name === 'Aportar') return <CenterTabButton focused={focused} />;
-          const iconMap: Record<string, { active: any; inactive: any }> = {
-            Início: { active: 'home', inactive: 'home-outline' },
-            Carteira: { active: 'wallet', inactive: 'wallet-outline' },
-            Metas: { active: 'trophy', inactive: 'trophy-outline' },
-            Aprender: { active: 'book', inactive: 'book-outline' },
-          };
-          const icon = iconMap[route.name];
-          const name = icon ? (focused ? icon.active : icon.inactive) : 'ellipse';
-          return (
-            <View style={focused ? styles.activeIconBg : undefined}>
-              <Ionicons name={name} size={focused ? 24 : 22} color={color} />
-            </View>
-          );
-        },
-      })}
+      }}
     >
-      <Tab.Screen name="Início" component={DashboardScreen} />
-      <Tab.Screen name="Carteira" component={PortfolioStackNavigator} />
-      <Tab.Screen
-        name="Aportar"
-        component={AporteScreen}
-        options={{ tabBarLabel: '' }}
-      />
-      <Tab.Screen name="Metas" component={GoalsScreen} />
+      <Tab.Screen name="Hoje" component={DashboardScreen} />
+      <Tab.Screen name="Investir" component={PortfolioStackNavigator} />
+      <Tab.Screen name="Planejar" component={PlanningScreen} />
       <Tab.Screen name="Aprender" component={LearnScreen} />
     </Tab.Navigator>
   );
@@ -182,6 +140,9 @@ function MainStack() {
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       <Stack.Screen name="Tabs" component={MainTabs} />
+      <Stack.Screen name="Aporte" component={AporteScreen} options={{ presentation: 'modal' }} />
+      <Stack.Screen name="Goals" component={GoalsScreen} options={{ presentation: 'modal' }} />
+      <Stack.Screen name="Declaracao" component={DeclaracaoScreen} options={{ presentation: 'modal' }} />
       <Stack.Screen name="AIHub" component={AIHubScreen} options={{ presentation: 'modal' }} />
       <Stack.Screen name="DividendTarget" component={DividendTargetScreen} options={{ presentation: 'modal' }} />
       <Stack.Screen name="ProSubscribe" component={ProSubscribeScreen} options={{ presentation: 'modal' }} />
@@ -247,27 +208,3 @@ export default function RootNavigator() {
     </NavigationContainer>
   );
 }
-
-const styles = StyleSheet.create({
-  centerBtn: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: -16,
-    shadowColor: colors.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 6,
-  },
-  centerBtnActive: { backgroundColor: colors.primaryDark },
-  activeIconBg: {
-    backgroundColor: colors.primaryLight,
-    paddingHorizontal: 14,
-    paddingVertical: 4,
-    borderRadius: 14,
-  },
-});
