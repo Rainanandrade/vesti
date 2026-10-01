@@ -1,0 +1,12 @@
+import { Ionicons } from '@expo/vector-icons';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { editorial } from '../../theme/editorial';
+
+type Props = { title: string; detail: string; tone?: 'indigo' | 'coral' | 'mint' | 'inverse'; onPress?: () => void; actionLabel?: string };
+export default function InsightNote({ title, detail, tone = 'indigo', onPress, actionLabel = 'Abrir' }: Props) {
+  const content = <><View style={[styles.icon, toneStyles[tone].icon]}><Ionicons name="sparkles-outline" size={18} color={toneStyles[tone].iconColor} /></View><View style={styles.copy}><Text style={[styles.title, tone === 'inverse' && styles.inverseTitle]}>{title}</Text><Text style={[styles.detail, tone === 'inverse' && styles.inverseDetail]}>{detail}</Text></View>{onPress ? <Ionicons name="arrow-forward" size={18} color={tone === 'inverse' ? editorial.color.white : editorial.color.ink} /> : null}</>;
+  if (onPress) return <Pressable accessibilityRole="button" accessibilityLabel={`${actionLabel}: ${title}`} onPress={onPress} style={({ pressed }) => [styles.root, toneStyles[tone].root, pressed && styles.pressed]}>{content}</Pressable>;
+  return <View style={[styles.root, toneStyles[tone].root]}>{content}</View>;
+}
+const toneStyles = { indigo: { root: { backgroundColor: editorial.color.indigoSoft }, icon: { backgroundColor: editorial.color.white }, iconColor: editorial.color.indigo }, coral: { root: { backgroundColor: editorial.color.coralSoft }, icon: { backgroundColor: editorial.color.white }, iconColor: editorial.color.coral }, mint: { root: { backgroundColor: editorial.color.positiveSoft }, icon: { backgroundColor: editorial.color.white }, iconColor: editorial.color.positive }, inverse: { root: { backgroundColor: editorial.color.inverse }, icon: { backgroundColor: editorial.color.coral }, iconColor: editorial.color.white } } as const;
+const styles = StyleSheet.create({ root: { flexDirection: 'row', alignItems: 'center', gap: editorial.space.md, padding: editorial.space.lg, borderRadius: editorial.radius.feature }, icon: { width: 42, height: 42, borderRadius: editorial.radius.soft, alignItems: 'center', justifyContent: 'center' }, copy: { flex: 1 }, title: { color: editorial.color.ink, fontSize: editorial.type.body, fontWeight: '700', marginBottom: 3 }, detail: { color: editorial.color.muted, fontSize: editorial.type.caption, lineHeight: 17 }, inverseTitle: { color: editorial.color.white }, inverseDetail: { color: editorial.color.inverseMuted }, pressed: { opacity: 0.68 } });
