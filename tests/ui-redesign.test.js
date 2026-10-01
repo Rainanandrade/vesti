@@ -6,11 +6,11 @@ const path = require('node:path');
 const root = path.resolve(__dirname, '..');
 const read = (file) => fs.readFileSync(path.join(root, file), 'utf8');
 
-test('new brand tokens replace the legacy emerald and gold identity', () => {
+test('editorial brand tokens replace the legacy emerald and gold identity', () => {
   const tokens = read('src/theme/tokens.ts');
-  assert.match(tokens, /canvas:\s*'#FBF8F3'/);
+  assert.match(tokens, /canvas:\s*'#F5F0E8'/);
   assert.match(tokens, /brand:\s*'#5B4CF0'/);
-  assert.match(tokens, /accent:\s*'#F07A6A'/);
+  assert.match(tokens, /accent:\s*'#FF655B'/);
   assert.doesNotMatch(tokens, /#0B5345|#C9A961/i);
 });
 
@@ -31,7 +31,7 @@ test('contextual assistant is accessible by name', () => {
 
 test('Investir consolidates portfolio activity and shared read-only state', () => {
   const portfolio = read('src/screens/PortfolioScreen.tsx');
-  for (const label of ['Carteira', 'Proventos', 'Operações']) assert.match(portfolio, new RegExp(label));
+  for (const label of ['Posições', 'Rendimentos', 'Movimentos']) assert.match(portfolio, new RegExp(label));
   assert.match(portfolio, /somente leitura/i);
 });
 

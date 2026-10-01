@@ -1,4 +1,6 @@
 import { useEffect, useState } from 'react';
+import { editorial } from '../theme/editorial';
+import { EditorialState } from '../ui/editorial';
 import {
   ActivityIndicator,
   Linking,

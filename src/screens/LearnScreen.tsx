@@ -24,6 +24,8 @@ import Section from '../ui/Section';
 import Surface from '../ui/Surface';
 import VestiPrompt from '../ui/VestiPrompt';
 import { palette, radii, space, typeScale } from '../theme/tokens';
+import { editorial } from '../theme/editorial';
+import { EditorialHeader, EditorialRow, EditorialScreen, EditorialSectionHeader, EditorialTitle, InsightNote, ProgressLine, UnderlineTabs } from '../ui/editorial';
 
 // Reordena os trilhos com base na preferência: pra dividendos coloca FIIs/RV
 // dividend payers primeiro; pra crescimento, RV growth primeiro
@@ -65,24 +67,18 @@ export default function LearnScreen({ navigation }: any) {
   }
 
   const recommended = LESSONS.filter((lesson) => !(lesson.id in completedLessons)).slice(0, 4);
-  return <AppScreen>
-    <AppHeader eyebrow="No seu ritmo" title="Aprender" subtitle="Conteúdo claro para tomar decisões mais conscientes." onAvatar={() => navigation.navigate('Settings')} />
-    <Surface tone="brandSoft" style={redesignStyles.progress}>
-      <View style={redesignStyles.progressIcon}><Ionicons name="ribbon-outline" size={22} color={palette.brand} /></View>
-      <View style={{ flex: 1 }}><Text style={redesignStyles.progressTitle}>{totalCompleted} de {totalLessons} aulas</Text><Text style={redesignStyles.progressText}>Continue construindo sua confiança financeira.</Text></View>
-    </Surface>
-    <Section title="Recomendado para você" description="Continue pela próxima etapa da sua trilha.">
-      <Surface style={redesignStyles.list}>{(recommended.length ? recommended : LESSONS.slice(0, 4)).map((lesson, index, list) => <Pressable key={lesson.id} accessibilityRole="button" accessibilityLabel={`${lesson.title}, ${lesson.readMinutes} minutos`} onPress={() => setSelectedLesson(lesson)} style={({ pressed }) => [redesignStyles.lessonRow, index < list.length - 1 && redesignStyles.divider, pressed && { opacity: 0.65 }]}><View style={redesignStyles.lessonIcon}><Ionicons name="book-outline" size={19} color={palette.brand} /></View><View style={{ flex: 1 }}><Text style={redesignStyles.lessonTitle}>{lesson.title}</Text><Text style={redesignStyles.lessonText}>{lesson.summary}</Text><Text style={redesignStyles.lessonMeta}>{lesson.readMinutes} min · {TRAILS[lesson.trail].label}</Text></View><Ionicons name="chevron-forward" size={18} color={palette.inkMuted} /></Pressable>)}</Surface>
-    </Section>
-    <Section title="Explore também">
-      <View style={redesignStyles.explore}><Pressable onPress={() => navigation.navigate('News')} style={redesignStyles.exploreItem}><Ionicons name="newspaper-outline" size={22} color={palette.accent} /><Text style={redesignStyles.exploreTitle}>Notícias</Text><Text style={redesignStyles.exploreText}>Contexto para entender o mercado.</Text></Pressable><Pressable onPress={() => navigation.navigate('Rankings')} style={redesignStyles.exploreItem}><Ionicons name="podium-outline" size={22} color={palette.brand} /><Text style={redesignStyles.exploreTitle}>Rankings</Text><Text style={redesignStyles.exploreText}>Indicadores para estudar ativos.</Text></Pressable><Pressable onPress={() => setTab('glossario')} style={redesignStyles.exploreItem}><Ionicons name="library-outline" size={22} color={palette.success} /><Text style={redesignStyles.exploreTitle}>Glossário</Text><Text style={redesignStyles.exploreText}>Termos explicados sem complicação.</Text></Pressable></View>
-    </Section>
-    {tab === 'glossario' ? <Section title="Glossário"><GlossarioTab onSelectTerm={setSelectedTerm} /></Section> : null}
-    <VestiPrompt contextLabel="seu aprendizado" onPress={() => navigation.navigate('AIHub', { context: { source: 'learning' } })} />
-  </AppScreen>;
+  const lessons = recommended.length ? recommended : LESSONS.slice(0, 4);
+  return <EditorialScreen>
+    <EditorialHeader context="Conhecimento aplicado" onAvatar={() => navigation.navigate('Settings')} />
+    <EditorialTitle kicker="Aprender" title="Entenda melhor. Decida com mais confiança." support="Conteúdo curto, contexto de mercado e conceitos que acompanham o seu momento." />
+    <View style={redesignStyles.progress}><Text style={redesignStyles.progressKicker}>Sua jornada</Text><Text style={redesignStyles.progressTitle}>{totalCompleted} de {totalLessons} aulas concluídas</Text><ProgressLine label="Continue no seu ritmo" value={totalLessons ? (totalCompleted / totalLessons) * 100 : 0} /></View>
+    <View style={redesignStyles.tabs}><UnderlineTabs items={['aulas', 'glossario'] as const} value={tab} onChange={setTab} label="Conteúdo para aprender" /></View>
+    {tab === 'aulas' ? <><EditorialSectionHeader title="Recomendado para você" meta="Próxima leitura" /><View>{lessons.map((lesson, index) => <EditorialRow key={lesson.id} last={index === lessons.length - 1} leading={<Text style={redesignStyles.lessonNumber}>{String(index + 1).padStart(2, '0')}</Text>} title={lesson.title} detail={`${lesson.summary} · ${lesson.readMinutes} min · ${TRAILS[lesson.trail].label}`} onPress={() => setSelectedLesson(lesson)} />)}</View><EditorialSectionHeader title="Explore também" meta="Fontes e conceitos" /><View><EditorialRow leading={<Ionicons name="newspaper-outline" size={19} color={editorial.color.coral} />} title="Notícias" detail="Contexto para entender o mercado." onPress={() => navigation.navigate('News')} /><EditorialRow leading={<Ionicons name="podium-outline" size={19} color={editorial.color.indigo} />} title="Rankings" detail="Indicadores para estudar ativos." onPress={() => navigation.navigate('Rankings')} /><EditorialRow last leading={<Ionicons name="library-outline" size={19} color={editorial.color.positive} />} title="Glossário" detail="Termos explicados sem complicação." onPress={() => setTab('glossario')} /></View></> : <><EditorialSectionHeader title="Glossário" meta="Sem complicação" /><GlossarioTab onSelectTerm={setSelectedTerm} /></>}
+    <View style={redesignStyles.insight}><InsightNote title="Tire uma dúvida agora" detail="Converse com o Vesti usando o conteúdo e o contexto da sua carteira." tone="inverse" actionLabel="Abrir conversa" onPress={() => navigation.navigate('AIHub', { context: { source: 'learning' } })} /></View>
+  </EditorialScreen>;
 }
 
-const redesignStyles = StyleSheet.create({ progress: { flexDirection: 'row', alignItems: 'center', gap: space.md }, progressIcon: { width: 46, height: 46, borderRadius: 23, backgroundColor: palette.canvasRaised, alignItems: 'center', justifyContent: 'center' }, progressTitle: { color: palette.ink, fontSize: typeScale.bodyLarge, fontWeight: '800' }, progressText: { color: palette.inkSecondary, fontSize: typeScale.label, marginTop: 3 }, list: { paddingVertical: space.xs }, lessonRow: { flexDirection: 'row', alignItems: 'center', gap: space.md, paddingVertical: space.md, minHeight: 86 }, divider: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: palette.divider }, lessonIcon: { width: 40, height: 40, borderRadius: radii.md, backgroundColor: palette.brandSoft, alignItems: 'center', justifyContent: 'center' }, lessonTitle: { color: palette.ink, fontSize: typeScale.body, fontWeight: '800' }, lessonText: { color: palette.inkSecondary, fontSize: typeScale.label, marginTop: 3 }, lessonMeta: { color: palette.inkMuted, fontSize: typeScale.caption, marginTop: 5 }, explore: { flexDirection: 'row', flexWrap: 'wrap', gap: space.md }, exploreItem: { flex: 1, minWidth: 160, padding: space.lg, backgroundColor: palette.canvasRaised, borderWidth: 1, borderColor: palette.border, borderRadius: radii.lg }, exploreTitle: { color: palette.ink, fontSize: typeScale.bodyLarge, fontWeight: '800', marginTop: space.md }, exploreText: { color: palette.inkSecondary, fontSize: typeScale.label, lineHeight: 18, marginTop: space.xs } });
+const redesignStyles = StyleSheet.create({ progress: { paddingVertical: editorial.space.lg, borderTopWidth: 1, borderBottomWidth: 1, borderColor: editorial.color.line, gap: editorial.space.sm }, progressKicker: { color: editorial.color.coral, fontSize: editorial.type.kicker, fontWeight: '800', letterSpacing: 1, textTransform: 'uppercase' }, progressTitle: { color: editorial.color.ink, fontFamily: editorial.font.display, fontSize: 23 }, tabs: { marginTop: editorial.space.xl }, lessonNumber: { color: editorial.color.coral, fontSize: editorial.type.kicker, fontWeight: '900' }, insight: { marginTop: editorial.space.xl } });
 
 // =========================== AULAS ===========================
 

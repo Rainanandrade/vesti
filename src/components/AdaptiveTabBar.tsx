@@ -1,7 +1,51 @@
 import { Platform, Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
-import { Ionicons } from '@expo/vector-icons'; import { BottomTabBarProps } from '@react-navigation/bottom-tabs'; import { useSafeAreaInsets } from 'react-native-safe-area-context'; import { layout, palette, radii, space, typeScale } from '../theme/tokens';
-export const DESKTOP_BREAKPOINT = layout.desktopBreakpoint; export const SIDEBAR_WIDTH = layout.navRailWidth;
-const ICONS: Record<string, keyof typeof Ionicons.glyphMap> = { Hoje: 'home-outline', Investir: 'pie-chart-outline', Planejar: 'compass-outline', Aprender: 'book-outline' };
-export default function AdaptiveTabBar(props: BottomTabBarProps) { const { width } = useWindowDimensions(); return width >= DESKTOP_BREAKPOINT ? <Nav {...props} desktop /> : <Nav {...props} />; }
-function Nav({ state, descriptors, navigation, desktop = false }: BottomTabBarProps & { desktop?: boolean }) { const insets = useSafeAreaInsets(); return <View style={[desktop ? styles.rail : styles.bar, !desktop && { paddingBottom: Math.max(insets.bottom, 8) }]}>{desktop ? <View style={styles.brand}><Text style={styles.brandName}>Vesti</Text><Text style={styles.brandSub}>Sua vida financeira</Text></View> : null}<View style={desktop ? styles.railItems : styles.barItems}>{state.routes.map((route, index) => { const focused = state.index === index; const options = descriptors[route.key].options; const label = typeof options.tabBarLabel === 'string' ? options.tabBarLabel : options.title || route.name; const press = () => { const event = navigation.emit({ type: 'tabPress', target: route.key, canPreventDefault: true }); if (!focused && !event.defaultPrevented) navigation.navigate(route.name as never); }; return <Pressable key={route.key} accessibilityRole="tab" accessibilityState={{ selected: focused }} accessibilityLabel={String(label)} onPress={press} style={({ pressed }) => [desktop ? styles.railItem : styles.barItem, focused && (desktop ? styles.railActive : styles.barActive), pressed && styles.pressed]}><Ionicons name={focused ? (ICONS[route.name].replace('-outline', '') as keyof typeof Ionicons.glyphMap) : ICONS[route.name]} size={22} color={focused ? palette.brand : palette.inkMuted} /><Text style={[styles.label, focused && styles.labelActive]}>{label}</Text></Pressable>; })}</View>{desktop ? <Text style={styles.footer}>© 2026 Vesti</Text> : null}</View>; }
-const styles = StyleSheet.create({ bar: { backgroundColor: palette.canvasRaised, borderTopWidth: 1, borderTopColor: palette.divider, paddingTop: 8 }, barItems: { flexDirection: 'row', paddingHorizontal: space.sm }, barItem: { minHeight: 54, flex: 1, alignItems: 'center', justifyContent: 'center', gap: 3, borderRadius: radii.md }, barActive: { backgroundColor: palette.brandSoft }, rail: { ...Platform.select({ web: { position: 'fixed' as any, height: '100vh' as any }, default: { position: 'absolute' as const, top: 0, bottom: 0 } }), left: 0, width: SIDEBAR_WIDTH, backgroundColor: palette.canvasRaised, borderRightWidth: 1, borderRightColor: palette.divider, padding: space.lg, zIndex: 100 }, brand: { padding: space.sm, paddingBottom: space.xl }, brandName: { color: palette.ink, fontSize: 27, fontWeight: '800' }, brandSub: { color: palette.inkMuted, fontSize: typeScale.caption, marginTop: 2 }, railItems: { flex: 1, gap: space.xs }, railItem: { minHeight: 52, flexDirection: 'row', alignItems: 'center', gap: space.md, paddingHorizontal: space.md, borderRadius: radii.md }, railActive: { backgroundColor: palette.brandSoft }, label: { color: palette.inkMuted, fontSize: typeScale.caption, fontWeight: '600' }, labelActive: { color: palette.brand, fontWeight: '800' }, footer: { color: palette.inkMuted, textAlign: 'center', fontSize: typeScale.caption }, pressed: { opacity: 0.65 } });
+import { Ionicons } from '@expo/vector-icons';
+import { BottomTabBarProps } from '@react-navigation/bottom-tabs';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { editorial } from '../theme/editorial';
+
+export const DESKTOP_BREAKPOINT = editorial.layout.desktop;
+export const SIDEBAR_WIDTH = 220;
+const ICONS: Record<string, keyof typeof Ionicons.glyphMap> = { Hoje: 'sunny-outline', Investir: 'stats-chart-outline', Planejar: 'navigate-outline', Aprender: 'book-outline' };
+
+export default function AdaptiveTabBar(props: BottomTabBarProps) {
+  const { width } = useWindowDimensions();
+  return width >= DESKTOP_BREAKPOINT ? <Navigation {...props} desktop /> : <Navigation {...props} />;
+}
+
+function Navigation({ state, descriptors, navigation, desktop = false }: BottomTabBarProps & { desktop?: boolean }) {
+  const insets = useSafeAreaInsets();
+  return <View style={[desktop ? styles.rail : styles.mobileWrap, !desktop && { paddingBottom: Math.max(insets.bottom, 8) }]}>
+    {desktop ? <View style={styles.brand}><Text style={styles.brandName}>vesti<Text style={styles.brandDot}>.</Text></Text><Text style={styles.brandSub}>clareza para decidir</Text></View> : null}
+    <View style={desktop ? styles.railItems : styles.bar}>{state.routes.map((route, index) => {
+      const focused = state.index === index;
+      const options = descriptors[route.key].options;
+      const label = typeof options.tabBarLabel === 'string' ? options.tabBarLabel : options.title || route.name;
+      const press = () => { const event = navigation.emit({ type: 'tabPress', target: route.key, canPreventDefault: true }); if (!focused && !event.defaultPrevented) navigation.navigate(route.name as never); };
+      return <Pressable key={route.key} accessibilityRole="tab" accessibilityState={{ selected: focused }} accessibilityLabel={String(label)} onPress={press} style={({ pressed }) => [desktop ? styles.railItem : styles.barItem, focused && (desktop ? styles.railActive : styles.barActive), pressed && styles.pressed]}><Ionicons name={ICONS[route.name]} size={desktop ? 20 : 19} color={focused ? editorial.color.white : editorial.color.inverseMuted} /><Text style={[styles.label, focused && styles.labelActive]}>{label}</Text>{desktop && focused ? <View style={styles.railPulse} /> : null}</Pressable>;
+    })}</View>
+    {desktop ? <View style={styles.railFoot}><View style={styles.railRule} /><Text style={styles.railNote}>Seu dinheiro, explicado.</Text></View> : null}
+  </View>;
+}
+
+const styles = StyleSheet.create({
+  mobileWrap: { backgroundColor: editorial.color.canvas, paddingHorizontal: 15, paddingTop: 6 },
+  bar: { minHeight: 66, flexDirection: 'row', alignItems: 'center', backgroundColor: editorial.color.inverse, borderRadius: editorial.radius.navigation, paddingHorizontal: editorial.space.sm },
+  barItem: { flex: 1, minHeight: 54, alignItems: 'center', justifyContent: 'center', gap: 4, borderRadius: editorial.radius.soft, opacity: 0.55 },
+  barActive: { opacity: 1 },
+  rail: { ...Platform.select({ web: { position: 'fixed' as any, height: '100vh' as any }, default: { position: 'absolute' as const, top: 0, bottom: 0 } }), left: 0, width: SIDEBAR_WIDTH, backgroundColor: editorial.color.inverse, padding: editorial.space.xl, zIndex: 100 },
+  brand: { paddingVertical: editorial.space.lg, paddingHorizontal: editorial.space.sm, marginBottom: editorial.space.xl },
+  brandName: { fontFamily: editorial.font.display, color: editorial.color.white, fontSize: 27, fontWeight: '700', letterSpacing: -1 },
+  brandDot: { color: editorial.color.coral },
+  brandSub: { color: editorial.color.inverseMuted, fontSize: editorial.type.kicker, marginTop: 3 },
+  railItems: { flex: 1, gap: editorial.space.sm },
+  railItem: { minHeight: 52, flexDirection: 'row', alignItems: 'center', gap: editorial.space.md, paddingHorizontal: editorial.space.md, borderRadius: editorial.radius.soft, position: 'relative' },
+  railActive: { backgroundColor: 'rgba(255,255,255,0.09)' },
+  railPulse: { position: 'absolute', left: -editorial.space.xl, width: 4, height: 24, borderTopRightRadius: 4, borderBottomRightRadius: 4, backgroundColor: editorial.color.coral },
+  label: { color: editorial.color.inverseMuted, fontSize: editorial.type.kicker, fontWeight: '600' },
+  labelActive: { color: editorial.color.white, fontWeight: '800' },
+  railFoot: { gap: editorial.space.md, padding: editorial.space.sm },
+  railRule: { height: 1, backgroundColor: 'rgba(255,255,255,0.12)' },
+  railNote: { color: editorial.color.inverseMuted, fontFamily: editorial.font.display, fontSize: editorial.type.caption, lineHeight: 17 },
+  pressed: { opacity: 0.65 },
+});

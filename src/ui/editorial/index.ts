@@ -9,3 +9,4 @@ export { default as ProgressLine } from './ProgressLine';
 export { default as AllocationBand } from './AllocationBand';
 export { EditorialField, EditorialFormGroup, InlineFeedback } from './EditorialForm';
 export { default as EditorialState } from './EditorialState';
+export { default as EditorialSectionHeader } from './EditorialSectionHeader';

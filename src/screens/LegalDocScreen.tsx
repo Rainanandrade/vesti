@@ -1,4 +1,6 @@
 import { ReactElement } from 'react';
+import { editorial } from '../theme/editorial';
+import { EditorialState } from '../ui/editorial';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
