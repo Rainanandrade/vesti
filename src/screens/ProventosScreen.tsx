@@ -24,6 +24,7 @@ import {
   computeReceivedProventos,
   groupProventosByMonth,
 } from '../utils/receivedProventos';
+import { safeBackToCarteira } from '../utils/navigation';
 
 export default function ProventosScreen({ navigation }: any) {
   const { activeWallet, privacyMode } = useApp();
@@ -74,12 +75,7 @@ export default function ProventosScreen({ navigation }: any) {
     <SafeAreaView style={styles.safe} edges={['top']}>
       <View style={styles.header}>
         <TouchableOpacity
-          onPress={() => {
-            // Sempre garante voltar pra Carteira (não pro Dashboard)
-            const parent = navigation.getParent();
-            if (parent) parent.navigate('Carteira', { screen: 'PortfolioMain' });
-            else navigation.navigate('PortfolioMain');
-          }}
+          onPress={() => safeBackToCarteira(navigation)}
           style={styles.iconBtn}
         >
           <Ionicons name="chevron-back" size={24} color={colors.text} />

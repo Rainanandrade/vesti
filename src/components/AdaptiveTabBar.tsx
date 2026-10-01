@@ -21,7 +21,7 @@ function Navigation({ state, descriptors, navigation, desktop = false }: BottomT
       const focused = state.index === index;
       const options = descriptors[route.key].options;
       const label = typeof options.tabBarLabel === 'string' ? options.tabBarLabel : options.title || route.name;
-      const press = () => { const event = navigation.emit({ type: 'tabPress', target: route.key, canPreventDefault: true }); if (!focused && !event.defaultPrevented) navigation.navigate(route.name as never); };
+      const press = () => { const event = navigation.emit({ type: 'tabPress', target: route.key, canPreventDefault: true }); if (event.defaultPrevented) return; if (route.name === 'Investir') (navigation.navigate as any)(route.name, { screen: 'PortfolioMain' }); else if (!focused) navigation.navigate(route.name as never); };
       return <Pressable key={route.key} accessibilityRole="tab" accessibilityState={{ selected: focused }} accessibilityLabel={String(label)} onPress={press} style={({ pressed }) => [desktop ? styles.railItem : styles.barItem, focused && (desktop ? styles.railActive : styles.barActive), pressed && styles.pressed]}><Ionicons name={ICONS[route.name]} size={desktop ? 20 : 19} color={focused ? editorial.color.white : editorial.color.inverseMuted} /><Text style={[styles.label, focused && styles.labelActive]}>{label}</Text>{desktop && focused ? <View style={styles.railPulse} /> : null}</Pressable>;
     })}</View>
     {desktop ? <View style={styles.railFoot}><View style={styles.railRule} /><Text style={styles.railNote}>Seu dinheiro, explicado.</Text></View> : null}

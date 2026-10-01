@@ -35,10 +35,11 @@ import { TICKERS, TickerInfo } from '../data/tickers';
 import { evaluateAssetForProfile } from '../utils/strategyMatch';
 import AllocationDelta from '../components/AllocationDelta';
 import HowItWorksAporte from '../components/HowItWorksAporte';
+import { safeBackToInvestir } from '../utils/navigation';
 
 const QUICK = [100, 300, 500, 1000];
 
-export default function AporteScreen() {
+export default function AporteScreen({ navigation }: any) {
   const { activeWallet, profile, privacyMode, addAsset } = useApp();
   const [value, setValue] = useState('');
   const [prices, setPrices] = useState<Record<string, number>>({});
@@ -231,6 +232,7 @@ export default function AporteScreen() {
   if (!profile) {
     return (
       <SafeAreaView style={styles.safe} edges={['top']}>
+        <AporteHeader navigation={navigation} />
         <View style={styles.empty}>
           <Text style={styles.emptyEmoji}>🧭</Text>
           <Text style={styles.emptyTitle}>Falta seu perfil</Text>
@@ -244,6 +246,7 @@ export default function AporteScreen() {
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
+      <AporteHeader navigation={navigation} />
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={{ flex: 1 }}
@@ -560,6 +563,10 @@ export default function AporteScreen() {
   );
 }
 
+function AporteHeader({ navigation }: { navigation: any }) {
+  return <View style={styles.header}><TouchableOpacity accessibilityRole="button" accessibilityLabel="Voltar para Investir" onPress={() => safeBackToInvestir(navigation)} style={styles.backButton} hitSlop={10}><Ionicons name="arrow-back" size={22} color={editorial.color.ink} /></TouchableOpacity><View style={styles.headerCopy}><Text style={styles.headerKicker}>Investir</Text><Text style={styles.headerTitle}>Sugerir aporte</Text></View><View style={styles.headerSpacer} /></View>;
+}
+
 // ===========================================
 // SUGGESTION SECTION — classe com múltiplos picks
 // ===========================================
@@ -869,7 +876,13 @@ function Legend({ color, label }: { color: string; label: string }) {
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.surface },
+  safe: { flex: 1, backgroundColor: editorial.color.canvas },
+  header: { minHeight: 64, flexDirection: 'row', alignItems: 'center', paddingHorizontal: spacing.md, borderBottomWidth: 1, borderBottomColor: editorial.color.line },
+  backButton: { width: 44, height: 44, borderRadius: 22, borderWidth: 1, borderColor: editorial.color.line, alignItems: 'center', justifyContent: 'center' },
+  headerCopy: { flex: 1, alignItems: 'center' },
+  headerKicker: { color: editorial.color.coral, fontSize: editorial.type.kicker, fontWeight: '800', letterSpacing: 1, textTransform: 'uppercase' },
+  headerTitle: { color: editorial.color.ink, fontFamily: editorial.font.display, fontSize: editorial.type.title },
+  headerSpacer: { width: 44 },
   scroll: { padding: spacing.md, paddingBottom: spacing.xxl },
   pageTitle: { fontSize: fontSize.heading, fontWeight: 'bold', color: colors.text },
   pageSub: { fontSize: fontSize.body, color: colors.textSecondary, marginTop: spacing.xs, lineHeight: 20 },

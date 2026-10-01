@@ -23,6 +23,7 @@ import ProLock from '../components/ProLock';
 import { fetchDividendInfoBatch, DividendInfo } from '../api/dividends';
 import { computeReceivedProventos } from '../utils/receivedProventos';
 import { useEffect } from 'react';
+import { safeBackToCarteira } from '../utils/navigation';
 
 const MONTHS_PT = [
   'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
@@ -187,11 +188,7 @@ export default function DeclaracaoScreen({ navigation }: any) {
     <SafeAreaView style={styles.safe} edges={['top']}>
       <View style={styles.header}>
         <TouchableOpacity
-          onPress={() => {
-            const parent = navigation.getParent();
-            if (parent) parent.navigate('Carteira', { screen: 'PortfolioMain' });
-            else navigation.navigate('PortfolioMain');
-          }}
+          onPress={() => safeBackToCarteira(navigation)}
           style={styles.iconBtn}
         >
           <Ionicons name="chevron-back" size={24} color={colors.text} />

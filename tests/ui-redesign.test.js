@@ -35,6 +35,19 @@ test('Investir consolidates portfolio activity and shared read-only state', () =
   assert.match(portfolio, /somente leitura/i);
 });
 
+test('aporte is one tap from Investir and every investment flow returns to Investir', () => {
+  const portfolio = read('src/screens/PortfolioScreen.tsx');
+  const aporte = read('src/screens/AporteScreen.tsx');
+  const navigation = read('src/utils/navigation.ts');
+  const tabs = read('src/components/AdaptiveTabBar.tsx');
+  assert.match(portfolio, /Sugerir meu aporte/);
+  assert.match(portfolio, /navigate\('Aporte'\)/);
+  assert.match(aporte, /safeBackToInvestir\(navigation\)/);
+  assert.match(navigation, /screen: 'Investir'/);
+  assert.doesNotMatch(navigation, /navigate\('Carteira'/);
+  assert.match(tabs, /PortfolioMain/);
+});
+
 test('Planejar keeps all planning tools reachable', () => {
   const planning = read('src/screens/PlanningScreen.tsx');
   for (const route of ['Aporte', 'Goals', 'DividendTarget', 'IRAutomatico', 'Declaracao', 'Relatorios', 'Backtest']) assert.match(planning, new RegExp(route));

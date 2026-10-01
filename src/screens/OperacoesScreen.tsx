@@ -25,6 +25,7 @@ import { confirmAction } from '../utils/confirm';
 import Card from '../components/Card';
 import Button from '../components/Button';
 import Isentometro from '../components/Isentometro';
+import { safeBackToCarteira } from '../utils/navigation';
 
 export default function OperacoesScreen({ navigation }: any) {
   const { operations, addOperation, removeOperation, privacyMode } = useApp();
@@ -136,11 +137,7 @@ export default function OperacoesScreen({ navigation }: any) {
     <SafeAreaView style={styles.safe} edges={['top']}>
       <View style={styles.header}>
         <TouchableOpacity
-          onPress={() => {
-            const parent = navigation.getParent();
-            if (parent) parent.navigate('Carteira', { screen: 'PortfolioMain' });
-            else navigation.navigate('PortfolioMain');
-          }}
+          onPress={() => safeBackToCarteira(navigation)}
           hitSlop={10}
         >
           <Ionicons name="chevron-back" size={26} color={colors.text} />
