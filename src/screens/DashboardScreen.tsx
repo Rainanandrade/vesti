@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import PortfolioChart from '../components/PortfolioChart';
 import { fetchQuotes, getCachedQuotes, Quote } from '../api/brapi';
 import { useApp } from '../context/AppContext';
@@ -24,12 +24,16 @@ export default function DashboardScreen({ navigation }: any) {
   const load = useCallback(async (force = false) => {
     const symbols = assets.filter((asset) => ['acao', 'fii', 'etf'].includes(asset.type)).map((asset) => asset.symbol);
     if (!symbols.length) { setQuotes({}); return; }
-    if (!force) { const cached = await getCachedQuotes(symbols); setQuotes(Object.fromEntries(cached.map((quote) => [quote.symbol, quote]))); }
-    const fresh = await fetchQuotes(symbols, { force });
-    setQuotes(Object.fromEntries(fresh.map((quote) => [quote.symbol, quote])));
+    try {
+      if (!force) { const cached = await getCachedQuotes(symbols); setQuotes(Object.fromEntries(cached.map((quote) => [quote.symbol, quote]))); }
+      const fresh = await fetchQuotes(symbols, { force });
+      setQuotes(Object.fromEntries(fresh.map((quote) => [quote.symbol, quote])));
+    } catch {
+      // Mantém as últimas cotações úteis; a tela continua interativa e permite atualizar novamente.
+    }
   }, [assets]);
   useEffect(() => { load(); }, [load]);
-  const onRefresh = async () => { setRefreshing(true); await load(true); setRefreshing(false); };
+  const onRefresh = async () => { setRefreshing(true); try { await load(true); } finally { setRefreshing(false); } };
   const prices = Object.fromEntries(Object.entries(quotes).map(([symbol, quote]) => [symbol, quote.regularMarketPrice]));
   const stats = computePortfolioStats(assets, prices);
   const health = computeHealthScoreDetailed(assets, stats.profitPct, profile);
@@ -45,21 +49,26 @@ export default function DashboardScreen({ navigation }: any) {
   const hour = new Date().getHours();
   const greeting = `${hour < 12 ? 'Bom dia' : hour < 18 ? 'Boa tarde' : 'Boa noite'}${user?.name ? `, ${user.name.split(' ')[0]}` : ''}`;
   const date = new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long' });
-  const handleCoachAction = (action: CoachAction) => { const lower = action.title.toLowerCase(); if (lower.includes('aporte')) navigation.navigate('Aporte'); else if (lower.includes('ativo') || lower.includes('divers')) navigation.navigate('Investir'); else navigation.navigate('Planejar'); };
+  const onOpenPortfolio = () => navigation.navigate('Investir');
+  const onOpenAporte = () => navigation.getParent()?.navigate('Aporte');
+  const onOpenIncome = () => navigation.navigate('Investir', { screen: 'Proventos' });
+  const onOpenHealth = () => navigation.getParent()?.navigate('AIHub', { context: { source: 'today-health' } });
+  const handleCoachAction = (action: CoachAction) => { const lower = action.title.toLowerCase(); if (lower.includes('aporte')) onOpenAporte(); else if (lower.includes('ativo') || lower.includes('divers') || lower.includes('fii') || lower.includes('etf') || lower.includes('carteira')) onOpenPortfolio(); else onOpenHealth(); };
 
   return <EditorialScreen refreshing={refreshing} onRefresh={onRefresh}>
     <EditorialHeader context={date} onAvatar={() => navigation.navigate('Settings')} actions={[{ icon: 'notifications-outline', label: 'Abrir alertas', onPress: () => navigation.navigate('Alerts') }]} />
     <EditorialTitle kicker={greeting} title={narrative.headline} support={narrative.reason} />
     <MetricBand label="Patrimônio acompanhado" value={fmtBRL(stats.totalCurrent)} delta={`${stats.profitPct >= 0 ? '+' : ''}${stats.profitPct.toFixed(1)}% desde os aportes`} tone={narrative.tone} hidden={privacyMode} onToggleHidden={togglePrivacy}>
       {snapshots.length > 1 ? <View style={styles.chart}><PortfolioChart data={snapshots.map((snapshot) => ({ date: snapshot.date, total: snapshot.total }))} privacyMode={privacyMode} height={152} /></View> : null}
+      <Pressable accessibilityRole="button" accessibilityLabel="Abrir patrimônio em Investir" onPress={onOpenPortfolio} style={({ pressed }) => [styles.metricLink, pressed && styles.pressed]}><Text style={styles.metricLinkText}>Ver carteira completa</Text></Pressable>
     </MetricBand>
-    <TodaySignals cashFlow={cashFlow} profitPct={stats.profitPct} healthScore={health.score} />
+    <TodaySignals cashFlow={cashFlow} profitPct={stats.profitPct} healthScore={health.score} monthlyIncome={monthlyIncome} onOpenAporte={onOpenAporte} onOpenPortfolio={onOpenPortfolio} onOpenIncome={onOpenIncome} onOpenHealth={onOpenHealth} />
     <View style={styles.insight}><InsightNote title="Uma leitura do Vesti" detail="Converse sobre o que mudou e transforme os números em próximos passos claros." tone="inverse" actionLabel="Conversar com o Vesti" onPress={() => navigation.navigate('AIHub', { context: { source: 'today' } })} /></View>
     <EditorialSectionHeader title="Seu mês até aqui" meta={`${timeline.length} movimentos`} />
-    <TodayTimeline items={timeline} onAdd={() => navigation.navigate('Investir', { screen: 'Operacoes' })} />
+    <TodayTimeline items={timeline} onAdd={() => navigation.navigate('Investir', { screen: 'Operacoes' })} onSelect={(item) => navigation.navigate('Investir', { screen: item.id.startsWith('provento:') ? 'Proventos' : 'Operacoes' })} />
     <EditorialSectionHeader title="Próximos passos" meta="Para você" />
     <TodayNextSteps actions={health.actions} onSelect={handleCoachAction} />
   </EditorialScreen>;
 }
 
-const styles = StyleSheet.create({ chart: { marginTop: editorial.space.sm }, insight: { marginTop: editorial.space.xl } });
+const styles = StyleSheet.create({ chart: { marginTop: editorial.space.sm }, metricLink: { alignSelf: 'flex-start', minHeight: 44, justifyContent: 'center' }, metricLinkText: { color: editorial.color.indigo, fontWeight: '800', fontSize: editorial.type.caption }, pressed: { opacity: 0.65 }, insight: { marginTop: editorial.space.xl } });

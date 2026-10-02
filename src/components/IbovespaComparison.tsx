@@ -31,11 +31,10 @@ function IbovespaComparisonInner({ portfolioReturnPct, daysOfHistory, snapshots 
 
     let cancelled = false;
     setLoading(true);
-    fetchChart('^BVSP', chosenRange).then((d) => {
-      if (cancelled) return;
-      if (d) setIbovChangePct(d.changePct);
-      setLoading(false);
-    });
+    fetchChart('^BVSP', chosenRange)
+      .then((d) => { if (!cancelled) setIbovChangePct(d?.changePct ?? null); })
+      .catch(() => { if (!cancelled) setIbovChangePct(null); })
+      .finally(() => { if (!cancelled) setLoading(false); });
     return () => {
       cancelled = true;
     };

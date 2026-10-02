@@ -33,8 +33,7 @@ export default function AssetNewsFeed({ symbol, companyName }: Props) {
         return nameWords.some((w) => text.includes(w));
       });
       setNews(filtered.slice(0, 15));
-      setLoading(false);
-    });
+    }).catch(() => { if (!cancelled) setNews([]); }).finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
   }, [symbol, companyName]);
 

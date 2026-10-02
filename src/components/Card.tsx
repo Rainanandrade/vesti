@@ -7,4 +7,4 @@ export default function Card({ children, style }: { children: ReactNode; style?:
   return <View style={[styles.compatibility, style]}>{children}</View>;
 }
 
-const styles = StyleSheet.create({ compatibility: { paddingVertical: editorial.space.lg, borderTopWidth: 1, borderBottomWidth: 1, borderColor: editorial.color.line } });
+const styles = StyleSheet.create({ compatibility: { padding: editorial.space.lg, borderWidth: 1, borderColor: editorial.color.line, borderRadius: editorial.radius.feature, backgroundColor: editorial.color.canvasRaised } });

@@ -77,13 +77,22 @@ export default function EditAssetScreen({ navigation, route }: any) {
       fetchQuotes([asset.symbol]),
       fetchAssetDetails(asset.symbol),
       fetchDividendInfo(asset.symbol),
-    ]).then(([qs, d, dv]) => {
-      if (cancelled) return;
-      setQuote(qs[0] || null);
-      setDetails(d);
-      setDividendInfo(dv);
-      setLoadingData(false);
-    });
+    ])
+      .then(([qs, d, dv]) => {
+        if (cancelled) return;
+        setQuote(qs[0] || null);
+        setDetails(d);
+        setDividendInfo(dv);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setQuote(null);
+        setDetails(null);
+        setDividendInfo(null);
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingData(false);
+      });
     return () => {
       cancelled = true;
     };

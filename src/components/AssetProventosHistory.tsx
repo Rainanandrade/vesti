@@ -20,12 +20,10 @@ export default function AssetProventosHistory({ symbol, quantity = 0, privacyMod
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
-    fetchDividendInfo(symbol).then((d) => {
-      if (!cancelled) {
-        setInfo(d);
-        setLoading(false);
-      }
-    });
+    fetchDividendInfo(symbol)
+      .then((d) => { if (!cancelled) setInfo(d); })
+      .catch(() => { if (!cancelled) setInfo(null); })
+      .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
   }, [symbol]);
 

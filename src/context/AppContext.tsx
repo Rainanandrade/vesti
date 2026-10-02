@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, ReactNode, useCallback } from 'react';
+import { createContext, useContext, useEffect, useState, ReactNode, useCallback, useRef } from 'react';
 import { Linking } from 'react-native';
 import { Storage, KEYS, Secure, SECURE_KEYS, pinLockoutKey } from '../storage/storage';
 import { Profile } from '../data/profileQuiz';
@@ -6,6 +6,7 @@ import { supabase } from '../services/supabase';
 import { isPinLocked, normalizePinLockout, registerPinFailure } from '../utils/pinLockout';
 // CommonJS keeps the timeout helper executable by the Node regression suite.
 const { withTimeout } = require('../utils/async');
+const { selectOwnedWallet, mapRecoveryWallet } = require('../utils/walletInvariant');
 
 type PinLockoutState = { attempts: number; lockedUntil: number | null };
 type PinVerification = PinLockoutState & { ok: boolean };
@@ -71,6 +72,7 @@ type AppContextType = {
   activeWallet: Wallet | null;
   setActiveWalletId: (id: string) => Promise<void>;
   createWallet: (name: string) => Promise<Wallet>;
+  ensureActiveWallet: () => Promise<Wallet>;
   deleteWallet: (id: string) => Promise<void>;
 
   addAsset: (walletId: string, asset: Asset) => Promise<void>;
@@ -185,6 +187,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [operations, setOperations] = useState<Operation[]>([]);
   const [proventos, setProventos] = useState<Provento[]>([]);
   const [snapshots, setSnapshots] = useState<PatrimonySnapshot[]>([]);
+  const walletsRef = useRef<Wallet[]>([]);
+  const walletRecoveryRef = useRef<Promise<Wallet> | null>(null);
+
+  useEffect(() => {
+    walletsRef.current = wallets;
+  }, [wallets]);
 
   // Carrega dados do usuário a partir do Supabase
   const loadUserData = useCallback(async (uid: string, email: string) => {
@@ -208,10 +216,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
 
     // Wallets
-    const { data: wts } = await supabase
+    const { data: wts, error: walletsError } = await withTimeout(supabase
       .from('wallets')
       .select('*')
-      .order('created_at', { ascending: true });
+      .order('created_at', { ascending: true }), 15000, 'Carregar carteiras');
+    if (walletsError) throw new Error(translateDbError(walletsError.message));
 
     const { data: ats } = await supabase
       .from('assets')
@@ -230,7 +239,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     );
 
     if (wts) {
-      const walletList: Wallet[] = wts.map((w: any) => ({
+      let walletList: Wallet[] = wts.map((w: any) => ({
         id: w.id,
         name: w.name,
         createdAt: new Date(w.created_at).getTime(),
@@ -252,10 +261,25 @@ export function AppProvider({ children }: { children: ReactNode }) {
             lastSyncAt: a.last_sync_at ? new Date(a.last_sync_at).getTime() : null,
           })),
       }));
-      setWallets(walletList);
       const active = wts.find((w: any) => w.user_id === uid && w.is_active);
-      const firstOwned = walletList.find((wallet) => wallet.ownerId === uid);
-      setActiveWalletIdState(active?.id || firstOwned?.id || walletList[0]?.id || null);
+      let ownedWallet = selectOwnedWallet(walletList, uid, active?.id);
+      if (!ownedWallet) {
+        const { data: recoveryRow, error: recoveryError } = await withTimeout(
+          supabase
+            .from('wallets')
+            .insert({ user_id: uid, name: 'Carteira principal', is_active: true })
+            .select()
+            .single(),
+          15000,
+          'Preparar sua carteira',
+        );
+        if (recoveryError || !recoveryRow) throw new Error(translateDbError(recoveryError?.message || 'Sem resposta do servidor'));
+        ownedWallet = mapRecoveryWallet(recoveryRow, uid);
+        walletList = [ownedWallet, ...walletList];
+      }
+      walletsRef.current = walletList;
+      setWallets(walletList);
+      setActiveWalletIdState(ownedWallet.id);
     }
 
     // Goals reached
@@ -732,26 +756,77 @@ export function AppProvider({ children }: { children: ReactNode }) {
       ownerId: userId,
       readOnly: false,
     };
-    setWallets((prev) => [...prev, w]);
+    setWallets((prev) => {
+      const next = [...prev, w];
+      walletsRef.current = next;
+      return next;
+    });
     if (wallets.length === 0) setActiveWalletIdState(w.id);
     return w;
   }, [userId, wallets.length]);
 
+  const ensureActiveWallet = useCallback(async (): Promise<Wallet> => {
+    if (!userId) throw new Error('Você não está logado. Faça login novamente.');
+    const existing = selectOwnedWallet(walletsRef.current, userId, activeWalletId);
+    if (existing) {
+      if (activeWalletId !== existing.id) setActiveWalletIdState(existing.id);
+      return existing;
+    }
+    if (walletRecoveryRef.current) return walletRecoveryRef.current;
+    const recovery = (async () => {
+      const { data, error } = await withTimeout(
+        supabase
+          .from('wallets')
+          .insert({ user_id: userId, name: 'Carteira principal', is_active: true })
+          .select()
+          .single(),
+        15000,
+        'Preparar sua carteira',
+      );
+      if (error || !data) throw new Error(translateDbError(error?.message || 'Sem resposta do servidor'));
+      const recoveryWallet: Wallet = mapRecoveryWallet(data, userId);
+      setWallets((current) => {
+        const next = current.some((wallet) => wallet.id === recoveryWallet.id) ? current : [recoveryWallet, ...current];
+        walletsRef.current = next;
+        return next;
+      });
+      setActiveWalletIdState(recoveryWallet.id);
+      return recoveryWallet;
+    })().finally(() => {
+      walletRecoveryRef.current = null;
+    });
+    walletRecoveryRef.current = recovery;
+    return recovery;
+  }, [activeWalletId, userId]);
+
   const deleteWallet = useCallback(async (id: string) => {
-    const wallet = wallets.find((item) => item.id === id);
+    const wallet = walletsRef.current.find((item) => item.id === id);
     if (!wallet || wallet.readOnly) throw new Error('Esta carteira compartilhada é somente leitura.');
-    const { error } = await supabase.from('wallets').delete().eq('id', id);
+    const ownedWallets = walletsRef.current.filter((item) => item.ownerId === userId && !item.readOnly);
+    let replacement: Wallet | null = null;
+    if (ownedWallets.length === 1) {
+      const { data, error } = await withTimeout(
+        supabase.from('wallets').insert({ user_id: userId, name: 'Carteira principal', is_active: true }).select().single(),
+        15000,
+        'Preparar a carteira principal',
+      );
+      if (error || !data) throw new Error(translateDbError(error?.message || 'Sem resposta do servidor'));
+      replacement = mapRecoveryWallet(data, userId);
+    }
+    const { error } = await withTimeout(supabase.from('wallets').delete().eq('id', id), 15000, 'Excluir a carteira');
     if (error) throw new Error(translateDbError(error.message));
     setWallets((prev) => {
-      const next = prev.filter((w) => w.id !== id);
-      if (activeWalletId === id) setActiveWalletIdState(next[0]?.id || null);
+      const remaining = prev.filter((w) => w.id !== id);
+      const next = replacement ? [replacement, ...remaining] : remaining;
+      walletsRef.current = next;
+      if (activeWalletId === id) setActiveWalletIdState(replacement?.id || selectOwnedWallet(next, userId, null)?.id || next[0]?.id || null);
       return next;
     });
-  }, [activeWalletId, wallets]);
+  }, [activeWalletId, userId]);
 
   const addAsset = useCallback(async (walletId: string, asset: Asset) => {
     if (!userId) throw new Error('Você não está logado. Faça login novamente.');
-    const wallet = wallets.find((item) => item.id === walletId);
+    const wallet = walletsRef.current.find((item) => item.id === walletId);
     if (!wallet || wallet.readOnly) throw new Error('Esta carteira compartilhada é somente leitura.');
     const existing = wallet.assets.find((a) => a.symbol === asset.symbol);
     if (existing && existing.id) {
@@ -762,8 +837,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
         .update({ quantity: totalQty, avg_price: avg })
         .eq('id', existing.id), 15000, 'Atualizar o ativo');
       if (error) throw new Error(translateDbError(error.message));
-      setWallets((prev) =>
-        prev.map((w) =>
+      setWallets((prev) => {
+        const next = prev.map((w) =>
           w.id === walletId
             ? {
                 ...w,
@@ -772,8 +847,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
                 ),
               }
             : w,
-        ),
-      );
+        );
+        walletsRef.current = next;
+        return next;
+      });
     } else {
       const { data, error } = await withTimeout(supabase
         .from('assets')
@@ -802,9 +879,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
         pluggyItemId: data.pluggy_item_id ?? null,
         lastSyncAt: data.last_sync_at ? new Date(data.last_sync_at).getTime() : null,
       };
-      setWallets((prev) =>
-        prev.map((w) => (w.id === walletId ? { ...w, assets: [...w.assets, newAsset] } : w)),
-      );
+      setWallets((prev) => {
+        const next = prev.map((w) => (w.id === walletId ? { ...w, assets: [...w.assets, newAsset] } : w));
+        walletsRef.current = next;
+        return next;
+      });
     }
   }, [userId, wallets]);
 
@@ -1012,11 +1091,21 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const clearAllUserData = useCallback(async () => {
     if (!userId) return;
-    // Apaga tudo do usuário (carteiras, ativos, operações, proventos, snapshots,
-    // watchlist, metas, lições). O profile e auth.user permanecem.
-    const results = await Promise.all([
+    // A carteira de recuperação nasce antes da limpeza. Assim a sessão nunca
+    // fica sem destino para um novo ativo, mesmo se a rede oscilar no processo.
+    const { data: recoveryRow, error: recoveryError } = await withTimeout(
+      supabase
+        .from('wallets')
+        .insert({ user_id: userId, name: 'Carteira principal', is_active: true })
+        .select()
+        .single(),
+      15000,
+      'Reiniciar sua carteira',
+    );
+    if (recoveryError || !recoveryRow) throw new Error(translateDbError(recoveryError?.message || 'Sem resposta do servidor'));
+    const recoveryWallet: Wallet = mapRecoveryWallet(recoveryRow, userId);
+    const childResults = await Promise.all([
       supabase.from('assets').delete().eq('user_id', userId),
-      supabase.from('wallets').delete().eq('user_id', userId),
       supabase.from('operations').delete().eq('user_id', userId),
       supabase.from('proventos').delete().eq('user_id', userId),
       supabase.from('patrimony_snapshots').delete().eq('user_id', userId),
@@ -1024,9 +1113,20 @@ export function AppProvider({ children }: { children: ReactNode }) {
       supabase.from('goals_reached').delete().eq('user_id', userId),
       supabase.from('lessons_completed').delete().eq('user_id', userId),
     ]);
-    results.forEach(assertMutation);
-    setWallets([]);
-    setActiveWalletIdState(null);
+    childResults.forEach(assertMutation);
+    assertMutation(await withTimeout(
+      supabase.from('wallets').delete().eq('user_id', userId).neq('id', recoveryWallet.id),
+      15000,
+      'Remover carteiras antigas',
+    ));
+    assertMutation(await withTimeout(
+      supabase.from('wallets').update({ is_active: true }).eq('id', recoveryWallet.id),
+      15000,
+      'Ativar a nova carteira',
+    ));
+    walletsRef.current = [recoveryWallet];
+    setWallets([recoveryWallet]);
+    setActiveWalletIdState(recoveryWallet.id);
     setOperations([]);
     setProventos([]);
     setSnapshots([]);
@@ -1147,6 +1247,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         activeWallet,
         setActiveWalletId,
         createWallet,
+        ensureActiveWallet,
         deleteWallet,
         addAsset,
         removeAsset,

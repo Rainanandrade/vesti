@@ -29,7 +29,9 @@ type Params = { symbol: string; name?: string; type?: TickerInfo['type'] };
 export default function AssetDetailScreen({ navigation, route }: any) {
   const params = (route?.params || {}) as Params;
   const symbol: string = params.symbol;
-  const { profile } = useApp();
+  const { profile, activeWallet } = useApp();
+  const ownedPosition = activeWallet?.assets.find((asset) => asset.symbol === symbol);
+  const readOnly = Boolean(activeWallet?.readOnly || !ownedPosition);
 
   const tickerInfo = useMemo<TickerInfo>(() => {
     const found = TICKERS.find((t) => t.symbol === symbol);
@@ -91,6 +93,17 @@ export default function AssetDetailScreen({ navigation, route }: any) {
               </Text>
             </View>
           )}
+          {!readOnly ? (
+            <TouchableOpacity
+              accessibilityRole="button"
+              accessibilityLabel={`Editar posição ${symbol}`}
+              style={styles.editPosition}
+              onPress={() => navigation.navigate('Tabs', { screen: 'Investir', params: { screen: 'EditAsset', params: { symbol } } })}
+            >
+              <Ionicons name="create-outline" size={18} color={colors.textLight} />
+              <Text style={styles.editPositionText}>Editar posição</Text>
+            </TouchableOpacity>
+          ) : null}
         </View>
 
         <AssetTabs active={tab} onChange={setTab} />
@@ -122,7 +135,7 @@ export default function AssetDetailScreen({ navigation, route }: any) {
                 <Text style={styles.helper}>Compare {symbol} com outros ativos lado a lado.</Text>
                 <TouchableOpacity
                   style={styles.actionBtn}
-                  onPress={() => navigation.navigate('Compare', { initialSymbol: symbol })}
+                  onPress={() => navigation.navigate('Tabs', { screen: 'Investir', params: { screen: 'Compare', params: { initialSymbol: symbol } } })}
                 >
                   <Text style={styles.actionBtnText}>Abrir comparador</Text>
                 </TouchableOpacity>
@@ -162,6 +175,8 @@ const styles = StyleSheet.create({
   priceRow: { flexDirection: 'row', alignItems: 'baseline', marginTop: spacing.md },
   priceValue: { fontSize: fontSize.title, fontWeight: 'bold', color: colors.text, flex: 1 },
   priceChange: { fontSize: fontSize.body, fontWeight: '700' },
+  editPosition: { minHeight: 46, marginTop: spacing.md, paddingHorizontal: spacing.md, borderRadius: radius.md, backgroundColor: colors.primary, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.sm },
+  editPositionText: { color: colors.textLight, fontWeight: '800', fontSize: fontSize.body },
   tabBody: { padding: spacing.md },
   helper: { fontSize: fontSize.body, color: colors.textSecondary, marginBottom: spacing.md },
   actionBtn: { backgroundColor: colors.primary, padding: spacing.md, borderRadius: radius.md, alignItems: 'center' },

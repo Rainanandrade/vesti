@@ -30,7 +30,7 @@ type Props = {
 };
 
 export default function NewOperationModal({ visible, onClose, onDone }: Props) {
-  const { activeWallet, addOperation, addAsset, removeAsset } = useApp();
+  const { activeWallet, ensureActiveWallet, addOperation, addAsset, removeAsset } = useApp();
   const [side, setSide] = useState<Side>('buy');
   const [assetKind, setAssetKind] = useState<AssetKind>('acao');
   const [symbol, setSymbol] = useState('');
@@ -72,7 +72,7 @@ export default function NewOperationModal({ visible, onClose, onDone }: Props) {
       searchTickersAsync(symbol, 10).then((all) => {
         if (cancelled) return;
         setSuggestions(filter(all));
-      });
+      }).catch(() => { if (!cancelled) setSuggestions(filter(local)); });
       return () => { cancelled = true; };
     }
   }, [symbol, assetKind]);
@@ -88,7 +88,7 @@ export default function NewOperationModal({ visible, onClose, onDone }: Props) {
     fetchQuotes([clean]).then((qs) => {
       if (cancelled) return;
       setLivePrice(qs[0]?.regularMarketPrice ?? null);
-    });
+    }).catch(() => { if (!cancelled) setLivePrice(null); });
     return () => { cancelled = true; };
   }, [symbol]);
 
@@ -106,10 +106,9 @@ export default function NewOperationModal({ visible, onClose, onDone }: Props) {
     if (!sym || sym.length < 3) { Alert.alert('Atenção', 'Digite um ticker válido.'); return; }
     if (!isFinite(qty) || qty <= 0) { Alert.alert('Atenção', 'Quantidade inválida.'); return; }
     if (!isFinite(pr) || pr <= 0) { Alert.alert('Atenção', 'Preço inválido.'); return; }
-    if (!activeWallet) { Alert.alert('Erro', 'Nenhuma carteira ativa.'); return; }
-
     setSaving(true);
     try {
+      const targetWallet = activeWallet && !activeWallet.readOnly ? activeWallet : await ensureActiveWallet();
       // 1) Registra a operação no ledger
       await addOperation({
         type: side,
@@ -125,7 +124,7 @@ export default function NewOperationModal({ visible, onClose, onDone }: Props) {
         // Tenta achar nome bonito
         const info = TICKERS.find((t) => t.symbol === sym);
         const assetType = assetKind === 'daytrade' ? 'acao' : assetKind;
-        await addAsset(activeWallet.id, {
+        await addAsset(targetWallet.id, {
           symbol: sym,
           name: info?.name || sym,
           type: assetType as Asset['type'],
@@ -135,16 +134,16 @@ export default function NewOperationModal({ visible, onClose, onDone }: Props) {
         });
       } else {
         // Venda: subtrai quantidade do ativo se existir
-        const existing = activeWallet.assets.find((a) => a.symbol === sym);
+        const existing = targetWallet.assets.find((a) => a.symbol === sym);
         if (existing) {
           const remaining = existing.quantity - qty;
           if (remaining <= 0) {
-            await removeAsset(activeWallet.id, sym);
+            await removeAsset(targetWallet.id, sym);
           } else {
             // Mantém preço médio, reduz qty — addAsset com qty negativa não dá, então:
             // estratégia simples: re-cria o asset com nova quantidade
-            await removeAsset(activeWallet.id, sym);
-            await addAsset(activeWallet.id, {
+            await removeAsset(targetWallet.id, sym);
+            await addAsset(targetWallet.id, {
               symbol: sym,
               name: existing.name,
               type: existing.type,

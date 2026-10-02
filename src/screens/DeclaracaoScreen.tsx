@@ -43,7 +43,7 @@ export default function DeclaracaoScreen({ navigation }: any) {
     const symbols = (activeWallet?.assets || [])
       .filter((a) => a.type === 'acao' || a.type === 'fii' || a.type === 'etf')
       .map((a) => a.symbol);
-    if (symbols.length > 0) fetchDividendInfoBatch(symbols).then(setDividendInfoMap);
+    if (symbols.length > 0) fetchDividendInfoBatch(symbols).then(setDividendInfoMap).catch(() => setDividendInfoMap({}));
   }, [activeWallet?.id, activeWallet?.assets.length]);
 
   const allReceived = useMemo(

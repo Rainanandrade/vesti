@@ -28,6 +28,7 @@ export default function IAConsultorScreen({ navigation }: any) {
   useEffect(() => {
     const symbols = (activeWallet?.assets || []).map((a) => a.symbol);
     if (symbols.length === 0) { setPrefetching(false); return; }
+    setPrefetching(true);
     Promise.all([
       fetchQuotes(symbols).then((qs) => {
         const m: Record<string, Quote> = {};
@@ -35,7 +36,7 @@ export default function IAConsultorScreen({ navigation }: any) {
         setQuotes(m);
       }),
       fetchDividendInfoBatch(symbols).then((d) => setDividends(d)),
-    ]).finally(() => setPrefetching(false));
+    ]).catch(() => { setQuotes({}); setDividends({}); }).finally(() => setPrefetching(false));
   }, [activeWallet?.assets.length]);
 
   const ask = async (customQuestion?: string) => {

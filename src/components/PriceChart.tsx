@@ -23,11 +23,10 @@ export default function PriceChart({ symbol, width = 320, height = 180 }: Props)
     let cancelled = false;
     setLoading(true);
     setData(null); // limpa enquanto carrega — evita ver dados antigos do range anterior
-    fetchChart(symbol, range, { force: retryNonce > 0 }).then((d) => {
-      if (cancelled) return;
-      setData(d);
-      setLoading(false);
-    });
+    fetchChart(symbol, range, { force: retryNonce > 0 })
+      .then((d) => { if (!cancelled) setData(d); })
+      .catch(() => { if (!cancelled) setData(null); })
+      .finally(() => { if (!cancelled) setLoading(false); });
     return () => {
       cancelled = true;
     };

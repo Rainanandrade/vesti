@@ -38,7 +38,7 @@ const TYPES: { value: Asset['type']; label: string; needsSymbol: boolean }[] = [
 ];
 
 export default function AddAssetScreen({ navigation, route }: any) {
-  const { activeWallet, addAsset, profile } = useApp();
+  const { activeWallet, ensureActiveWallet, addAsset, profile } = useApp();
   const prefill = route?.params?.prefill;
   const [type, setType] = useState<Asset['type']>(prefill?.type || 'acao');
   const [symbol, setSymbol] = useState(prefill?.symbol || '');
@@ -150,17 +150,13 @@ export default function AddAssetScreen({ navigation, route }: any) {
       Alert.alert('Atenção', 'Preço médio inválido');
       return;
     }
-    if (!activeWallet) {
-      Alert.alert('Erro', 'Nenhuma carteira ativa');
-      return;
-    }
-
     const finalSymbol = typeMeta.needsSymbol ? symbol.trim().toUpperCase() : name.trim();
     const finalName = name.trim() || finalSymbol;
 
     setSaving(true);
     try {
-      await addAsset(activeWallet.id, {
+      const targetWallet = activeWallet && !activeWallet.readOnly ? activeWallet : await ensureActiveWallet();
+      await addAsset(targetWallet.id, {
         symbol: finalSymbol,
         name: finalName,
         type,

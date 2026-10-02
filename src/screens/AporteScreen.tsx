@@ -41,7 +41,7 @@ import { PREFERENCE_INFO } from '../data/profileQuiz';
 const QUICK = [100, 300, 500, 1000];
 
 export default function AporteScreen({ navigation }: any) {
-  const { activeWallet, profile, privacyMode, addAsset } = useApp();
+  const { activeWallet, ensureActiveWallet, profile, privacyMode, addAsset } = useApp();
   const [value, setValue] = useState('');
   const [prices, setPrices] = useState<Record<string, number>>({});
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -76,10 +76,14 @@ export default function AporteScreen({ navigation }: any) {
     const symbols = activeWallet.assets
       .filter((a) => a.type === 'acao' || a.type === 'fii' || a.type === 'etf')
       .map((a) => a.symbol);
-    const q = await fetchQuotes(symbols);
-    const map: Record<string, number> = {};
-    q.forEach((x) => (map[x.symbol] = x.regularMarketPrice));
-    setPrices(map);
+    try {
+      const q = await fetchQuotes(symbols);
+      const map: Record<string, number> = {};
+      q.forEach((x) => (map[x.symbol] = x.regularMarketPrice));
+      setPrices(map);
+    } catch {
+      // A sugestão continua usando preços médios quando a cotação está indisponível.
+    }
   }, [activeWallet]);
 
   useEffect(() => {
@@ -118,10 +122,14 @@ export default function AporteScreen({ navigation }: any) {
         (s) => !(s in prices) && !(s in universePrices),
       );
       if (symbols.length > 0) {
-        const fetched = await fetchQuotes(symbols);
-        const map: Record<string, number> = {};
-        fetched.forEach((q) => (map[q.symbol] = q.regularMarketPrice));
-        setUniversePrices((prev) => ({ ...prev, ...map }));
+        try {
+          const fetched = await fetchQuotes(symbols);
+          const map: Record<string, number> = {};
+          fetched.forEach((q) => (map[q.symbol] = q.regularMarketPrice));
+          setUniversePrices((prev) => ({ ...prev, ...map }));
+        } catch {
+          setAiError('Algumas cotações estão indisponíveis. A sugestão local continua disponível.');
+        }
       }
     }
   };
@@ -175,7 +183,7 @@ export default function AporteScreen({ navigation }: any) {
         : tickerInfo?.type || 'outro';
     setBuying({ symbol, name, amount, type });
     if (tickerInfo) {
-      const q = await fetchQuotes([symbol]);
+      const q = await fetchQuotes([symbol]).catch(() => []);
       const price = q[0]?.regularMarketPrice;
       if (price) {
         setBuyPrice(price.toFixed(2).replace('.', ','));
@@ -191,7 +199,7 @@ export default function AporteScreen({ navigation }: any) {
   };
 
   const confirmBuy = async () => {
-    if (!buying || !activeWallet) return;
+    if (!buying) return;
     const qty = parseFloat(buyQty.replace(',', '.'));
     const pr = parseFormattedNumber(buyPrice);
     if (!isFinite(qty) || qty <= 0) {
@@ -204,7 +212,8 @@ export default function AporteScreen({ navigation }: any) {
     }
     setConfirming(true);
     try {
-      await addAsset(activeWallet.id, {
+      const targetWallet = activeWallet && !activeWallet.readOnly ? activeWallet : await ensureActiveWallet();
+      await addAsset(targetWallet.id, {
         symbol: buying.symbol,
         name: buying.name,
         type: buying.type,

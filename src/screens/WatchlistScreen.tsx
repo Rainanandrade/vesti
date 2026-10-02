@@ -147,7 +147,7 @@ export default function WatchlistScreen({ navigation }: any) {
                 key={item.symbol}
                 activeOpacity={0.7}
                 onPress={() =>
-                  navigation.getParent()?.navigate('AssetDetail', {
+                  navigation.getParent()?.getParent()?.navigate('AssetDetail', {
                     symbol: item.symbol,
                     name: item.name,
                     type: item.type,

@@ -20,7 +20,7 @@ export const GESTORES: Gestor[] = [
     description: 'Fundo do Luis Stuhlberger. Referência em multimercado no Brasil.',
     yearlyReturns: { '2020': 20.4, '2021': -0.9, '2022': 7.8, '2023': 8.7, '2024': 12.1, '2025': 9.3 },
     avgAnnualReturn: 9.6,
-    color: '#5B4CF0',
+    color: '#7C5CFF',
   },
   {
     id: 'dahlia',

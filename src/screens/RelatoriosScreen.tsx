@@ -24,6 +24,7 @@ export default function RelatoriosScreen({ navigation }: any) {
   useEffect(() => {
     const symbols = (activeWallet?.assets || []).map((a) => a.symbol);
     if (symbols.length === 0) { setLoading(false); return; }
+    setLoading(true);
     Promise.all([
       fetchQuotes(symbols).then((qs) => {
         const m: Record<string, Quote> = {};
@@ -31,7 +32,7 @@ export default function RelatoriosScreen({ navigation }: any) {
         setQuotes(m);
       }),
       fetchDividendInfoBatch(symbols).then((d) => setDividends(d)),
-    ]).finally(() => setLoading(false));
+    ]).catch(() => { setQuotes({}); setDividends({}); }).finally(() => setLoading(false));
   }, [activeWallet?.assets.length]);
 
   const currentYear = new Date().getFullYear();

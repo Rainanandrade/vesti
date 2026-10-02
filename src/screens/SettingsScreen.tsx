@@ -62,6 +62,7 @@ export default function SettingsScreen({ navigation }: any) {
   } = useApp();
   const [nameModalOpen, setNameModalOpen] = useState(false);
   const [editName, setEditName] = useState(user?.name || '');
+  const [clearingData, setClearingData] = useState(false);
 
   const handleSaveName = async () => {
     if (editName.trim().length < 2) {
@@ -153,15 +154,19 @@ Pra detalhe operação a operação, posso exportar o JSON completo no Vesti.`;
   };
 
   const handleClearData = () => {
+    if (clearingData) return;
     confirmAction(
       'Limpar todos os dados',
       'Vai apagar TODAS suas carteiras, operações, proventos, snapshots, watchlist e metas. Sua conta e perfil ficam. Essa ação é IRREVERSÍVEL.',
       async () => {
+        setClearingData(true);
         try {
           await clearAllUserData();
-          Alert.alert('Pronto', 'Seus dados foram apagados. Comece do zero.');
+          Alert.alert('Pronto', 'Seus dados foram apagados e uma nova carteira principal já está pronta.');
         } catch (e: any) {
           Alert.alert('Ops', e?.message || 'Falha ao limpar.');
+        } finally {
+          setClearingData(false);
         }
       },
       { confirmLabel: 'Apagar tudo', destructive: true },
@@ -594,12 +599,12 @@ Pra detalhe operação a operação, posso exportar o JSON completo no Vesti.`;
           </Card>
         </TouchableOpacity>
 
-        <TouchableOpacity onPress={handleClearData}>
+        <TouchableOpacity onPress={handleClearData} disabled={clearingData} style={{ opacity: clearingData ? 0.55 : 1 }}>
           <Card style={{ marginBottom: spacing.sm }}>
             <View style={styles.row}>
               <Ionicons name="trash-bin-outline" size={22} color={colors.danger} />
               <View style={{ flex: 1, marginLeft: spacing.md }}>
-                <Text style={[styles.rowTitle, { color: colors.danger }]}>Limpar todos os dados</Text>
+                <Text style={[styles.rowTitle, { color: colors.danger }]}>{clearingData ? 'Limpando dados…' : 'Limpar todos os dados'}</Text>
                 <Text style={styles.rowSub}>
                   Apaga carteiras, operações, proventos, metas e watchlist. Conta permanece.
                 </Text>

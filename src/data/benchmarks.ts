@@ -56,7 +56,7 @@ export const BENCHMARKS: Benchmark[] = [
     name: 'IDIV',
     fullName: 'IDIV · ações pagadoras de dividendos',
     yearlyRatePct: 7.4,
-    color: '#5B4CF0',
+    color: '#7C5CFF',
     category: 'acoes',
   },
   {

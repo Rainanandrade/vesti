@@ -39,13 +39,18 @@ export default function PasswordRecoveryScreen() {
 
     setError(null);
     setLoading(true);
-    const result = await completePasswordRecovery(password);
-    setLoading(false);
-    if (!result.ok) {
-      setError(result.error || 'Não foi possível atualizar a senha.');
-      return;
+    try {
+      const result = await completePasswordRecovery(password);
+      if (!result.ok) {
+        setError(result.error || 'Não foi possível atualizar a senha.');
+        return;
+      }
+      Alert.alert('Senha atualizada', 'Sua nova senha já está ativa.');
+    } catch (e: any) {
+      setError(e?.message || 'Não foi possível atualizar a senha. Tente novamente.');
+    } finally {
+      setLoading(false);
     }
-    Alert.alert('Senha atualizada', 'Sua nova senha já está ativa.');
   };
 
   return (

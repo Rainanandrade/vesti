@@ -119,7 +119,7 @@ export default function AssetsListScreen({ navigation, route }: any) {
         const map: Record<string, Quote> = {};
         qs.forEach((q) => (map[q.symbol] = q));
         setQuotes((prev) => ({ ...prev, ...map }));
-      });
+      }).catch(() => undefined);
     }
   }, [filtered.map((a) => a.symbol).join(',')]);
 
@@ -145,7 +145,7 @@ export default function AssetsListScreen({ navigation, route }: any) {
             // AssetsList vive no MainStack como modal. AddAsset vive no
             // PortfolioStack. Precisamos pular do MainStack pra o Tab Carteira
             // e abrir AddAsset lá.
-            navigation.navigate('Tabs', { screen: 'Carteira', params: { screen: 'AddAsset' } });
+            navigation.navigate('Tabs', { screen: 'Investir', params: { screen: 'AddAsset' } });
           }}
         >
           <Ionicons name="add" size={22} color={colors.textLight} />
@@ -269,7 +269,7 @@ export default function AssetsListScreen({ navigation, route }: any) {
                       // AssetsList vive no MainStack. EditAsset está no PortfolioStack.
                       // Navegar via root → Tabs → Carteira → EditAsset.
                       navigation.navigate('Tabs', {
-                        screen: 'Carteira',
+                        screen: 'Investir',
                         params: { screen: 'EditAsset', params: { symbol: a.symbol } },
                       });
                     }}

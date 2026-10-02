@@ -35,12 +35,10 @@ export default function AssetReturnsPanel({ symbol }: Props) {
         const real = nominal - p.ipcaAccum;
         return { label: p.label, nominal, real };
       }),
-    ).then((res) => {
-      if (!cancelled) {
-        setRows(res);
-        setLoading(false);
-      }
-    });
+    )
+      .then((res) => { if (!cancelled) setRows(res); })
+      .catch(() => { if (!cancelled) setRows(PERIODS.map((p) => ({ label: p.label, nominal: null, real: null }))); })
+      .finally(() => { if (!cancelled) setLoading(false); });
     return () => {
       cancelled = true;
     };

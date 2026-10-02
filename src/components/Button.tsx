@@ -63,7 +63,7 @@ const styles = StyleSheet.create({
 
 const variants: Record<Variant, { container: ViewStyle; text: { color: string } }> = {
   primary: {
-    container: { backgroundColor: editorial.color.inverse },
+    container: { backgroundColor: editorial.color.indigo },
     text: { color: editorial.color.white },
   },
   secondary: {

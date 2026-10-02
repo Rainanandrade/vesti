@@ -44,8 +44,12 @@ test('every reachable screen uses the editorial system', () => {
 
 test('editorial palette contains no legacy brand colors', () => {
   const theme = read('src/theme/editorial.ts');
-  assert.match(theme, /canvas:\s*'#F5F0E8'/);
-  assert.match(theme, /indigo:\s*'#5B4CF0'/);
-  assert.match(theme, /coral:\s*'#FF655B'/);
+  const tokens = read('src/theme/tokens.ts');
+  assert.match(theme, /canvas:\s*palette\.canvas/);
+  assert.match(theme, /indigo:\s*palette\.brand/);
+  assert.match(theme, /coral:\s*palette\.accent/);
+  assert.match(tokens, /canvas:\s*'#11131B'/);
+  assert.match(tokens, /brand:\s*'#7C5CFF'/);
+  assert.match(tokens, /accent:\s*'#FF786B'/);
   assert.doesNotMatch(theme, /#0B5345|#073B30|#C9A961/i);
 });

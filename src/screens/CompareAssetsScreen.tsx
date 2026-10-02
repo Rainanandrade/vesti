@@ -30,23 +30,31 @@ export default function CompareAssetsScreen({ navigation }: any) {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
+    let cancelled = false;
     if (selected.length === 0) {
       setQuotes({});
       setDetails({});
-      return;
+      setLoading(false);
+      return () => { cancelled = true; };
     }
     setLoading(true);
     Promise.all([
       fetchQuotes(selected),
       Promise.all(selected.map((s) => fetchAssetDetails(s).then((d) => [s, d] as const))),
     ]).then(([qs, ds]) => {
+      if (cancelled) return;
       const qmap: Record<string, Quote> = {};
       qs.forEach((q) => (qmap[q.symbol] = q));
       setQuotes(qmap);
       const dmap: Record<string, AssetDetails | null> = {};
       ds.forEach(([s, d]) => (dmap[s] = d));
       setDetails(dmap);
-    }).catch(() => { setQuotes({}); setDetails({}); }).finally(() => setLoading(false));
+    }).catch(() => {
+      if (!cancelled) { setQuotes({}); setDetails({}); }
+    }).finally(() => {
+      if (!cancelled) setLoading(false);
+    });
+    return () => { cancelled = true; };
   }, [selected]);
 
   const add = (symbol: string) => {

@@ -6,12 +6,12 @@ const path = require('node:path');
 const root = path.resolve(__dirname, '..');
 const read = (file) => fs.readFileSync(path.join(root, file), 'utf8');
 
-test('editorial brand tokens replace the legacy emerald and gold identity', () => {
+test('Orbit tokens replace the Pulso and legacy identities', () => {
   const tokens = read('src/theme/tokens.ts');
-  assert.match(tokens, /canvas:\s*'#F5F0E8'/);
-  assert.match(tokens, /brand:\s*'#5B4CF0'/);
-  assert.match(tokens, /accent:\s*'#FF655B'/);
-  assert.doesNotMatch(tokens, /#0B5345|#C9A961/i);
+  assert.match(tokens, /canvas:\s*'#11131B'/i);
+  assert.match(tokens, /brand:\s*'#7C5CFF'/i);
+  assert.match(tokens, /accent:\s*'#FF786B'/i);
+  assert.doesNotMatch(tokens, /#0B5345|#C9A961|#F5F0E8|#5B4CF0|#FF655B/i);
 });
 
 test('main navigation exposes exactly four approved destinations', () => {
@@ -45,6 +45,7 @@ test('aporte is one tap from Investir and every investment flow returns to Inves
   assert.match(aporte, /safeBackToInvestir\(navigation\)/);
   assert.match(navigation, /screen: 'Investir'/);
   assert.doesNotMatch(navigation, /navigate\('Carteira'/);
+  assert.doesNotMatch(read('src/screens/AssetsListScreen.tsx'), /screen: 'Carteira'/);
   assert.match(tabs, /PortfolioMain/);
 });
 
@@ -75,6 +76,48 @@ test('asset creation cannot keep a loading state forever', () => {
   assert.match(addAsset, /finally\(\(\) =>/);
   assert.match(aporte, /\.finally\(\(\) => \{/);
   assert.match(aporte, /setLoading\(false\)/);
+});
+
+test('clearing financial data recreates an active main wallet before replacing local state', () => {
+  const context = read('src/context/AppContext.tsx');
+  assert.match(context, /ensureActiveWallet/);
+  assert.match(context, /walletsRef/);
+  assert.match(context, /ownedWallets/);
+  assert.match(context, /Carteira principal/);
+  assert.match(context, /setActiveWalletIdState\(recoveryWallet\.id\)/);
+  assert.match(context, /withTimeout/);
+});
+
+test('owned positions expose a visible editing path', () => {
+  const detail = read('src/screens/AssetDetailScreen.tsx');
+  assert.match(detail, /Editar posição/);
+  assert.match(detail, /screen: 'EditAsset'/);
+  assert.match(detail, /readOnly/);
+});
+
+test('Hoje metrics and timeline connect to concrete destinations', () => {
+  const dashboard = read('src/screens/DashboardScreen.tsx');
+  const signals = read('src/features/today/TodaySignals.tsx');
+  const timeline = read('src/features/today/TodayTimeline.tsx');
+  assert.match(dashboard, /onOpenPortfolio/);
+  assert.match(dashboard, /onOpenAporte/);
+  assert.match(dashboard, /onOpenIncome/);
+  assert.match(signals, /onPress/);
+  assert.match(timeline, /onSelect/);
+});
+
+test('audited remote loaders always recover from rejection', () => {
+  for (const file of [
+    'src/screens/EditAssetScreen.tsx',
+    'src/components/PriceChart.tsx',
+    'src/components/AssetReturnsPanel.tsx',
+    'src/components/AssetProventosHistory.tsx',
+    'src/components/IbovespaComparison.tsx',
+  ]) {
+    const source = read(file);
+    assert.match(source, /catch/);
+    assert.match(source, /finally/);
+  }
 });
 
 test('Planejar keeps all planning tools reachable', () => {
