@@ -7,11 +7,11 @@ import { Ionicons } from '@expo/vector-icons';
 import { colors, fontSize, radius, spacing } from '../theme/colors';
 import { useApp } from '../context/AppContext';
 import Card from '../components/Card';
-import ProLock from '../components/ProLock';
 import { safeBackToTabs } from '../utils/navigation';
 import { fetchQuotes, Quote } from '../api/brapi';
 import { fetchDividendInfoBatch, DividendInfo } from '../api/dividends';
 import { supabase } from '../services/supabase';
+import { requestWithTimeout } from '../api/request';
 
 const API_URL = 'https://vesti-nine.vercel.app/api/ai-consultor';
 
@@ -47,7 +47,7 @@ export default function IAConsultorScreen({ navigation }: any) {
     try {
       const { data } = await supabase.auth.getSession();
       const token = data.session?.access_token;
-      const r = await fetch(API_URL, {
+      const r = await requestWithTimeout(API_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: token ? `Bearer ${token}` : '' },
         body: JSON.stringify({
@@ -57,7 +57,7 @@ export default function IAConsultorScreen({ navigation }: any) {
           profile,
           question: customQuestion ?? question,
         }),
-      });
+      }, 30000);
       const json = await r.json();
       if (!r.ok) throw new Error(json.error || 'Falha na IA');
       setAnswer(json.answer);
@@ -86,13 +86,6 @@ export default function IAConsultorScreen({ navigation }: any) {
       </View>
 
       <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
-        <ProLock
-          mode="replace"
-          title="IA consultora da carteira"
-          description="Análise personalizada dos seus ativos, sugestão de aporte e resposta a dúvidas."
-          featureIcon="sparkles"
-          onUnlock={(plan) => navigation.navigate('ProSubscribe', { plan })}
-        >
           <Card>
             <Text style={styles.introTitle}>✨ Pergunte sobre sua carteira</Text>
             <Text style={styles.introDesc}>
@@ -162,7 +155,6 @@ export default function IAConsultorScreen({ navigation }: any) {
           <Text style={styles.footnote}>
             Baseado em Llama 3.3. As análises são sugestões, não recomendações de investimento.
           </Text>
-        </ProLock>
       </ScrollView>
     </SafeAreaView>
   );

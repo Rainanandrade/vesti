@@ -46,10 +46,7 @@ export default function ProventosScreen({ navigation }: any) {
       return;
     }
     setLoading(true);
-    fetchDividendInfoBatch(symbols).then((map) => {
-      setDividendInfoMap(map);
-      setLoading(false);
-    });
+    fetchDividendInfoBatch(symbols).then(setDividendInfoMap).catch(() => setDividendInfoMap({})).finally(() => setLoading(false));
   }, [activeWallet?.id, activeWallet?.assets.length]);
 
   const received = useMemo(

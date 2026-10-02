@@ -5,7 +5,6 @@ import { authOrReject } from './_lib/auth.js';
 import { setCors } from './_lib/cors.js';
 import { rateLimitOrReject } from './_lib/rateLimit.js';
 import { fetchWithTimeout } from './_lib/fetch.js';
-import { paidEntitlementOrReject } from './_lib/entitlement.js';
 import { validateAiText } from './_lib/aiResponse.js';
 import { checkBodySize, sanitizeAssets, sanitizeMarketMap, sanitizeProfile, sanitizeString } from './_lib/validate.js';
 
@@ -60,7 +59,7 @@ function summarizeAssets(assets = [], quotes = {}, dividends = {}) {
 }
 
 function buildSystemPrompt() {
-  return `Você é um consultor de investimentos brasileiro experiente, focado em renda passiva e dividendos, falando com o próprio investidor.
+  return `Você é um consultor de investimentos brasileiro experiente que adapta cada análise ao perfil de risco e ao foco declarado pelo próprio investidor.
 
 REGRAS:
 - Responda em português brasileiro, tom próximo e claro (sem termos rebuscados).
@@ -68,6 +67,8 @@ REGRAS:
 - Não recomende compra específica com "certeza" — sempre trate como sugestão.
 - Não faz garantia de retorno.
 - Comente concentração de setor, DY, alocação, risco.
+- Respeite o foco informado: "dividendos" prioriza renda e pagadores consistentes; "crescimento" prioriza valorização e empresas em expansão; "equilibrado" combina os dois. Nunca dê uma sugestão que contradiga o foco sem explicar claramente o motivo.
+- Em sugestões de aporte, mencione explicitamente o perfil e o foco usados na decisão.
 - Se perguntarem algo fora de investimentos, redirecione politicamente pra carteira.
 
 FORMATO da resposta:
@@ -78,7 +79,11 @@ FORMATO da resposta:
 
 function buildUserPrompt(summary, profile, question) {
   const q = question?.trim() ? `\n\nPERGUNTA DO USUÁRIO: ${question.slice(0, 300)}` : '\n\nDê uma análise geral da carteira, apontando pontos fortes, fracos e sugerindo próximos aportes.';
-  return `Perfil do investidor: ${JSON.stringify(profile || {}).slice(0, 500)}
+  return `PERFIL E FOCO DO INVESTIDOR:
+- Perfil de risco: ${profile?.type || 'não informado'}
+- Foco: ${profile?.preference || 'sem_preferencia'}
+- Estratégia alvo: ${JSON.stringify(profile?.strategy || {})}
+- Contexto completo: ${JSON.stringify(profile || {}).slice(0, 500)}
 
 Situação atual da carteira:
 ${JSON.stringify(summary, null, 2)}
@@ -93,7 +98,6 @@ export default async function handler(req, res) {
 
   const user = await authOrReject(req, res);
   if (!user) return;
-  if (!(await paidEntitlementOrReject(req, res, user))) return;
   if (!(await rateLimitOrReject(req, res, { limit: 8, windowMs: 60_000, prefix: 'ai-cons' }))) return;
 
   if (!GROQ_API_KEY) return res.status(503).json({ error: 'IA temporariamente indisponível.' });

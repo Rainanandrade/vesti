@@ -6,6 +6,7 @@ import {
   RV_MIX_BY_PREFERENCE,
   INTL_MIX,
   findBestByTags,
+  UNIVERSE,
   UniverseAsset,
   scoreAsset,
 } from '../data/universe';
@@ -75,6 +76,12 @@ function getMix(cls: Class, profile: Profile) {
   return INTL_MIX[profile.type];
 }
 
+export function isAlignedWithPreference(asset: UniverseAsset, preference?: Profile['preference']): boolean {
+  if (!preference || preference === 'sem_preferencia' || preference === 'equilibrado') return true;
+  if (preference === 'dividendos') return asset.tags.some((tag) => ['dividends', 'paper_fii', 'brick_fii'].includes(tag));
+  return asset.tags.some((tag) => ['growth', 'small_cap', 'mid_cap', 'tech', 'broad_market'].includes(tag));
+}
+
 function generatePicksForClass(
   cls: Class,
   amount: number,
@@ -89,7 +96,10 @@ function generatePicksForClass(
   const picks: Pick[] = [];
 
   // 1) Se já tem ativos dessa classe, reforça posição existente primeiro com 30% do aporte (ou menos)
-  const existing = existingAssetsByClass.get(cls) || [];
+  const existing = (existingAssetsByClass.get(cls) || []).filter((asset) => {
+    const universeAsset = UNIVERSE.find((candidate) => candidate.symbol === asset.symbol.toUpperCase());
+    return universeAsset ? isAlignedWithPreference(universeAsset, profile.preference) : !profile.preference || ['sem_preferencia', 'equilibrado'].includes(profile.preference);
+  });
   let remaining = amount;
   if (existing.length > 0) {
     const reinforce = Math.min(amount * 0.35, amount);
@@ -99,7 +109,7 @@ function generatePicksForClass(
         symbol: target.symbol,
         name: target.name,
         amount: reinforce,
-        reason: `Reforço de posição em ${target.symbol} — mantém a estratégia já em execução`,
+        reason: `Reforço de posição em ${target.symbol}, compatível com o foco ${profile.preference || 'definido pelo perfil'}.`,
         roleLabel: 'Reforço',
         isTradeable: target.type !== 'tesouro' && target.type !== 'cdb',
         isExisting: true,
@@ -124,7 +134,7 @@ function generatePicksForClass(
       symbol: best.symbol,
       name: best.name,
       amount: subAmount,
-      reason: `${m.label} — ${best.baseNote}`,
+      reason: `${m.label} para o foco ${profile.preference || 'definido pelo perfil'} — ${best.baseNote}`,
       roleLabel: m.label,
       isTradeable: best.isTradeable,
       isExisting: false,
@@ -143,7 +153,7 @@ function generatePicksForClass(
         symbol: fallback.symbol,
         name: fallback.name,
         amount,
-        reason: `${mix[0].label} — ${fallback.baseNote}`,
+        reason: `${mix[0].label} para o foco ${profile.preference || 'definido pelo perfil'} — ${fallback.baseNote}`,
         roleLabel: mix[0].label,
         isTradeable: fallback.isTradeable,
         isExisting: false,

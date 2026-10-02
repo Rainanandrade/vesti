@@ -32,9 +32,13 @@ test('paid entitlement requires both a payment id and a future expiry', async ()
   );
 });
 
-test('all paid API surfaces enforce the server-side entitlement', () => {
-  for (const file of ['ai-consultor.js', 'ai-diagnostic.js', 'ai-suggest.js', 'pluggy.js']) {
+test('AI is free behind authentication and rate limits while banking sync stays paid', () => {
+  for (const file of ['ai-consultor.js', 'ai-diagnostic.js', 'ai-suggest.js']) {
     const source = fs.readFileSync(path.resolve(__dirname, `../api/${file}`), 'utf8');
-    assert.match(source, /paidEntitlementOrReject\(req, res, user\)/, file);
+    assert.match(source, /authOrReject\(req, res\)/, file);
+    assert.match(source, /rateLimitOrReject\(/, file);
+    assert.doesNotMatch(source, /paidEntitlementOrReject/, file);
   }
+  const pluggy = fs.readFileSync(path.resolve(__dirname, '../api/pluggy.js'), 'utf8');
+  assert.match(pluggy, /paidEntitlementOrReject\(req, res, user\)/);
 });

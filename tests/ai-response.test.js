@@ -45,3 +45,15 @@ test('normalizes a valid allocation to the requested total without NaN', async (
   assert.equal(result.picks.reduce((sum, pick) => sum + pick.amount, 0), 100);
   assert.equal(result.picks.every((pick) => Number.isFinite(pick.amount)), true);
 });
+
+test('AI suggestion universe follows the declared investment focus', async () => {
+  const { allowedForFocus } = await import('../api/ai-suggest.js');
+  const growth = allowedForFocus('crescimento');
+  const income = allowedForFocus('dividendos');
+  assert.equal(growth.has('WEGE3'), true);
+  assert.equal(growth.has('MXRF11'), false);
+  assert.equal(income.has('MXRF11'), true);
+  assert.equal(income.has('WEGE3'), false);
+  assert.equal(growth.has('Tesouro Selic'), true);
+  assert.equal(income.has('IVVB11'), true);
+});

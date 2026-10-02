@@ -1,4 +1,5 @@
 import { Platform } from 'react-native';
+import { requestWithTimeout } from './request';
 
 const API_BASE =
   Platform.OS === 'web' ? '/api' : 'https://vesti-nine.vercel.app/api';
@@ -20,7 +21,7 @@ export const NEWS_TOPICS = [
 
 export async function fetchNews(topic: string): Promise<NewsItem[]> {
   try {
-    const res = await fetch(`${API_BASE}/news?topic=${encodeURIComponent(topic)}`);
+    const res = await requestWithTimeout(`${API_BASE}/news?topic=${encodeURIComponent(topic)}`);
     if (!res.ok) return [];
     const json = await res.json();
     return json.items || [];
@@ -46,7 +47,7 @@ export async function fetchAssetNews(symbol: string, companyName?: string): Prom
     : `"${symbol}"`;
 
   try {
-    const res = await fetch(`${API_BASE}/news?q=${encodeURIComponent(q)}`);
+    const res = await requestWithTimeout(`${API_BASE}/news?q=${encodeURIComponent(q)}`);
     if (!res.ok) return [];
     const json = await res.json();
     return json.items || [];

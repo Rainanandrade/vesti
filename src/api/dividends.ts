@@ -1,6 +1,7 @@
 // Cliente do /api/dividends — dividendos históricos + próximo pagamento estimado.
 
 import { Platform } from 'react-native';
+import { requestWithTimeout } from './request';
 
 export type DividendEvent = {
   date: string;      // ISO YYYY-MM-DD
@@ -41,7 +42,7 @@ export async function fetchDividendInfo(symbol: string, force = false): Promise<
   try {
     // Bust também o cache HTTP da Vercel quando é refresh manual
     const url = `${API_BASE}/dividends?symbol=${encodeURIComponent(upper)}${force ? `&_=${Date.now()}` : ''}`;
-    const res = await fetch(url);
+    const res = await requestWithTimeout(url);
     if (!res.ok) {
       cache[upper] = { data: null, ts: Date.now() };
       return null;

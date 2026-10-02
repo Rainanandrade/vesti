@@ -46,8 +46,7 @@ export default function CompareAssetsScreen({ navigation }: any) {
       const dmap: Record<string, AssetDetails | null> = {};
       ds.forEach(([s, d]) => (dmap[s] = d));
       setDetails(dmap);
-      setLoading(false);
-    });
+    }).catch(() => { setQuotes({}); setDetails({}); }).finally(() => setLoading(false));
   }, [selected]);
 
   const add = (symbol: string) => {

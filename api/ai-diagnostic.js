@@ -7,7 +7,6 @@ import { setCors } from './_lib/cors.js';
 import { rateLimitOrReject } from './_lib/rateLimit.js';
 import { checkBodySize, sanitizeProfile, sanitizeAssets, sanitizeString, sanitizeNumber } from './_lib/validate.js';
 import { fetchWithTimeout } from './_lib/fetch.js';
-import { paidEntitlementOrReject } from './_lib/entitlement.js';
 import { validateAiText } from './_lib/aiResponse.js';
 
 const GROQ_API_KEY = process.env.GROQ_API_KEY || '';
@@ -30,6 +29,7 @@ REGRAS:
 - NÃO use markdown pesado (sem tabelas, sem **). Use só os cabeçalhos com emoji e bullets simples começando com "- ".
 - Máximo ~500 palavras. Vai direto ao ponto.
 - NÃO peça desculpa por nada. NÃO diga "vou fazer". FAÇA.
+- Toda análise e todo próximo passo deve respeitar simultaneamente o tipo de perfil e a preferência informada. Para "dividendos", priorize renda e pagadores consistentes; para "crescimento", priorize valorização e empresas em expansão; para "equilibrado", combine os dois. Diga explicitamente qual foco guiou a análise.
 - Lembre o usuário: você não é conselho de investimento; é uma análise educativa.`;
 
 export default async function handler(req, res) {
@@ -41,7 +41,6 @@ export default async function handler(req, res) {
 
   const user = await authOrReject(req, res);
   if (!user) return;
-  if (!(await paidEntitlementOrReject(req, res, user))) return;
   if (!(await rateLimitOrReject(req, res, { limit: 10, windowMs: 60_000, prefix: 'ai-diag' }))) return;
 
   if (!GROQ_API_KEY) {

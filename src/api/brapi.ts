@@ -3,6 +3,7 @@
 
 import { Platform } from 'react-native';
 import { Storage } from '../storage/storage';
+import { requestWithTimeout } from './request';
 
 export type Quote = {
   symbol: string;
@@ -53,7 +54,7 @@ async function persist(): Promise<void> {
 
 async function fetchOne(symbol: string): Promise<Quote | null> {
   try {
-    const res = await fetch(`${API_BASE}/quote?symbol=${encodeURIComponent(symbol)}`);
+    const res = await requestWithTimeout(`${API_BASE}/quote?symbol=${encodeURIComponent(symbol)}`);
     if (!res.ok) return null;
     const json = await res.json();
     if (json.error) return null;

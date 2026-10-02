@@ -25,12 +25,7 @@ export default function NewsScreen({ navigation }: any) {
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
-    fetchNews(topic).then((arr) => {
-      if (!cancelled) {
-        setItems(arr);
-        setLoading(false);
-      }
-    });
+    fetchNews(topic).then((arr) => { if (!cancelled) setItems(arr); }).catch(() => { if (!cancelled) setItems([]); }).finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
   }, [topic]);
 

@@ -111,16 +111,8 @@ export default function AddAssetScreen({ navigation, route }: any) {
     let cancelled = false;
     setLoadingPrice(true);
     setLoadingDetails(true);
-    fetchQuotes([selectedTicker.symbol]).then((q) => {
-      if (cancelled) return;
-      setLivePrice(q[0]?.regularMarketPrice ?? null);
-      setLoadingPrice(false);
-    });
-    fetchAssetDetails(selectedTicker.symbol).then((d) => {
-      if (cancelled) return;
-      setDetails(d);
-      setLoadingDetails(false);
-    });
+    fetchQuotes([selectedTicker.symbol]).then((q) => { if (!cancelled) setLivePrice(q[0]?.regularMarketPrice ?? null); }).catch(() => { if (!cancelled) setLivePrice(null); }).finally(() => { if (!cancelled) setLoadingPrice(false); });
+    fetchAssetDetails(selectedTicker.symbol).then((d) => { if (!cancelled) setDetails(d); }).catch(() => { if (!cancelled) setDetails(null); }).finally(() => { if (!cancelled) setLoadingDetails(false); });
     return () => {
       cancelled = true;
     };

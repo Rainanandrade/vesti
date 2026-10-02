@@ -59,8 +59,7 @@ export default function AssetDetailScreen({ navigation, route }: any) {
       setQuote(qs[0] || null);
       setDetails(d);
       setDividendInfo(dv);
-      setLoading(false);
-    });
+    }).catch(() => { if (!cancelled) { setQuote(null); setDetails(null); setDividendInfo(null); } }).finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
   }, [symbol]);
 

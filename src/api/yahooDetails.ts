@@ -1,6 +1,7 @@
 // Detalhes fundamentalistas via nosso /api/details na Vercel.
 
 import { Platform } from 'react-native';
+import { requestWithTimeout } from './request';
 
 export type AssetDetails = {
   symbol: string;
@@ -35,7 +36,7 @@ const API_BASE =
 
 export async function fetchAssetDetails(symbol: string): Promise<AssetDetails | null> {
   try {
-    const res = await fetch(`${API_BASE}/details?symbol=${encodeURIComponent(symbol)}`);
+    const res = await requestWithTimeout(`${API_BASE}/details?symbol=${encodeURIComponent(symbol)}`);
     if (!res.ok) return null;
     const json = await res.json();
     if (json.error) return null;

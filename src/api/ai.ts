@@ -1,6 +1,7 @@
 import { Platform } from 'react-native';
 import { Profile } from '../data/profileQuiz';
 import { supabase } from '../services/supabase';
+import { requestWithTimeout } from './request';
 
 const API_BASE =
   Platform.OS === 'web' ? '/api' : 'https://vesti-nine.vercel.app/api';
@@ -45,11 +46,11 @@ export type AiInput = {
 };
 
 export async function fetchAiSuggestion(input: AiInput): Promise<AiSuggestion> {
-  const res = await fetch(`${API_BASE}/ai-suggest`, {
+  const res = await requestWithTimeout(`${API_BASE}/ai-suggest`, {
     method: 'POST',
     headers: await authHeaders(),
     body: JSON.stringify(input),
-  });
+  }, 30000);
   if (!res.ok) {
     const j = await res.json().catch(() => null);
     throw new Error(j?.error || `Erro ${res.status}`);
@@ -79,11 +80,11 @@ export type AiDiagnosticInput = {
 };
 
 export async function fetchAiDiagnostic(input: AiDiagnosticInput): Promise<string> {
-  const res = await fetch(`${API_BASE}/ai-diagnostic`, {
+  const res = await requestWithTimeout(`${API_BASE}/ai-diagnostic`, {
     method: 'POST',
     headers: await authHeaders(),
     body: JSON.stringify(input),
-  });
+  }, 30000);
   if (!res.ok) {
     const j = await res.json().catch(() => null);
     throw new Error(j?.error || `Erro ${res.status}`);

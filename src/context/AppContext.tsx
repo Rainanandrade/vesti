@@ -4,6 +4,8 @@ import { Storage, KEYS, Secure, SECURE_KEYS, pinLockoutKey } from '../storage/st
 import { Profile } from '../data/profileQuiz';
 import { supabase } from '../services/supabase';
 import { isPinLocked, normalizePinLockout, registerPinFailure } from '../utils/pinLockout';
+// CommonJS keeps the timeout helper executable by the Node regression suite.
+const { withTimeout } = require('../utils/async');
 
 type PinLockoutState = { attempts: number; lockedUntil: number | null };
 type PinVerification = PinLockoutState & { ok: boolean };
@@ -683,10 +685,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
     if (userId) {
       // upsert garante criação caso o trigger não tenha rodado
       assertMutation(
-        await supabase.from('profiles').upsert(
+        await withTimeout(supabase.from('profiles').upsert(
           { id: userId, name: user?.name || 'Usuário', financial_profile: p, onboarding_done: true },
           { onConflict: 'id' },
-        ),
+        ), 15000, 'Salvar o perfil'),
       );
     }
     setProfileState(p);
@@ -716,11 +718,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const createWallet = useCallback(async (name: string): Promise<Wallet> => {
     if (!userId) throw new Error('Not authenticated');
-    const { data, error } = await supabase
+    const { data, error } = await withTimeout(supabase
       .from('wallets')
       .insert({ user_id: userId, name, is_active: wallets.length === 0 })
       .select()
-      .single();
+      .single(), 15000, 'Criar a carteira');
     if (error || !data) throw error;
     const w: Wallet = {
       id: data.id,
@@ -755,10 +757,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
     if (existing && existing.id) {
       const totalQty = existing.quantity + asset.quantity;
       const avg = (existing.avgPrice * existing.quantity + asset.avgPrice * asset.quantity) / totalQty;
-      const { error } = await supabase
+      const { error } = await withTimeout(supabase
         .from('assets')
         .update({ quantity: totalQty, avg_price: avg })
-        .eq('id', existing.id);
+        .eq('id', existing.id), 15000, 'Atualizar o ativo');
       if (error) throw new Error(translateDbError(error.message));
       setWallets((prev) =>
         prev.map((w) =>
@@ -773,7 +775,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         ),
       );
     } else {
-      const { data, error } = await supabase
+      const { data, error } = await withTimeout(supabase
         .from('assets')
         .insert({
           wallet_id: walletId,
@@ -785,7 +787,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
           avg_price: asset.avgPrice,
         })
         .select()
-        .single();
+        .single(), 15000, 'Salvar o ativo');
       if (error) throw new Error(translateDbError(error.message));
       if (!data) throw new Error('Sem resposta do servidor. Tente de novo.');
       const newAsset: Asset = {
@@ -830,7 +832,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       if (patch.quantity !== undefined) dbPatch.quantity = patch.quantity;
       if (patch.avgPrice !== undefined) dbPatch.avg_price = patch.avgPrice;
       if (patch.name !== undefined) dbPatch.name = patch.name;
-      const { error } = await supabase.from('assets').update(dbPatch).eq('id', target.id);
+      const { error } = await withTimeout(supabase.from('assets').update(dbPatch).eq('id', target.id), 15000, 'Atualizar o ativo');
       if (error) throw new Error(translateDbError(error.message));
     }
     setWallets((prev) =>
@@ -909,7 +911,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const addOperation = useCallback(
     async (op: Omit<Operation, 'id' | 'createdAt'>) => {
       if (!userId) throw new Error('Não autenticado');
-      const { data, error } = await supabase
+      const { data, error } = await withTimeout(supabase
         .from('operations')
         .insert({
           user_id: userId,
@@ -924,7 +926,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
           notes: op.notes,
         })
         .select()
-        .single();
+        .single(), 15000, 'Salvar a operação');
       if (error || !data) throw new Error(translateDbError(error?.message || 'Erro'));
       const newOp: Operation = {
         id: data.id,
@@ -957,7 +959,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const addProvento = useCallback(
     async (p: Omit<Provento, 'id' | 'createdAt'>) => {
       if (!userId) throw new Error('Não autenticado');
-      const { data, error } = await supabase
+      const { data, error } = await withTimeout(supabase
         .from('proventos')
         .insert({
           user_id: userId,
@@ -969,7 +971,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
           notes: p.notes,
         })
         .select()
-        .single();
+        .single(), 15000, 'Salvar o provento');
       if (error || !data) throw new Error(translateDbError(error?.message || 'Erro'));
       setProventos((prev) => [
         {

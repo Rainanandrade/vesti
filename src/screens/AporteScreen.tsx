@@ -36,6 +36,7 @@ import { evaluateAssetForProfile } from '../utils/strategyMatch';
 import AllocationDelta from '../components/AllocationDelta';
 import HowItWorksAporte from '../components/HowItWorksAporte';
 import { safeBackToInvestir } from '../utils/navigation';
+import { PREFERENCE_INFO } from '../data/profileQuiz';
 
 const QUICK = [100, 300, 500, 1000];
 
@@ -256,6 +257,7 @@ export default function AporteScreen({ navigation }: any) {
           <Text style={styles.pageSub}>
             Você diz quanto vai investir. A IA analisa seu perfil <Text style={styles.bold}>{profile.type}</Text>, a preferência <Text style={styles.bold}>{profile.preference || 'sem preferência'}</Text> e sua carteira atual — e recomenda como distribuir.
           </Text>
+          <View style={styles.focusBanner}><Ionicons name="options-outline" size={18} color={editorial.color.indigo} /><View style={{ flex: 1 }}><Text style={styles.focusTitle}>Sugestão baseada no seu perfil e foco</Text><Text style={styles.focusText}>{profile.type.charAt(0).toUpperCase() + profile.type.slice(1)} · {PREFERENCE_INFO[profile.preference || 'sem_preferencia'].label}. A distribuição também corrige os desvios da sua carteira atual.</Text></View></View>
 
           <Card style={styles.inputCard}>
             <Text style={styles.inputLabel}>Quanto você quer aportar?</Text>
@@ -639,12 +641,20 @@ function PickCard({
     if (!pick.isTradeable || !tickerInfo) return;
     let cancelled = false;
     setLoading(true);
-    Promise.all([fetchQuotes([pick.symbol]), fetchAssetDetails(pick.symbol)]).then(([q, d]) => {
-      if (cancelled) return;
-      setLivePrice(q[0]?.regularMarketPrice ?? null);
-      setDetails(d);
-      setLoading(false);
-    });
+    Promise.all([fetchQuotes([pick.symbol]), fetchAssetDetails(pick.symbol)])
+      .then(([q, d]) => {
+        if (cancelled) return;
+        setLivePrice(q[0]?.regularMarketPrice ?? null);
+        setDetails(d);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setLivePrice(null);
+        setDetails(null);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
     return () => {
       cancelled = true;
     };
@@ -887,6 +897,9 @@ const styles = StyleSheet.create({
   pageTitle: { fontSize: fontSize.heading, fontWeight: 'bold', color: colors.text },
   pageSub: { fontSize: fontSize.body, color: colors.textSecondary, marginTop: spacing.xs, lineHeight: 20 },
   bold: { fontWeight: '700', color: colors.primary, textTransform: 'capitalize' },
+  focusBanner: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.md, padding: spacing.md, backgroundColor: editorial.color.indigoSoft, borderRadius: editorial.radius.soft },
+  focusTitle: { color: editorial.color.ink, fontSize: editorial.type.body, fontWeight: '800' },
+  focusText: { color: editorial.color.muted, fontSize: editorial.type.caption, lineHeight: 18, marginTop: 2 },
 
   inputCard: { marginTop: spacing.md, padding: spacing.lg },
   inputLabel: { fontSize: fontSize.body, color: colors.textSecondary },

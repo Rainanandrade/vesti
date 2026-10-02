@@ -8,7 +8,6 @@ import { setCors } from './_lib/cors.js';
 import { rateLimitOrReject } from './_lib/rateLimit.js';
 import { checkBodySize, sanitizeAssets, sanitizeBrokers, sanitizeProfile, sanitizeNumber } from './_lib/validate.js';
 import { fetchWithTimeout } from './_lib/fetch.js';
-import { paidEntitlementOrReject } from './_lib/entitlement.js';
 import { normalizeAllocationResponse } from './_lib/aiResponse.js';
 
 const GROQ_API_KEY = process.env.GROQ_API_KEY || '';
@@ -43,6 +42,17 @@ const ALLOWED_PICKS = new Set([
   ...CURATED.internacional,
 ]);
 
+const FOCUS_UNIVERSE = {
+  dividendos: new Set(['DIVO11', 'MXRF11', 'KNCR11', 'KNRI11', 'HGLG11', 'BTLG11', 'XPLG11', 'XPML11', 'VISC11', 'BCFF11', 'ITSA4', 'BBSE3', 'ITUB4', 'BBAS3', 'TAEE11', 'TRPL4', 'EGIE3', 'VIVT3', 'CPLE6', 'PETR4', 'VALE3']),
+  crescimento: new Set(['BOVA11', 'SMAL11', 'WEGE3', 'TOTS3', 'RDOR3', 'RAIL3', 'B3SA3', 'EQTL3', 'LREN3', 'EMBR3', 'POSI3']),
+};
+
+export function allowedForFocus(preference) {
+  const focus = FOCUS_UNIVERSE[preference];
+  if (!focus) return ALLOWED_PICKS;
+  return new Set([...CURATED.renda_fixa_options.map((option) => option.symbol), ...focus, ...CURATED.internacional]);
+}
+
 async function fetchQuoteAndFundamentals(symbol) {
   if (!BRAPI_TOKEN) return { symbol };
   try {
@@ -67,7 +77,7 @@ async function fetchQuoteAndFundamentals(symbol) {
   }
 }
 
-function buildContextDocument(rvData, intlData) {
+function buildContextDocument(rvData, intlData, preference) {
   let doc = 'ATIVOS DISPONÍVEIS — você só pode escolher DESTA lista:\n\n';
 
   doc += '### RENDA FIXA (sem ticker da bolsa — escolha 1 a 2 opções):\n';
@@ -76,7 +86,8 @@ function buildContextDocument(rvData, intlData) {
   });
 
   doc += '\n### RENDA VARIÁVEL — Ações, FIIs, ETFs (com dados atuais):\n';
-  rvData.forEach((a) => {
+  const focusedRv = FOCUS_UNIVERSE[preference] ? rvData.filter((asset) => FOCUS_UNIVERSE[preference].has(asset.symbol)) : rvData;
+  focusedRv.forEach((a) => {
     if (a.price) {
       doc += `- ${a.symbol} (${a.name}): R$ ${a.price.toFixed(2)}`;
       if (a.dy && a.dy > 0) doc += ` | DY ${a.dy}%`;
@@ -145,7 +156,6 @@ export default async function handler(req, res) {
   if (!checkBodySize(req, res)) return;
   const user = await authOrReject(req, res);
   if (!user) return;
-  if (!(await paidEntitlementOrReject(req, res, user))) return;
   if (!(await rateLimitOrReject(req, res, { limit: 10, windowMs: 60_000, prefix: 'ai-sug' }))) return;
 
   if (!GROQ_API_KEY) {
@@ -167,7 +177,7 @@ export default async function handler(req, res) {
     Promise.all(CURATED.internacional.map(fetchQuoteAndFundamentals)),
   ]);
 
-  const contextDoc = buildContextDocument(rvData, intlData);
+  const contextDoc = buildContextDocument(rvData, intlData, profile.preference);
 
   const userMessage = `${contextDoc}
 
@@ -247,7 +257,7 @@ Diversifique respeitando o perfil. Cite números reais (DY, P/L, preço) no reas
       return res.status(502).json({ error: 'IA retornou JSON inválido' });
     }
 
-    const validated = normalizeAllocationResponse(parsed, amount, ALLOWED_PICKS);
+    const validated = normalizeAllocationResponse(parsed, amount, allowedForFocus(profile.preference));
     return res.status(200).json(validated);
   } catch (err) {
     console.error('[ai-suggest] failed');

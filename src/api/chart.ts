@@ -1,4 +1,5 @@
 import { Platform } from 'react-native';
+import { requestWithTimeout } from './request';
 
 const API_BASE =
   Platform.OS === 'web' ? '/api' : 'https://vesti-nine.vercel.app/api';
@@ -25,7 +26,7 @@ const TTL_FAIL = 1000 * 30;      // 30s pra falhas (retry rápido)
 async function doFetch(symbol: string, range: ChartRange, force: boolean): Promise<ChartData | null> {
   try {
     const buster = force ? `&_=${Date.now()}` : '';
-    const res = await fetch(
+    const res = await requestWithTimeout(
       `${API_BASE}/chart?symbol=${encodeURIComponent(symbol)}&range=${range}${buster}`,
       { cache: force ? 'no-store' : 'default' },
     );

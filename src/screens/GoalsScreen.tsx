@@ -18,8 +18,9 @@ import { rewardForGoal } from '../utils/rewards';
 import { fmtBRL, fmtCompactBRL } from '../utils/format';
 import Card from '../components/Card';
 import CelebrationModal from '../components/CelebrationModal';
+import { safeBackToTabs } from '../utils/navigation';
 
-export default function GoalsScreen() {
+export default function GoalsScreen({ navigation }: any) {
   const { activeWallet, privacyMode } = useApp();
   const [patrimony, setPatrimony] = useState(0);
   const [openGoal, setOpenGoal] = useState<Goal | null>(null);
@@ -49,6 +50,7 @@ export default function GoalsScreen() {
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
+      <View style={styles.header}><TouchableOpacity accessibilityRole="button" accessibilityLabel="Voltar" onPress={() => safeBackToTabs(navigation)} style={styles.backButton} hitSlop={10}><Ionicons name="arrow-back" size={22} color={editorial.color.ink} /></TouchableOpacity><View style={styles.headerCopy}><Text style={styles.headerKicker}>Planejar</Text><Text style={styles.headerTitle}>Metas</Text></View><View style={styles.headerSpacer} /></View>
       <ScrollView contentContainerStyle={styles.scroll}>
         <Text style={styles.title}>Suas metas</Text>
         <Text style={styles.subtitle}>Conquistas progressivas. Não tem teto.</Text>
@@ -134,7 +136,13 @@ export default function GoalsScreen() {
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.surface },
+  safe: { flex: 1, backgroundColor: editorial.color.canvas },
+  header: { minHeight: 64, flexDirection: 'row', alignItems: 'center', paddingHorizontal: spacing.md, borderBottomWidth: 1, borderBottomColor: editorial.color.line },
+  backButton: { width: 44, height: 44, borderRadius: 22, borderWidth: 1, borderColor: editorial.color.line, alignItems: 'center', justifyContent: 'center' },
+  headerCopy: { flex: 1, alignItems: 'center' },
+  headerKicker: { color: editorial.color.coral, fontSize: editorial.type.kicker, fontWeight: '800', letterSpacing: 1, textTransform: 'uppercase' },
+  headerTitle: { color: editorial.color.ink, fontFamily: editorial.font.display, fontSize: editorial.type.title },
+  headerSpacer: { width: 44 },
   scroll: { padding: spacing.md, paddingBottom: spacing.xxl },
   title: { fontSize: fontSize.heading, fontWeight: 'bold', color: colors.text },
   subtitle: { fontSize: fontSize.body, color: colors.textSecondary, marginTop: spacing.xs },

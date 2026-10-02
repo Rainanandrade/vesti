@@ -23,12 +23,7 @@ export default function RankingsScreen({ navigation }: any) {
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
-    fetchRanking(category).then((r) => {
-      if (!cancelled) {
-        setData(r);
-        setLoading(false);
-      }
-    });
+    fetchRanking(category).then((r) => { if (!cancelled) setData(r); }).catch(() => { if (!cancelled) setData(null); }).finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
   }, [category]);
 

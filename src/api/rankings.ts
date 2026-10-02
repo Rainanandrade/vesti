@@ -1,4 +1,5 @@
 import { Platform } from 'react-native';
+import { requestWithTimeout } from './request';
 
 const API_BASE =
   Platform.OS === 'web' ? '/api' : 'https://vesti-nine.vercel.app/api';
@@ -38,7 +39,7 @@ export async function fetchRanking(category: string): Promise<RankingResponse | 
   const c = cache[category];
   if (c && Date.now() - c.ts < TTL) return c.data;
   try {
-    const res = await fetch(`${API_BASE}/rankings?category=${encodeURIComponent(category)}`);
+    const res = await requestWithTimeout(`${API_BASE}/rankings?category=${encodeURIComponent(category)}`);
     if (!res.ok) return null;
     const json = (await res.json()) as RankingResponse;
     cache[category] = { data: json, ts: Date.now() };

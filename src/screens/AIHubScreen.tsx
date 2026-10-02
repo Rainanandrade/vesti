@@ -19,7 +19,6 @@ import { fetchQuotes, Quote } from '../api/brapi';
 import { computePortfolioStats } from '../utils/portfolio';
 import { fetchAiDiagnostic } from '../api/ai';
 import Card from '../components/Card';
-import ProLock from '../components/ProLock';
 import { fetchDividendInfoBatch } from '../api/dividends';
 import { computeReceivedProventos } from '../utils/receivedProventos';
 
@@ -145,13 +144,6 @@ export default function AIHubScreen({ navigation }: any) {
       </View>
 
       <ScrollView contentContainerStyle={styles.scroll}>
-        <ProLock
-          mode="replace"
-          title="Gestor IA da carteira"
-          description="Diagnóstico automático dos seus ativos, sugestão de aporte e chat inteligente."
-          featureIcon="sparkles"
-          onUnlock={(plan) => navigation.navigate('ProSubscribe', { plan })}
-        >
         {!diagnostic && !loading && (
           <>
             <Card style={styles.heroCard}>
@@ -276,7 +268,6 @@ export default function AIHubScreen({ navigation }: any) {
             </Text>
           </>
         )}
-        </ProLock>
       </ScrollView>
     </SafeAreaView>
   );

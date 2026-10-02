@@ -48,6 +48,35 @@ test('aporte is one tap from Investir and every investment flow returns to Inves
   assert.match(tabs, /PortfolioMain/);
 });
 
+test('goals has a working return action and AI screens are not visually paywalled', () => {
+  const goals = read('src/screens/GoalsScreen.tsx');
+  assert.match(goals, /safeBackToTabs\(navigation\)/);
+  for (const file of ['AIHubScreen.tsx', 'IAConsultorScreen.tsx']) {
+    assert.doesNotMatch(read(`src/screens/${file}`), /<ProLock/);
+  }
+});
+
+test('aporte explains and enforces profile plus investment focus', () => {
+  const aporte = read('src/screens/AporteScreen.tsx');
+  const allocation = read('src/utils/allocation.ts');
+  const aiSuggestion = read('api/ai-suggest.js');
+  assert.match(aporte, /PREFERENCE_INFO/);
+  assert.match(aporte, /Sugestão baseada no seu perfil/);
+  assert.match(allocation, /isAlignedWithPreference/);
+  assert.match(aiSuggestion, /FOCUS_UNIVERSE/);
+  assert.match(aiSuggestion, /profile\.preference/);
+});
+
+test('asset creation cannot keep a loading state forever', () => {
+  const context = read('src/context/AppContext.tsx');
+  const addAsset = read('src/screens/AddAssetScreen.tsx');
+  const aporte = read('src/screens/AporteScreen.tsx');
+  assert.match(context, /withTimeout\(/);
+  assert.match(addAsset, /finally\(\(\) =>/);
+  assert.match(aporte, /\.finally\(\(\) => \{/);
+  assert.match(aporte, /setLoading\(false\)/);
+});
+
 test('Planejar keeps all planning tools reachable', () => {
   const planning = read('src/screens/PlanningScreen.tsx');
   for (const route of ['Aporte', 'Goals', 'DividendTarget', 'IRAutomatico', 'Declaracao', 'Relatorios', 'Backtest']) assert.match(planning, new RegExp(route));
