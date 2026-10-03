@@ -18,13 +18,10 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, fontSize, radius, spacing } from '../theme/colors';
 import Button from '../components/Button';
-import AssetAnalysis from '../components/AssetAnalysis';
 import { useApp, Asset } from '../context/AppContext';
-import PriceChart from '../components/PriceChart';
 import { formatCurrencyInput, parseFormattedNumber } from '../utils/numberFormat';
 import { searchTickers, searchTickersAsync, TickerInfo, TICKERS } from '../data/tickers';
 import { fetchQuotes } from '../api/brapi';
-import { fetchAssetDetails, AssetDetails } from '../api/yahooDetails';
 import { fmtBRL } from '../utils/format';
 import SuccessCelebrationModal from '../components/SuccessCelebrationModal';
 
@@ -38,7 +35,7 @@ const TYPES: { value: Asset['type']; label: string; needsSymbol: boolean }[] = [
 ];
 
 export default function AddAssetScreen({ navigation, route }: any) {
-  const { activeWallet, ensureActiveWallet, addAsset, profile } = useApp();
+  const { activeWallet, ensureActiveWallet, addAsset } = useApp();
   const prefill = route?.params?.prefill;
   const [type, setType] = useState<Asset['type']>(prefill?.type || 'acao');
   const [symbol, setSymbol] = useState(prefill?.symbol || '');
@@ -48,8 +45,6 @@ export default function AddAssetScreen({ navigation, route }: any) {
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [livePrice, setLivePrice] = useState<number | null>(null);
   const [loadingPrice, setLoadingPrice] = useState(false);
-  const [details, setDetails] = useState<AssetDetails | null>(null);
-  const [loadingDetails, setLoadingDetails] = useState(false);
   const [saving, setSaving] = useState(false);
   const [celebrating, setCelebrating] = useState(false);
 
@@ -59,7 +54,6 @@ export default function AddAssetScreen({ navigation, route }: any) {
     setQuantity('');
     setPrice('');
     setLivePrice(null);
-    setDetails(null);
   };
 
   const typeMeta = TYPES.find((t) => t.value === type)!;
@@ -68,8 +62,7 @@ export default function AddAssetScreen({ navigation, route }: any) {
     if (!typeMeta.needsSymbol || clean.length < 4) return null;
     const found = TICKERS.find((t) => t.symbol === clean);
     if (found) return found;
-    // Ticker fora da lista — cria um sintético pra ainda renderizar cotação,
-    // gráfico e análise. brapi conhece muito mais ativos do que nosso TICKERS.
+    // Ticker fora da lista continua válido para cadastro e cotação.
     return {
       symbol: clean,
       name: clean,
@@ -96,23 +89,21 @@ export default function AddAssetScreen({ navigation, route }: any) {
       searchTickersAsync(symbol, 12).then((all) => {
         if (cancelled) return;
         setSuggestions(filterByType(all));
-      });
+      }).catch(() => { if (!cancelled) setSuggestions(filterByType(local)); });
       return () => { cancelled = true; };
     }
   }, [symbol, type, typeMeta.needsSymbol]);
 
-  // Busca cotação ao vivo + detalhes
+  // A cotação é apenas um atalho de preenchimento. Gráficos e indicadores
+  // pertencem exclusivamente à tela de acompanhamento do ativo.
   useEffect(() => {
     if (!selectedTicker) {
       setLivePrice(null);
-      setDetails(null);
       return;
     }
     let cancelled = false;
     setLoadingPrice(true);
-    setLoadingDetails(true);
     fetchQuotes([selectedTicker.symbol]).then((q) => { if (!cancelled) setLivePrice(q[0]?.regularMarketPrice ?? null); }).catch(() => { if (!cancelled) setLivePrice(null); }).finally(() => { if (!cancelled) setLoadingPrice(false); });
-    fetchAssetDetails(selectedTicker.symbol).then((d) => { if (!cancelled) setDetails(d); }).catch(() => { if (!cancelled) setDetails(null); }).finally(() => { if (!cancelled) setLoadingDetails(false); });
     return () => {
       cancelled = true;
     };
@@ -196,7 +187,6 @@ export default function AddAssetScreen({ navigation, route }: any) {
                 onPress={() => {
                   setType(t.value);
                   setSymbol('');
-                  setDetails(null);
                   setLivePrice(null);
                 }}
               >
@@ -264,22 +254,7 @@ export default function AddAssetScreen({ navigation, route }: any) {
                 </View>
               )}
 
-              {/* Gráfico histórico */}
-              {selectedTicker && (
-                <View style={{ marginTop: spacing.md, backgroundColor: colors.surface, padding: spacing.md, borderRadius: radius.lg }}>
-                  <PriceChart symbol={selectedTicker.symbol} />
-                </View>
-              )}
-
-              {/* Análise */}
-              {selectedTicker && profile && (
-                <AssetAnalysis
-                  ticker={selectedTicker}
-                  details={details}
-                  loading={loadingDetails}
-                  profile={profile}
-                />
-              )}
+              {selectedTicker ? <View style={styles.separationNote}><Ionicons name="analytics-outline" size={18} color={colors.primary} /><Text style={styles.separationText}>Gráficos, indicadores, notícias e comparação ficam disponíveis ao abrir o ativo depois de salvar.</Text></View> : null}
             </>
           ) : (
             <>
@@ -354,7 +329,7 @@ const styles = StyleSheet.create({
     borderColor: colors.divider,
   },
   title: { fontSize: fontSize.title, fontWeight: '700', color: colors.text },
-  scroll: { padding: spacing.lg, paddingBottom: spacing.xxl },
+  scroll: { width: '100%', maxWidth: 680, alignSelf: 'center', padding: spacing.lg, paddingBottom: spacing.xxl },
   label: { fontSize: fontSize.body, color: colors.textSecondary, marginTop: spacing.md, marginBottom: 6 },
   helper: { fontSize: fontSize.small, color: colors.textTertiary, marginTop: 4 },
   input: {
@@ -420,4 +395,6 @@ const styles = StyleSheet.create({
     borderRadius: radius.pill,
   },
   usePriceText: { color: colors.textLight, fontWeight: '600', fontSize: fontSize.small },
+  separationNote: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.md, padding: spacing.md, borderRadius: radius.lg, backgroundColor: colors.primaryLight, borderWidth: 1, borderColor: colors.primary },
+  separationText: { flex: 1, color: colors.textSecondary, fontSize: fontSize.small, lineHeight: 18 },
 });

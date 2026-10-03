@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import { View, Text, StyleSheet, LayoutChangeEvent } from 'react-native';
 import Svg, { Path, Circle, Line, Defs, LinearGradient as SvgGradient, Stop } from 'react-native-svg';
 import { colors, fontSize, spacing } from '../theme/colors';
@@ -31,6 +31,7 @@ export default function BenchmarkSparkline({
   yFormatter,
   legendFormatter,
 }: Props) {
+  const gradientId = `benchmark-gradient-${useId().replace(/:/g, '')}`;
   const fmtY = yFormatter || ((v: number) => fmtBRL(v, privacyMode).replace('R$', '').trim());
   const fmtLegend = legendFormatter || ((v: number) => fmtBRL(v, privacyMode));
   const [width, setWidth] = useState(320);
@@ -81,7 +82,7 @@ export default function BenchmarkSparkline({
     <View onLayout={onLayout} style={{ width: '100%' }}>
       <Svg width={width} height={height}>
         <Defs>
-          <SvgGradient id="areaGrad" x1="0" y1="0" x2="0" y2="1">
+          <SvgGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
             <Stop offset="0%" stopColor={primary.color} stopOpacity="0.25" />
             <Stop offset="100%" stopColor={primary.color} stopOpacity="0" />
           </SvgGradient>
@@ -102,7 +103,7 @@ export default function BenchmarkSparkline({
         ))}
 
         {/* Área sob série principal */}
-        <Path d={buildArea(primary.values)} fill="url(#areaGrad)" />
+        <Path d={buildArea(primary.values)} fill={`url(#${gradientId})`} />
 
         {/* Linhas */}
         {validSeries.map((s) => (

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { colors, fontSize, radius, spacing } from '../theme/colors';
 import { fetchChart, ChartRange } from '../api/chart';
 import { IPCA_12M } from '../api/brapi';
@@ -23,13 +23,14 @@ type Row = { label: string; nominal: number | null; real: number | null };
 export default function AssetReturnsPanel({ symbol }: Props) {
   const [rows, setRows] = useState<Row[]>(PERIODS.map((p) => ({ label: p.label, nominal: null, real: null })));
   const [loading, setLoading] = useState(true);
+  const [retryNonce, setRetryNonce] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
     Promise.all(
       PERIODS.map(async (p) => {
-        const data = await fetchChart(symbol, p.range);
+        const data = await fetchChart(symbol, p.range, { force: retryNonce > 0 });
         if (!data) return { label: p.label, nominal: null as number | null, real: null as number | null };
         const nominal = data.changePct;
         const real = nominal - p.ipcaAccum;
@@ -42,7 +43,7 @@ export default function AssetReturnsPanel({ symbol }: Props) {
     return () => {
       cancelled = true;
     };
-  }, [symbol]);
+  }, [symbol, retryNonce]);
 
   if (loading) {
     return (
@@ -71,6 +72,15 @@ export default function AssetReturnsPanel({ symbol }: Props) {
           </Text>
         </View>
       ))}
+      {rows.every((row) => row.nominal == null) ? (
+        <TouchableOpacity
+          accessibilityRole="button"
+          style={styles.retryButton}
+          onPress={() => setRetryNonce((value) => value + 1)}
+        >
+          <Text style={styles.retryText}>Tentar novamente</Text>
+        </TouchableOpacity>
+      ) : null}
       <Text style={styles.footer}>
         Real = rentabilidade nominal − inflação acumulada (IPCA) do período.
       </Text>
@@ -92,4 +102,6 @@ const styles = StyleSheet.create({
   cellHeader: { color: colors.textTertiary, fontSize: fontSize.tiny, fontWeight: '700', textTransform: 'uppercase' },
   footer: { fontSize: fontSize.tiny, color: colors.textTertiary, marginTop: spacing.sm, fontStyle: 'italic' },
   loadingBox: { padding: spacing.lg, alignItems: 'center' },
+  retryButton: { alignSelf: 'center', marginTop: spacing.md, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, borderRadius: radius.pill, backgroundColor: colors.primary },
+  retryText: { color: colors.textLight, fontSize: fontSize.small, fontWeight: '800' },
 });

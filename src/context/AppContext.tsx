@@ -99,6 +99,7 @@ type AppContextType = {
 
   operations: Operation[];
   addOperation: (op: Omit<Operation, 'id' | 'createdAt'>) => Promise<void>;
+  recordOperationAndUpdatePosition: (input: AtomicOperationInput) => Promise<void>;
   removeOperation: (id: string) => Promise<void>;
 
   proventos: Provento[];
@@ -146,6 +147,23 @@ export type Operation = {
   notes?: string;
   createdAt: number;
 };
+
+export type AtomicOperationInput = {
+  clientRequestId: string;
+  payloadHash: string;
+  walletId: string;
+  type: Operation['type'];
+  symbol: string;
+  assetType: Operation['assetType'];
+  quantity: number;
+  price: number;
+  fees?: number;
+  withholdingTax?: number;
+  date: string;
+  name?: string;
+};
+
+const pendingOperationKey = (userId: string) => `pending_atomic_operation:${userId}`;
 
 export type WatchlistItem = {
   symbol: string;
@@ -888,22 +906,24 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [userId, wallets]);
 
   const removeAsset = useCallback(async (walletId: string, symbol: string) => {
-    const wallet = wallets.find((item) => item.id === walletId);
+    const wallet = walletsRef.current.find((item) => item.id === walletId);
     if (!wallet || wallet.readOnly) throw new Error('Esta carteira compartilhada é somente leitura.');
     const target = wallet.assets.find((a) => a.symbol === symbol);
     if (target?.id) {
-      const { error } = await supabase.from('assets').delete().eq('id', target.id);
+      const { error } = await withTimeout(supabase.from('assets').delete().eq('id', target.id), 10000, 'Remover o ativo');
       if (error) throw new Error(translateDbError(error.message));
     }
-    setWallets((prev) =>
-      prev.map((w) =>
+    setWallets((prev) => {
+      const next = prev.map((w) =>
         w.id === walletId ? { ...w, assets: w.assets.filter((a) => a.symbol !== symbol) } : w,
-      ),
-    );
-  }, [wallets]);
+      );
+      walletsRef.current = next;
+      return next;
+    });
+  }, []);
 
   const updateAsset = useCallback(async (walletId: string, symbol: string, patch: Partial<Asset>) => {
-    const wallet = wallets.find((item) => item.id === walletId);
+    const wallet = walletsRef.current.find((item) => item.id === walletId);
     if (!wallet || wallet.readOnly) throw new Error('Esta carteira compartilhada é somente leitura.');
     const target = wallet.assets.find((a) => a.symbol === symbol);
     if (target?.id) {
@@ -914,14 +934,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
       const { error } = await withTimeout(supabase.from('assets').update(dbPatch).eq('id', target.id), 15000, 'Atualizar o ativo');
       if (error) throw new Error(translateDbError(error.message));
     }
-    setWallets((prev) =>
-      prev.map((w) =>
+    setWallets((prev) => {
+      const next = prev.map((w) =>
         w.id === walletId
           ? { ...w, assets: w.assets.map((a) => (a.symbol === symbol ? { ...a, ...patch } : a)) }
           : w,
-      ),
-    );
-  }, [wallets]);
+      );
+      walletsRef.current = next;
+      return next;
+    });
+  }, []);
 
   const togglePrivacy = useCallback(async () => {
     const next = !privacyMode;
@@ -1024,6 +1046,164 @@ export function AppProvider({ children }: { children: ReactNode }) {
     },
     [userId],
   );
+
+  const recordOperationAndUpdatePosition = useCallback(async (input: AtomicOperationInput) => {
+    if (!userId) throw new Error('Você não está logado. Faça login novamente.');
+    const wallet = walletsRef.current.find((item) => item.id === input.walletId);
+    if (!wallet || wallet.readOnly) throw new Error('Esta carteira compartilhada é somente leitura.');
+    await Storage.setRequired(pendingOperationKey(userId), input);
+    const { error } = await withTimeout(supabase.rpc('record_operation_and_update_position', {
+      p_client_request_id: input.clientRequestId,
+      p_payload_hash: input.payloadHash,
+      p_wallet_id: input.walletId,
+      p_type: input.type,
+      p_symbol: input.symbol,
+      p_asset_type: input.assetType,
+      p_quantity: input.quantity,
+      p_price: input.price,
+      p_fees: input.fees || 0,
+      p_withholding_tax: input.withholdingTax || 0,
+      p_date: input.date,
+      p_name: input.name || input.symbol,
+    }), 15000, 'Salvar a operação');
+    if (error) {
+      const missingRpc = error.code === 'PGRST202' || /schema cache|record_operation_and_update_position/i.test(error.message || '');
+      if (!missingRpc) throw new Error(translateDbError(error.message));
+
+      // Compatibility path while migration 007 propagates. The ledger stores the
+      // exact target position, so repeating the same request sets (never adds)
+      // that target and cannot double the quantity after a client timeout.
+      const marker = 'vesti-operation:';
+      const { data: previousRows, error: previousError } = await withTimeout(supabase
+        .from('operations')
+        .select('id, notes')
+        .eq('id', input.clientRequestId)
+        .limit(1), 10000, 'Confirmar a operação');
+      if (previousError) throw new Error(translateDbError(previousError.message));
+
+      type TargetPosition = { quantity: number; avgPrice: number; name: string; type: Asset['type'] };
+      type StoredRequest = { fingerprint: string; target: TargetPosition | null };
+      let stored: StoredRequest | null = null;
+      if (previousRows?.[0]?.notes) {
+        try {
+          stored = JSON.parse(String(previousRows[0].notes).slice(marker.length)) as StoredRequest;
+        } catch {
+          throw new Error('Não foi possível confirmar a operação anterior. Atualize a tela e tente novamente.');
+        }
+      }
+      if (stored && stored.fingerprint !== input.payloadHash) {
+        throw new Error('Esta tentativa pertence a outros dados. Feche e registre uma nova operação.');
+      }
+      if (!stored) {
+        let target: TargetPosition | null = null;
+        const { data: assetRows, error: assetError } = await withTimeout(supabase
+          .from('assets')
+          .select('id, symbol, name, type, quantity, avg_price')
+          .eq('wallet_id', input.walletId)
+          .eq('user_id', userId)
+          .eq('symbol', input.symbol)
+          .limit(1), 10000, 'Verificar a posição');
+        if (assetError) throw new Error(translateDbError(assetError.message));
+        if (input.assetType !== 'daytrade') {
+          const current = assetRows?.[0];
+          const currentQuantity = Number(current?.quantity || 0);
+          const currentAverage = Number(current?.avg_price || 0);
+          if (input.type === 'sell' && !current) throw new Error(`Você não possui ${input.symbol} nesta carteira.`);
+          if (input.type === 'sell' && input.quantity > currentQuantity) throw new Error(`A venda excede sua posição atual de ${currentQuantity} unidades.`);
+          const nextQuantity = input.type === 'buy' ? currentQuantity + input.quantity : currentQuantity - input.quantity;
+          const nextAverage = input.type === 'buy'
+            ? ((currentAverage * currentQuantity) + (input.price * input.quantity) + (input.fees || 0)) / nextQuantity
+            : currentAverage;
+          target = {
+            quantity: nextQuantity,
+            avgPrice: nextQuantity > 0 ? nextAverage : 0,
+            name: current?.name || input.name || input.symbol,
+            type: (current?.type || input.assetType) as Asset['type'],
+          };
+        }
+        stored = { fingerprint: input.payloadHash, target };
+        const note = `${marker}${JSON.stringify(stored)}`;
+        const { error: insertError } = await withTimeout(supabase.from('operations').upsert({
+          id: input.clientRequestId,
+          user_id: userId,
+          type: input.type,
+          symbol: input.symbol,
+          asset_type: input.assetType,
+          quantity: input.quantity,
+          price: input.price,
+          fees: input.fees || 0,
+          withholding_tax: input.withholdingTax || 0,
+          date: input.date,
+          notes: note,
+        }, { onConflict: 'id', ignoreDuplicates: true }), 10000, 'Registrar a operação');
+        if (insertError) throw new Error(translateDbError(insertError.message));
+
+        // A concurrent retry may have won the insert. Its payload is authoritative.
+        const { data: confirmedRows, error: confirmError } = await withTimeout(supabase
+          .from('operations')
+          .select('notes')
+          .eq('id', input.clientRequestId)
+          .limit(1), 10000, 'Confirmar a operação');
+        if (confirmError || !confirmedRows?.[0]?.notes) throw new Error(translateDbError(confirmError?.message || 'Operação não confirmada'));
+        try {
+          stored = JSON.parse(String(confirmedRows[0].notes).slice(marker.length)) as StoredRequest;
+        } catch {
+          throw new Error('Não foi possível confirmar a operação. Tente novamente.');
+        }
+        if (stored.fingerprint !== input.payloadHash) throw new Error('Esta tentativa pertence a outros dados. Feche e registre uma nova operação.');
+      }
+
+      const target = stored.target;
+      if (!target) {
+        const { data: { session } } = await supabase.auth.getSession();
+        await loadUserData(userId, session?.user?.email || user?.email || '');
+        await Storage.removeRequired(pendingOperationKey(userId));
+        return;
+      }
+
+      const { data: currentRows, error: currentError } = await withTimeout(supabase
+        .from('assets')
+        .select('id')
+        .eq('wallet_id', input.walletId)
+        .eq('user_id', userId)
+        .eq('symbol', input.symbol)
+        .limit(1), 10000, 'Sincronizar a posição');
+      if (currentError) throw new Error(translateDbError(currentError.message));
+      const currentId = currentRows?.[0]?.id;
+      if (target.quantity <= 0 && currentId) {
+        const { error: deleteError } = await withTimeout(supabase.from('assets').delete().eq('id', currentId), 10000, 'Sincronizar a venda');
+        if (deleteError) throw new Error(translateDbError(deleteError.message));
+      } else if (target.quantity > 0 && currentId) {
+        const { error: updateError } = await withTimeout(supabase.from('assets').update({ quantity: target.quantity, avg_price: target.avgPrice }).eq('id', currentId), 10000, 'Sincronizar a posição');
+        if (updateError) throw new Error(translateDbError(updateError.message));
+      } else if (target.quantity > 0) {
+        const { error: assetInsertError } = await withTimeout(supabase.from('assets').insert({
+          wallet_id: input.walletId,
+          user_id: userId,
+          symbol: input.symbol,
+          name: target.name,
+          type: target.type,
+          quantity: target.quantity,
+          avg_price: target.avgPrice,
+        }), 10000, 'Sincronizar a posição');
+        if (assetInsertError) throw new Error(translateDbError(assetInsertError.message));
+      }
+    }
+    const { data: { session } } = await supabase.auth.getSession();
+    await loadUserData(userId, session?.user?.email || user?.email || '');
+    await Storage.removeRequired(pendingOperationKey(userId));
+  }, [loadUserData, user?.email, userId]);
+
+  useEffect(() => {
+    if (!userId || wallets.length === 0) return;
+    let cancelled = false;
+    Storage.get<AtomicOperationInput>(pendingOperationKey(userId)).then((pending) => {
+      if (!cancelled && pending) {
+        recordOperationAndUpdatePosition(pending).catch((error) => console.warn('Pending operation recovery failed', error));
+      }
+    });
+    return () => { cancelled = true; };
+  }, [recordOperationAndUpdatePosition, userId, wallets.length]);
 
   const removeOperation = useCallback(
     async (id: string) => {
@@ -1267,6 +1447,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         markVersionSeen,
         operations,
         addOperation,
+        recordOperationAndUpdatePosition,
         removeOperation,
         proventos,
         addProvento,

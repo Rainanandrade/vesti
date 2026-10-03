@@ -34,7 +34,7 @@ export async function fetchNews(topic: string): Promise<NewsItem[]> {
  * Notícias específicas de um ativo. Monta query "TICKER + nome empresa"
  * pra trazer só conteúdo relacionado àquela companhia.
  */
-export async function fetchAssetNews(symbol: string, companyName?: string): Promise<NewsItem[]> {
+export async function fetchAssetNews(symbol: string, companyName?: string, opts?: { force?: boolean }): Promise<NewsItem[]> {
   // Limpa nome da empresa: tira sufixos genéricos que poluem a busca
   const cleanName = (companyName || '')
     .replace(/\b(S\.?A\.?|ON|PN|PNA|PNB|UNIT|UNITS|HOLDING|HOLDINGS|PARTICIPACOES|PARTICIPAÇÕES|FUNDO|DE|INVESTIMENTO|IMOBILIARIO|IMOBILIÁRIO)\b/gi, '')
@@ -47,7 +47,10 @@ export async function fetchAssetNews(symbol: string, companyName?: string): Prom
     : `"${symbol}"`;
 
   try {
-    const res = await requestWithTimeout(`${API_BASE}/news?q=${encodeURIComponent(q)}`);
+    const buster = opts?.force ? `&_=${Date.now()}` : '';
+    const res = await requestWithTimeout(`${API_BASE}/news?q=${encodeURIComponent(q)}${buster}`, {
+      cache: opts?.force ? 'no-store' : 'default',
+    });
     if (!res.ok) return [];
     const json = await res.json();
     return json.items || [];

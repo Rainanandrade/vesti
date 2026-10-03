@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, LayoutChangeEvent, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import Svg, { Path, Defs, LinearGradient, Stop, Line, Circle } from 'react-native-svg';
 import { colors, fontSize, radius, spacing } from '../theme/colors';
 import { ChartData, ChartRange, fetchChart, RANGE_LABELS, clearChartCache } from '../api/chart';
@@ -13,11 +13,13 @@ type Props = {
 
 const RANGES: ChartRange[] = ['1mo', '6mo', '1y', '5y'];
 
-export default function PriceChart({ symbol, width = 320, height = 180 }: Props) {
+export default function PriceChart({ symbol, width, height = 210 }: Props) {
   const [range, setRange] = useState<ChartRange>('1y');
   const [data, setData] = useState<ChartData | null>(null);
   const [loading, setLoading] = useState(false);
   const [retryNonce, setRetryNonce] = useState(0);
+  const [measuredWidth, setMeasuredWidth] = useState(width || 320);
+  const chartWidth = width || measuredWidth;
 
   useEffect(() => {
     let cancelled = false;
@@ -37,9 +39,12 @@ export default function PriceChart({ symbol, width = 320, height = 180 }: Props)
     clearChartCache(symbol);
     setRetryNonce((n) => n + 1);
   };
+  const onLayout = (event: LayoutChangeEvent) => {
+    if (!width) setMeasuredWidth(Math.max(240, Math.floor(event.nativeEvent.layout.width)));
+  };
 
   return (
-    <View>
+    <View onLayout={onLayout} style={styles.root}>
       <View style={styles.header}>
         <View style={{ flex: 1 }}>
           {data && (
@@ -75,13 +80,17 @@ export default function PriceChart({ symbol, width = 320, height = 180 }: Props)
       </View>
 
       {loading ? (
-        <View style={[styles.placeholder, { width, height }]}>
+        <View style={[styles.placeholder, { width: chartWidth, height }]}>
           <ActivityIndicator color={colors.primary} />
         </View>
       ) : data && data.points.length >= 2 ? (
-        <ChartSvg data={data} width={width} height={height} />
+        <>
+          <View style={styles.extremes}><Text style={styles.extremeText}>Mín. {fmtBRL(Math.min(...data.points.map((point) => point.c)))}</Text><Text style={styles.extremeText}>Máx. {fmtBRL(Math.max(...data.points.map((point) => point.c)))}</Text></View>
+          <ChartSvg data={data} width={chartWidth} height={height} gradientId={`chart-${symbol.replace(/[^a-z0-9]/gi, '')}-${range}`} />
+          <View style={styles.dates}><Text style={styles.dateText}>{formatChartDate(data.points[0].t)}</Text><Text style={styles.dateText}>{formatChartDate(data.points[data.points.length - 1].t)}</Text></View>
+        </>
       ) : (
-        <View style={[styles.placeholder, { width, height }]}>
+        <View style={[styles.placeholder, { width: chartWidth, height }]}>
           <Text style={styles.placeholderText}>Histórico indisponível</Text>
           <TouchableOpacity style={styles.retryBtn} onPress={handleRetry}>
             <Text style={styles.retryText}>Tentar de novo</Text>
@@ -92,7 +101,7 @@ export default function PriceChart({ symbol, width = 320, height = 180 }: Props)
   );
 }
 
-function ChartSvg({ data, width, height }: { data: ChartData; width: number; height: number }) {
+function ChartSvg({ data, width, height, gradientId }: { data: ChartData; width: number; height: number; gradientId: string }) {
   const padding = { top: 10, right: 10, bottom: 20, left: 10 };
   const chartW = width - padding.left - padding.right;
   const chartH = height - padding.top - padding.bottom;
@@ -122,7 +131,7 @@ function ChartSvg({ data, width, height }: { data: ChartData; width: number; hei
   return (
     <Svg width={width} height={height}>
       <Defs>
-        <LinearGradient id="gradient" x1="0" y1="0" x2="0" y2="1">
+        <LinearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
           <Stop offset="0" stopColor={lineColor} stopOpacity="0.3" />
           <Stop offset="1" stopColor={lineColor} stopOpacity="0" />
         </LinearGradient>
@@ -138,7 +147,7 @@ function ChartSvg({ data, width, height }: { data: ChartData; width: number; hei
         strokeWidth={1}
       />
       {/* Área */}
-      <Path d={areaPath} fill="url(#gradient)" />
+      <Path d={areaPath} fill={`url(#${gradientId})`} />
       {/* Linha */}
       <Path d={pathStr} stroke={lineColor} strokeWidth={2} fill="none" />
       {/* Ponto final */}
@@ -153,6 +162,7 @@ function ChartSvg({ data, width, height }: { data: ChartData; width: number; hei
 }
 
 const styles = StyleSheet.create({
+  root: { width: '100%', overflow: 'hidden' },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -170,4 +180,12 @@ const styles = StyleSheet.create({
   placeholderText: { color: colors.textSecondary, fontSize: fontSize.body },
   retryBtn: { marginTop: 10, paddingHorizontal: 16, paddingVertical: 6, backgroundColor: colors.primary, borderRadius: radius.pill },
   retryText: { color: colors.textLight, fontWeight: '700', fontSize: fontSize.small },
+  extremes: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 },
+  extremeText: { color: colors.textTertiary, fontSize: fontSize.tiny, fontWeight: '700' },
+  dates: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 2 },
+  dateText: { color: colors.textTertiary, fontSize: fontSize.tiny },
 });
+
+function formatChartDate(timestamp: number): string {
+  return new Date(timestamp).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit' });
+}

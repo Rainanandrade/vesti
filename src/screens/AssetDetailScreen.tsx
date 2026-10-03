@@ -48,14 +48,15 @@ export default function AssetDetailScreen({ navigation, route }: any) {
   const [details, setDetails] = useState<AssetDetails | null>(null);
   const [dividendInfo, setDividendInfo] = useState<DividendInfo | null>(null);
   const [loading, setLoading] = useState(true);
+  const [retryNonce, setRetryNonce] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
     Promise.all([
-      fetchQuotes([symbol]),
-      fetchAssetDetails(symbol),
-      fetchDividendInfo(symbol),
+      fetchQuotes([symbol], { force: retryNonce > 0 }),
+      fetchAssetDetails(symbol, retryNonce > 0),
+      fetchDividendInfo(symbol, retryNonce > 0),
     ]).then(([qs, d, dv]) => {
       if (cancelled) return;
       setQuote(qs[0] || null);
@@ -63,7 +64,7 @@ export default function AssetDetailScreen({ navigation, route }: any) {
       setDividendInfo(dv);
     }).catch(() => { if (!cancelled) { setQuote(null); setDetails(null); setDividendInfo(null); } }).finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
-  }, [symbol]);
+  }, [symbol, retryNonce]);
 
   const goBack = () => {
     if (navigation.canGoBack()) navigation.goBack();
@@ -107,6 +108,8 @@ export default function AssetDetailScreen({ navigation, route }: any) {
         </View>
 
         <AssetTabs active={tab} onChange={setTab} />
+
+        {!loading && (!quote || !details) ? <View style={styles.dataNotice}><View style={{ flex: 1 }}><Text style={styles.dataNoticeTitle}>Dados parciais</Text><Text style={styles.dataNoticeText}>A fonte gratuita não retornou todos os dados. Você pode atualizar sem sair desta tela.</Text></View><TouchableOpacity style={styles.retryData} onPress={() => setRetryNonce((value) => value + 1)} accessibilityRole="button"><Ionicons name="refresh" size={17} color={colors.textLight} /><Text style={styles.retryDataText}>Atualizar</Text></TouchableOpacity></View> : null}
 
         <View style={styles.tabBody}>
           {tab === 'resumo' && (
@@ -177,6 +180,11 @@ const styles = StyleSheet.create({
   priceChange: { fontSize: fontSize.body, fontWeight: '700' },
   editPosition: { minHeight: 46, marginTop: spacing.md, paddingHorizontal: spacing.md, borderRadius: radius.md, backgroundColor: colors.primary, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.sm },
   editPositionText: { color: colors.textLight, fontWeight: '800', fontSize: fontSize.body },
+  dataNotice: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, marginHorizontal: spacing.md, marginTop: spacing.md, padding: spacing.md, borderRadius: radius.lg, backgroundColor: colors.warningLight, borderWidth: 1, borderColor: colors.warning },
+  dataNoticeTitle: { color: colors.text, fontWeight: '800', fontSize: fontSize.body },
+  dataNoticeText: { color: colors.textSecondary, fontSize: fontSize.small, lineHeight: 18, marginTop: 2 },
+  retryData: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, borderRadius: radius.pill, backgroundColor: colors.primary },
+  retryDataText: { color: colors.textLight, fontWeight: '800', fontSize: fontSize.small },
   tabBody: { padding: spacing.md },
   helper: { fontSize: fontSize.body, color: colors.textSecondary, marginBottom: spacing.md },
   actionBtn: { backgroundColor: colors.primary, padding: spacing.md, borderRadius: radius.md, alignItems: 'center' },

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import { View, Text, StyleSheet, LayoutChangeEvent } from 'react-native';
 import Svg, { Path, Circle, Line, Text as SvgText, Defs, LinearGradient, Stop } from 'react-native-svg';
 import { colors, fontSize, spacing } from '../theme/colors';
@@ -13,6 +13,7 @@ type Props = {
 };
 
 export default function PortfolioChart({ data, privacyMode, height = 180 }: Props) {
+  const gradientId = `portfolio-gradient-${useId().replace(/:/g, '')}`;
   const [w, setW] = useState(320);
   const onLayout = (e: LayoutChangeEvent) => {
     const width = Math.round(e.nativeEvent.layout.width);
@@ -81,7 +82,7 @@ export default function PortfolioChart({ data, privacyMode, height = 180 }: Prop
 
       <Svg width={w} height={h}>
         <Defs>
-          <LinearGradient id="grad" x1="0" y1="0" x2="0" y2="1">
+          <LinearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
             <Stop offset="0" stopColor={lineColor} stopOpacity="0.25" />
             <Stop offset="1" stopColor={lineColor} stopOpacity="0" />
           </LinearGradient>
@@ -102,7 +103,7 @@ export default function PortfolioChart({ data, privacyMode, height = 180 }: Prop
             />
           );
         })}
-        <Path d={fillPath} fill="url(#grad)" />
+        <Path d={fillPath} fill={`url(#${gradientId})`} />
         <Path d={path} stroke={lineColor} strokeWidth={2.5} fill="none" />
         <Circle cx={points[points.length - 1].x} cy={points[points.length - 1].y} r={4} fill={lineColor} />
         {/* Labels min/max */}

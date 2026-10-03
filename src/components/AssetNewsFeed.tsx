@@ -12,11 +12,12 @@ type Props = {
 export default function AssetNewsFeed({ symbol, companyName }: Props) {
   const [news, setNews] = useState<NewsItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [retryNonce, setRetryNonce] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
-    fetchAssetNews(symbol, companyName).then((all) => {
+    fetchAssetNews(symbol, companyName, { force: retryNonce > 0 }).then((all) => {
       if (cancelled) return;
       // Filtro extra local: só mantém notícias que mencionam o ticker
       // OU pelo menos uma palavra-chave do nome da empresa.
@@ -32,10 +33,12 @@ export default function AssetNewsFeed({ symbol, companyName }: Props) {
         if (text.includes(term.toLowerCase())) return true;
         return nameWords.some((w) => text.includes(w));
       });
-      setNews(filtered.slice(0, 15));
+      // A busca já é específica do ativo. Se a manchete não repetir literalmente
+      // o ticker/nome, preservamos o resultado em vez de mostrar um vazio falso.
+      setNews((filtered.length ? filtered : all).slice(0, 15));
     }).catch(() => { if (!cancelled) setNews([]); }).finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
-  }, [symbol, companyName]);
+  }, [symbol, companyName, retryNonce]);
 
   if (loading) {
     return (
@@ -64,6 +67,9 @@ export default function AssetNewsFeed({ symbol, companyName }: Props) {
           <Text style={[styles.emptyText, { fontSize: fontSize.tiny, marginTop: 4 }]}>
             Tente novamente em algumas horas — atualizamos a cada hora.
           </Text>
+          <TouchableOpacity style={styles.retryBtn} onPress={() => setRetryNonce((value) => value + 1)} accessibilityRole="button">
+            <Text style={styles.retryText}>Tentar novamente</Text>
+          </TouchableOpacity>
         </View>
       ) : (
         news.map((n, i) => (
@@ -116,4 +122,6 @@ const styles = StyleSheet.create({
   sourceBadge: { backgroundColor: colors.primaryLight, paddingHorizontal: spacing.sm, paddingVertical: 2, borderRadius: radius.pill },
   sourceText: { color: colors.primary, fontSize: fontSize.tiny, fontWeight: '800', letterSpacing: 0.3 },
   dateText: { fontSize: fontSize.tiny, color: colors.textTertiary, marginLeft: 'auto' as any },
+  retryBtn: { marginTop: spacing.md, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, backgroundColor: colors.primary, borderRadius: radius.pill },
+  retryText: { color: colors.textLight, fontWeight: '800', fontSize: fontSize.small },
 });

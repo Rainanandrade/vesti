@@ -1,5 +1,5 @@
-import { useMemo } from 'react';
-import { View, Text, StyleSheet, Dimensions } from 'react-native';
+import { useMemo, useState } from 'react';
+import { View, Text, StyleSheet, LayoutChangeEvent } from 'react-native';
 import Svg, { Rect, Line, Text as SvgText } from 'react-native-svg';
 import { colors, fontSize, spacing } from '../theme/colors';
 import { fmtCompactBRL } from '../utils/format';
@@ -14,6 +14,11 @@ type Props = {
 const MONTHS_PT = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
 
 export default function ProventosBarChart({ received, upcoming, privacyMode, height = 220 }: Props) {
+  const [w, setW] = useState(320);
+  const onLayout = (event: LayoutChangeEvent) => {
+    const nextWidth = Math.round(event.nativeEvent.layout.width);
+    if (nextWidth > 0 && Math.abs(nextWidth - w) > 2) setW(nextWidth);
+  };
   const data = useMemo(() => {
     // Últimos 12 meses + próximos 1 mês
     const months: { key: string; label: string; received: number; expected: number }[] = [];
@@ -45,7 +50,6 @@ export default function ProventosBarChart({ received, upcoming, privacyMode, hei
     return months;
   }, [received, upcoming]);
 
-  const w = Dimensions.get('window').width - 64;
   const h = height;
   const padX = 8;
   const padY = 24;
@@ -58,7 +62,7 @@ export default function ProventosBarChart({ received, upcoming, privacyMode, hei
   const barW = barGroupW * 0.4;
 
   return (
-    <View>
+    <View onLayout={onLayout} style={styles.container}>
       <View style={styles.legend}>
         <View style={styles.legendItem}>
           <View style={[styles.legendDot, { backgroundColor: colors.success }]} />
@@ -138,6 +142,7 @@ export default function ProventosBarChart({ received, upcoming, privacyMode, hei
 }
 
 const styles = StyleSheet.create({
+  container: { width: '100%' },
   legend: {
     flexDirection: 'row',
     marginBottom: spacing.sm,

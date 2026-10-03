@@ -34,9 +34,10 @@ export type AssetDetails = {
 const API_BASE =
   Platform.OS === 'web' ? '/api' : 'https://vesti-nine.vercel.app/api';
 
-export async function fetchAssetDetails(symbol: string): Promise<AssetDetails | null> {
+export async function fetchAssetDetails(symbol: string, force = false): Promise<AssetDetails | null> {
   try {
-    const res = await requestWithTimeout(`${API_BASE}/details?symbol=${encodeURIComponent(symbol)}`);
+    const bust = force ? `&_=${Date.now()}` : '';
+    const res = await requestWithTimeout(`${API_BASE}/details?symbol=${encodeURIComponent(symbol)}${bust}`, force ? { cache: 'no-store' } : {});
     if (!res.ok) return null;
     const json = await res.json();
     if (json.error) return null;

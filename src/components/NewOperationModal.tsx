@@ -14,11 +14,13 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, fontSize, radius, spacing } from '../theme/colors';
-import { useApp, Asset } from '../context/AppContext';
+import { useApp } from '../context/AppContext';
 import { formatCurrencyInput, parseFormattedNumber } from '../utils/numberFormat';
 import { searchTickers, searchTickersAsync, TickerInfo, TICKERS } from '../data/tickers';
 import { fetchQuotes } from '../api/brapi';
 import { fmtBRL } from '../utils/format';
+const { submitOperationWithDeadline } = require('../utils/operationSubmission');
+const { formatBrazilianDateInput, brazilianDateToISO, todayBrazilian } = require('../utils/dateInput');
 
 type Side = 'buy' | 'sell';
 type AssetKind = 'acao' | 'fii' | 'etf' | 'daytrade';
@@ -30,15 +32,20 @@ type Props = {
 };
 
 export default function NewOperationModal({ visible, onClose, onDone }: Props) {
-  const { activeWallet, ensureActiveWallet, addOperation, addAsset, removeAsset } = useApp();
+  const { activeWallet, ensureActiveWallet, recordOperationAndUpdatePosition } = useApp();
   const [side, setSide] = useState<Side>('buy');
   const [assetKind, setAssetKind] = useState<AssetKind>('acao');
   const [symbol, setSymbol] = useState('');
   const [quantity, setQuantity] = useState('');
   const [price, setPrice] = useState('');
-  const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
+  const [date, setDate] = useState(todayBrazilian());
+  const [fees, setFees] = useState('');
+  const [withholdingTax, setWithholdingTax] = useState('');
   const [livePrice, setLivePrice] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [clientRequestId, setClientRequestId] = useState(() => createClientRequestId());
+  const [requestLocked, setRequestLocked] = useState(false);
 
   const reset = () => {
     setSide('buy');
@@ -46,14 +53,19 @@ export default function NewOperationModal({ visible, onClose, onDone }: Props) {
     setSymbol('');
     setQuantity('');
     setPrice('');
-    setDate(new Date().toISOString().slice(0, 10));
+    setDate(todayBrazilian());
+    setFees('');
+    setWithholdingTax('');
     setLivePrice(null);
+    setSubmitError(null);
+    setClientRequestId(createClientRequestId());
+    setRequestLocked(false);
   };
 
   useEffect(() => {
-    if (!visible) return;
+    if (!visible || requestLocked) return;
     reset();
-  }, [visible]);
+  }, [visible, requestLocked]);
 
   const [suggestions, setSuggestions] = useState<TickerInfo[]>([]);
 
@@ -102,63 +114,51 @@ export default function NewOperationModal({ visible, onClose, onDone }: Props) {
     const sym = symbol.trim().toUpperCase();
     const qty = parseFloat(quantity.replace(',', '.'));
     const pr = parseFormattedNumber(price);
+    const operationFees = parseFormattedNumber(fees);
+    const operationWithholding = parseFormattedNumber(withholdingTax);
 
     if (!sym || sym.length < 3) { Alert.alert('Atenção', 'Digite um ticker válido.'); return; }
     if (!isFinite(qty) || qty <= 0) { Alert.alert('Atenção', 'Quantidade inválida.'); return; }
     if (!isFinite(pr) || pr <= 0) { Alert.alert('Atenção', 'Preço inválido.'); return; }
+    const isoDate = brazilianDateToISO(date);
+    if (!isoDate) { Alert.alert('Atenção', 'Use uma data válida no formato DD/MM/AAAA.'); return; }
+    setSubmitError(null);
     setSaving(true);
+    let mutationStarted = false;
     try {
       const targetWallet = activeWallet && !activeWallet.readOnly ? activeWallet : await ensureActiveWallet();
-      // 1) Registra a operação no ledger
-      await addOperation({
-        type: side,
-        symbol: sym,
-        assetType: assetKind,
-        quantity: qty,
-        price: pr,
-        date,
-      });
-
-      // 2) Reflete na carteira
-      if (side === 'buy') {
-        // Tenta achar nome bonito
-        const info = TICKERS.find((t) => t.symbol === sym);
-        const assetType = assetKind === 'daytrade' ? 'acao' : assetKind;
-        await addAsset(targetWallet.id, {
-          symbol: sym,
-          name: info?.name || sym,
-          type: assetType as Asset['type'],
-          quantity: qty,
-          avgPrice: pr,
-          addedAt: Date.now(),
-        });
-      } else {
-        // Venda: subtrai quantidade do ativo se existir
-        const existing = targetWallet.assets.find((a) => a.symbol === sym);
-        if (existing) {
-          const remaining = existing.quantity - qty;
-          if (remaining <= 0) {
-            await removeAsset(targetWallet.id, sym);
-          } else {
-            // Mantém preço médio, reduz qty — addAsset com qty negativa não dá, então:
-            // estratégia simples: re-cria o asset com nova quantidade
-            await removeAsset(targetWallet.id, sym);
-            await addAsset(targetWallet.id, {
-              symbol: sym,
-              name: existing.name,
-              type: existing.type,
-              quantity: remaining,
-              avgPrice: existing.avgPrice,
-              addedAt: existing.addedAt,
-            });
-          }
-        }
+      const existing = targetWallet.assets.find((a) => a.symbol === sym);
+      if (assetKind !== 'daytrade' && side === 'sell' && !existing) {
+        throw new Error(`Você não possui ${sym} nesta carteira.`);
       }
+      if (assetKind !== 'daytrade' && side === 'sell' && existing && qty > existing.quantity) {
+        throw new Error(`A venda excede sua posição atual de ${existing.quantity} unidades.`);
+      }
+      const payloadHash = JSON.stringify({ walletId: targetWallet.id, side, assetKind, sym, qty, pr, operationFees, operationWithholding, isoDate });
+      const info = TICKERS.find((t) => t.symbol === sym);
+      setRequestLocked(true);
+      mutationStarted = true;
+      await submitOperationWithDeadline(() => recordOperationAndUpdatePosition({
+          clientRequestId,
+          payloadHash,
+          walletId: targetWallet.id,
+          type: side,
+          symbol: sym,
+          assetType: assetKind,
+          quantity: qty,
+          price: pr,
+          fees: operationFees,
+          withholdingTax: operationWithholding,
+          date: isoDate,
+          name: info?.name || sym,
+      }));
 
       onDone?.();
+      reset();
       onClose();
     } catch (e: any) {
-      Alert.alert('Não foi possível salvar', e?.message || 'Tente novamente.');
+      if (!mutationStarted) setRequestLocked(false);
+      setSubmitError(e?.message || 'Não foi possível salvar. Tente novamente.');
     } finally {
       setSaving(false);
     }
@@ -182,6 +182,7 @@ export default function NewOperationModal({ visible, onClose, onDone }: Props) {
               <TouchableOpacity
                 style={[styles.sideBtn, side === 'buy' && styles.sideBuyActive]}
                 onPress={() => setSide('buy')}
+                disabled={requestLocked}
               >
                 <Ionicons name="arrow-down" size={18} color={side === 'buy' ? colors.textLight : colors.success} />
                 <Text style={[styles.sideText, side === 'buy' && styles.sideTextActive]}>Compra</Text>
@@ -189,6 +190,7 @@ export default function NewOperationModal({ visible, onClose, onDone }: Props) {
               <TouchableOpacity
                 style={[styles.sideBtn, side === 'sell' && styles.sideSellActive]}
                 onPress={() => setSide('sell')}
+                disabled={requestLocked}
               >
                 <Ionicons name="arrow-up" size={18} color={side === 'sell' ? colors.textLight : colors.danger} />
                 <Text style={[styles.sideText, side === 'sell' && styles.sideTextActive]}>Venda</Text>
@@ -203,6 +205,7 @@ export default function NewOperationModal({ visible, onClose, onDone }: Props) {
                   key={k}
                   style={[styles.kindChip, assetKind === k && styles.kindChipActive]}
                   onPress={() => setAssetKind(k)}
+                  disabled={requestLocked}
                 >
                   <Text style={[styles.kindText, assetKind === k && styles.kindTextActive]}>
                     {k === 'acao' ? 'Ação' : k === 'fii' ? 'FII' : k === 'etf' ? 'ETF' : 'Day-trade'}
@@ -220,11 +223,12 @@ export default function NewOperationModal({ visible, onClose, onDone }: Props) {
               onChangeText={(t) => setSymbol(t.toUpperCase())}
               autoCapitalize="characters"
               autoCorrect={false}
+              editable={!requestLocked}
             />
             {suggestions.length > 0 && !TICKERS.find((t) => t.symbol === symbol.trim().toUpperCase()) && (
               <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: spacing.xs }}>
                 {suggestions.map((s) => (
-                  <TouchableOpacity key={s.symbol} style={styles.suggChip} onPress={() => setSymbol(s.symbol)}>
+                  <TouchableOpacity key={s.symbol} style={styles.suggChip} onPress={() => setSymbol(s.symbol)} disabled={requestLocked}>
                     <Text style={styles.suggText}>{s.symbol}</Text>
                   </TouchableOpacity>
                 ))}
@@ -239,6 +243,7 @@ export default function NewOperationModal({ visible, onClose, onDone }: Props) {
               value={quantity}
               onChangeText={setQuantity}
               keyboardType="decimal-pad"
+              editable={!requestLocked}
             />
 
             {/* Preço */}
@@ -249,9 +254,10 @@ export default function NewOperationModal({ visible, onClose, onDone }: Props) {
               value={price}
               onChangeText={(t) => setPrice(formatCurrencyInput(t))}
               keyboardType="decimal-pad"
+              editable={!requestLocked}
             />
             {livePrice != null && (
-              <TouchableOpacity onPress={useMarketPrice} style={styles.usePriceRow}>
+              <TouchableOpacity onPress={useMarketPrice} style={styles.usePriceRow} disabled={requestLocked}>
                 <Ionicons name="cash-outline" size={14} color={colors.primary} />
                 <Text style={styles.usePriceText}>Usar cotação atual: {fmtBRL(livePrice)}</Text>
               </TouchableOpacity>
@@ -261,18 +267,36 @@ export default function NewOperationModal({ visible, onClose, onDone }: Props) {
             <Text style={styles.label}>Data</Text>
             <TextInput
               style={styles.input}
-              placeholder="AAAA-MM-DD"
+              placeholder="DD/MM/AAAA"
               value={date}
-              onChangeText={setDate}
+              onChangeText={(value) => setDate(formatBrazilianDateInput(value))}
+              keyboardType="number-pad"
               autoCapitalize="none"
+              editable={!requestLocked}
             />
+
+            <Text style={styles.label}>Custos e taxas (R$)</Text>
+            <TextInput style={styles.input} placeholder="0,00" value={fees} onChangeText={(t) => setFees(formatCurrencyInput(t))} keyboardType="decimal-pad" editable={!requestLocked} />
+
+            {side === 'sell' ? <>
+              <Text style={styles.label}>IR retido na fonte (R$)</Text>
+              <TextInput style={styles.input} placeholder="0,00" value={withholdingTax} onChangeText={(t) => setWithholdingTax(formatCurrencyInput(t))} keyboardType="decimal-pad" editable={!requestLocked} />
+            </> : null}
+
+            <View style={styles.preview}>
+              <Text style={styles.previewLabel}>VALOR DA OPERAÇÃO</Text>
+              <Text style={styles.previewValue}>{qtyPreview(quantity, price)}</Text>
+              <Text style={styles.previewDetail}>A operação também atualiza sua posição na carteira.</Text>
+            </View>
+
+            {submitError ? <View style={styles.errorBox}><Ionicons name="alert-circle" size={18} color={colors.danger} /><Text style={styles.errorText}>{submitError}</Text></View> : null}
 
             <TouchableOpacity
               style={[styles.saveBtn, saving && { opacity: 0.6 }]}
               onPress={handleSave}
               disabled={saving}
             >
-              <Text style={styles.saveBtnText}>{saving ? 'Salvando...' : 'Salvar operação'}</Text>
+              <Text style={styles.saveBtnText}>{saving ? 'Salvando...' : submitError && requestLocked ? 'Confirmar novamente' : 'Salvar operação'}</Text>
             </TouchableOpacity>
           </ScrollView>
         </KeyboardAvoidingView>
@@ -283,11 +307,11 @@ export default function NewOperationModal({ visible, onClose, onDone }: Props) {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.background },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: spacing.md, borderBottomWidth: 1, borderColor: colors.divider },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: spacing.lg, paddingVertical: spacing.md, borderBottomWidth: 1, borderColor: colors.divider, backgroundColor: colors.surface },
   title: { fontSize: fontSize.title, fontWeight: 'bold', color: colors.text },
-  scroll: { padding: spacing.lg, paddingBottom: spacing.xxl },
+  scroll: { width: '100%', maxWidth: 680, alignSelf: 'center', padding: spacing.lg, paddingBottom: spacing.xxl },
   sideRow: { flexDirection: 'row', gap: spacing.md as any, marginBottom: spacing.lg },
-  sideBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: spacing.md, borderRadius: radius.md, borderWidth: 1.5, borderColor: colors.border, backgroundColor: colors.background },
+  sideBtn: { flex: 1, minHeight: 58, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: spacing.md, borderRadius: radius.lg, borderWidth: 1.5, borderColor: colors.border, backgroundColor: colors.surface },
   sideBuyActive: { backgroundColor: colors.success, borderColor: colors.success },
   sideSellActive: { backgroundColor: colors.danger, borderColor: colors.danger },
   sideText: { fontWeight: '800', color: colors.text, marginLeft: 6 },
@@ -298,11 +322,32 @@ const styles = StyleSheet.create({
   kindChipActive: { backgroundColor: colors.text, borderColor: colors.text },
   kindText: { color: colors.text, fontWeight: '600' },
   kindTextActive: { color: colors.textLight, fontWeight: '700' },
-  input: { borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, padding: spacing.md, fontSize: fontSize.bodyLarge, color: colors.text, backgroundColor: colors.background },
+  input: { borderWidth: 1, borderColor: colors.border, borderRadius: radius.lg, padding: spacing.md, fontSize: fontSize.bodyLarge, color: colors.text, backgroundColor: colors.surface },
   suggChip: { paddingHorizontal: spacing.md, paddingVertical: 6, borderRadius: radius.pill, backgroundColor: colors.primaryLight, marginRight: spacing.sm },
   suggText: { color: colors.primary, fontWeight: '700' },
   usePriceRow: { flexDirection: 'row', alignItems: 'center', marginTop: spacing.sm, padding: spacing.sm, backgroundColor: colors.primaryLight, borderRadius: radius.md, alignSelf: 'flex-start' },
   usePriceText: { color: colors.primary, fontWeight: '700', marginLeft: 4, fontSize: fontSize.small },
-  saveBtn: { marginTop: spacing.lg, backgroundColor: colors.primary, padding: spacing.md, borderRadius: radius.md, alignItems: 'center' },
+  preview: { marginTop: spacing.lg, padding: spacing.lg, borderRadius: radius.xl, backgroundColor: colors.primaryLight, borderWidth: 1, borderColor: colors.primary },
+  previewLabel: { color: colors.textSecondary, fontSize: fontSize.tiny, fontWeight: '900', letterSpacing: 1.2 },
+  previewValue: { color: colors.text, fontSize: fontSize.heading, fontWeight: '900', marginTop: 4 },
+  previewDetail: { color: colors.textSecondary, fontSize: fontSize.small, marginTop: 6 },
+  errorBox: { flexDirection: 'row', gap: spacing.sm, padding: spacing.md, marginTop: spacing.md, borderRadius: radius.md, backgroundColor: colors.dangerLight },
+  errorText: { color: colors.danger, flex: 1, fontWeight: '700' },
+  saveBtn: { marginTop: spacing.lg, backgroundColor: colors.primary, padding: spacing.md, borderRadius: radius.lg, alignItems: 'center', minHeight: 54, justifyContent: 'center' },
   saveBtnText: { color: colors.textLight, fontWeight: '700', fontSize: fontSize.bodyLarge },
 });
+
+function qtyPreview(quantity: string, price: string): string {
+  const qty = Number(quantity.replace(',', '.'));
+  const value = parseFormattedNumber(price);
+  return Number.isFinite(qty) && qty > 0 && value > 0 ? fmtBRL(qty * value) : 'R$ 0,00';
+}
+
+function createClientRequestId(): string {
+  const cryptoApi = (globalThis as any).crypto;
+  if (cryptoApi?.randomUUID) return cryptoApi.randomUUID();
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (char) => {
+    const value = Math.floor(Math.random() * 16);
+    return (char === 'x' ? value : (value & 0x3) | 0x8).toString(16);
+  });
+}

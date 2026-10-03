@@ -1,16 +1,8 @@
 import { useMemo, useState } from 'react';
-import { editorial } from '../theme/editorial';
-import { EditorialState } from '../ui/editorial';
 import {
-  Alert,
-  KeyboardAvoidingView,
-  Modal,
-  Platform,
-  Pressable,
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
@@ -19,27 +11,16 @@ import { Ionicons } from '@expo/vector-icons';
 import { colors, fontSize, radius, spacing } from '../theme/colors';
 import { useApp, Operation } from '../context/AppContext';
 import { fmtBRL } from '../utils/format';
-import { formatCurrencyInput, parseFormattedNumber } from '../utils/numberFormat';
-import { searchTickers, TICKERS } from '../data/tickers';
-import { confirmAction } from '../utils/confirm';
 import Card from '../components/Card';
-import Button from '../components/Button';
 import Isentometro from '../components/Isentometro';
 import { safeBackToCarteira } from '../utils/navigation';
+import { useOperationModal } from '../context/OperationModalContext';
+import { editorial } from '../theme/editorial';
+import { EditorialState } from '../ui/editorial';
 
 export default function OperacoesScreen({ navigation }: any) {
-  const { operations, addOperation, removeOperation, privacyMode } = useApp();
-  const [addOpen, setAddOpen] = useState(false);
-  const [type, setType] = useState<Operation['type']>('sell');
-  const [assetType, setAssetType] = useState<Operation['assetType']>('acao');
-  const [symbol, setSymbol] = useState('');
-  const [search, setSearch] = useState('');
-  const [quantity, setQuantity] = useState('');
-  const [price, setPrice] = useState('');
-  const [fees, setFees] = useState('');
-  const [withholdingTax, setWithholdingTax] = useState('');
-  const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
-  const [saving, setSaving] = useState(false);
+  const { operations, privacyMode } = useApp();
+  const { open: openOperation } = useOperationModal();
   const [filterMonth, setFilterMonth] = useState(new Date().toISOString().slice(0, 7));
 
   // Agrupa operações por mês
@@ -85,54 +66,6 @@ export default function OperacoesScreen({ navigation }: any) {
     return result;
   }, [filteredOps]);
 
-  const suggestions = search ? searchTickers(search, 6) : [];
-
-  const handleAdd = async () => {
-    const qty = parseFloat(quantity.replace(',', '.'));
-    const pr = parseFormattedNumber(price);
-    const operationFees = parseFormattedNumber(fees);
-    const operationWithholding = parseFormattedNumber(withholdingTax);
-    if (!symbol.trim()) return Alert.alert('Atenção', 'Informe o ticker');
-    if (!isFinite(qty) || qty <= 0) return Alert.alert('Atenção', 'Quantidade inválida');
-    if (!isFinite(pr) || pr <= 0) return Alert.alert('Atenção', 'Preço inválido');
-    if (!date.match(/^\d{4}-\d{2}-\d{2}$/)) return Alert.alert('Atenção', 'Data inválida (AAAA-MM-DD)');
-
-    setSaving(true);
-    try {
-      await addOperation({
-        type,
-        symbol: symbol.trim().toUpperCase(),
-        assetType,
-        quantity: qty,
-        price: pr,
-        fees: operationFees,
-        withholdingTax: operationWithholding,
-        date,
-      });
-      setAddOpen(false);
-      setSymbol('');
-      setSearch('');
-      setQuantity('');
-      setPrice('');
-      setFees('');
-      setWithholdingTax('');
-      setDate(new Date().toISOString().slice(0, 10));
-    } catch (e: any) {
-      Alert.alert('Erro', e?.message || 'Não foi possível salvar.');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const handleRemove = (op: Operation) => {
-    confirmAction(
-      'Remover operação',
-      `Remover ${op.type === 'buy' ? 'compra' : 'venda'} de ${op.symbol}?`,
-      () => removeOperation(op.id),
-      { confirmLabel: 'Remover', destructive: true },
-    );
-  };
-
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       <View style={styles.header}>
@@ -143,7 +76,7 @@ export default function OperacoesScreen({ navigation }: any) {
           <Ionicons name="chevron-back" size={26} color={colors.text} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Operações</Text>
-        <TouchableOpacity style={styles.addBtn} onPress={() => setAddOpen(true)}>
+        <TouchableOpacity style={styles.addBtn} onPress={openOperation} accessibilityRole="button" accessibilityLabel="Adicionar operação">
           <Ionicons name="add" size={20} color={colors.textLight} />
         </TouchableOpacity>
       </View>
@@ -202,16 +135,7 @@ export default function OperacoesScreen({ navigation }: any) {
         <Text style={styles.sectionTitle}>Operações do mês ({filteredOps.length})</Text>
 
         {filteredOps.length === 0 ? (
-          <View style={styles.empty}>
-            <Text style={styles.emptyEmoji}>📋</Text>
-            <Text style={styles.emptyTitle}>Nenhuma operação neste mês</Text>
-            <Text style={styles.emptyDesc}>
-              Registre suas compras e vendas pra calcular o IR correto e acompanhar o isentômetro.
-            </Text>
-            <TouchableOpacity style={styles.emptyBtn} onPress={() => setAddOpen(true)}>
-              <Text style={styles.emptyBtnText}>+ Adicionar operação</Text>
-            </TouchableOpacity>
-          </View>
+          <EditorialState kind="empty" title="Nenhuma operação neste mês" detail="Registre suas compras e vendas para acompanhar a carteira e o imposto sem retrabalho." action={{ label: 'Adicionar operação', onPress: openOperation }} />
         ) : (
           filteredOps.map((op) => (
             <Card key={op.id} style={styles.opCard}>
@@ -243,9 +167,7 @@ export default function OperacoesScreen({ navigation }: any) {
                   >
                     {fmtBRL(op.quantity * op.price, privacyMode)}
                   </Text>
-                  <TouchableOpacity onPress={() => handleRemove(op)} style={{ marginTop: 4 }}>
-                    <Ionicons name="trash-outline" size={16} color={colors.textTertiary} />
-                  </TouchableOpacity>
+                  <Text style={styles.syncedLabel}>SINCRONIZADA</Text>
                 </View>
               </View>
             </Card>
@@ -253,156 +175,6 @@ export default function OperacoesScreen({ navigation }: any) {
         )}
       </ScrollView>
 
-      {/* Modal adicionar operação */}
-      <Modal visible={addOpen} animationType="slide" onRequestClose={() => setAddOpen(false)}>
-        <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
-          <KeyboardAvoidingView
-            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-            style={{ flex: 1 }}
-          >
-            <View style={styles.modalHeader}>
-              <TouchableOpacity onPress={() => setAddOpen(false)} hitSlop={10}>
-                <Ionicons name="close" size={26} color={colors.text} />
-              </TouchableOpacity>
-              <Text style={styles.modalTitle}>Nova operação</Text>
-              <View style={{ width: 26 }} />
-            </View>
-            <ScrollView contentContainerStyle={styles.modalScroll} keyboardShouldPersistTaps="handled">
-              {/* Tipo: compra/venda */}
-              <View style={styles.bigToggle}>
-                <TouchableOpacity
-                  style={[styles.bigToggleBtn, type === 'buy' && styles.bigToggleBtnBuy]}
-                  onPress={() => setType('buy')}
-                >
-                  <Ionicons name="arrow-down" size={18} color={type === 'buy' ? colors.textLight : colors.success} />
-                  <Text style={[styles.bigToggleText, type === 'buy' && { color: colors.textLight }]}>Compra</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.bigToggleBtn, type === 'sell' && styles.bigToggleBtnSell]}
-                  onPress={() => setType('sell')}
-                >
-                  <Ionicons name="arrow-up" size={18} color={type === 'sell' ? colors.textLight : colors.danger} />
-                  <Text style={[styles.bigToggleText, type === 'sell' && { color: colors.textLight }]}>Venda</Text>
-                </TouchableOpacity>
-              </View>
-
-              {/* Tipo de ativo */}
-              <Text style={styles.label}>Tipo de ativo</Text>
-              <View style={styles.assetTypeRow}>
-                {(['acao', 'fii', 'etf', 'daytrade'] as const).map((at) => (
-                  <TouchableOpacity
-                    key={at}
-                    style={[styles.assetTypeChip, assetType === at && styles.assetTypeChipActive]}
-                    onPress={() => setAssetType(at)}
-                  >
-                    <Text
-                      style={[
-                        styles.assetTypeChipText,
-                        assetType === at && styles.assetTypeChipTextActive,
-                      ]}
-                    >
-                      {labelAssetType(at)}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-
-              {/* Ticker com busca */}
-              <Text style={styles.label}>Ticker</Text>
-              <TextInput
-                style={styles.input}
-                value={symbol || search}
-                onChangeText={(t) => {
-                  const v = t.toUpperCase();
-                  setSearch(v);
-                  setSymbol(v);
-                }}
-                placeholder="PETR4, MXRF11..."
-                autoCapitalize="characters"
-              />
-              {suggestions.length > 0 && (
-                <View style={styles.suggestionsBox}>
-                  {suggestions.map((s) => (
-                    <TouchableOpacity
-                      key={s.symbol}
-                      style={styles.suggItem}
-                      onPress={() => {
-                        setSymbol(s.symbol);
-                        setSearch('');
-                      }}
-                    >
-                      <Text style={styles.suggSym}>{s.symbol}</Text>
-                      <Text style={styles.suggName}>{s.name}</Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              )}
-
-              <Text style={styles.label}>Quantidade</Text>
-              <TextInput
-                style={styles.input}
-                value={quantity}
-                onChangeText={setQuantity}
-                placeholder="100"
-                keyboardType="decimal-pad"
-              />
-
-              <Text style={styles.label}>Preço unitário (R$)</Text>
-              <TextInput
-                style={styles.input}
-                value={price}
-                onChangeText={(t) => setPrice(formatCurrencyInput(t))}
-                placeholder="0,00"
-                keyboardType="decimal-pad"
-              />
-
-              <Text style={styles.label}>Data</Text>
-              <TextInput
-                style={styles.input}
-                value={date}
-                onChangeText={setDate}
-                placeholder="AAAA-MM-DD"
-                autoCapitalize="none"
-              />
-
-              <Text style={styles.label}>Custos e taxas (R$)</Text>
-              <TextInput
-                style={styles.input}
-                value={fees}
-                onChangeText={(t) => setFees(formatCurrencyInput(t))}
-                placeholder="0,00"
-                keyboardType="decimal-pad"
-              />
-
-              {type === 'sell' && (
-                <>
-                  <Text style={styles.label}>IR retido na fonte — IRRF (R$)</Text>
-                  <TextInput
-                    style={styles.input}
-                    value={withholdingTax}
-                    onChangeText={(t) => setWithholdingTax(formatCurrencyInput(t))}
-                    placeholder="0,00"
-                    keyboardType="decimal-pad"
-                  />
-                </>
-              )}
-
-              {parseFloat(quantity.replace(',', '.')) > 0 && parseFormattedNumber(price) > 0 && (
-                <View style={styles.totalPreview}>
-                  <Text style={styles.totalLabel}>Total</Text>
-                  <Text style={styles.totalValue}>
-                    {fmtBRL(
-                      parseFloat(quantity.replace(',', '.')) * parseFormattedNumber(price),
-                    )}
-                  </Text>
-                </View>
-              )}
-
-              <Button title="Salvar operação" onPress={handleAdd} loading={saving} style={{ marginTop: spacing.lg }} />
-            </ScrollView>
-          </KeyboardAvoidingView>
-        </SafeAreaView>
-      </Modal>
     </SafeAreaView>
   );
 }
@@ -423,7 +195,7 @@ function labelAssetType(t: Operation['assetType']): string {
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.surface },
+  safe: { flex: 1, backgroundColor: editorial.color.canvas },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -487,67 +259,5 @@ const styles = StyleSheet.create({
   assetTypeText: { fontSize: fontSize.tiny, color: colors.primary, fontWeight: '700' },
   opMeta: { fontSize: fontSize.small, color: colors.textSecondary, marginTop: 2 },
   opTotal: { fontSize: fontSize.bodyLarge, fontWeight: '700', color: colors.text },
-
-  // Modal
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: spacing.md,
-    borderBottomWidth: 1,
-    borderColor: colors.divider,
-  },
-  modalTitle: { fontSize: fontSize.title, fontWeight: '700', color: colors.text },
-  modalScroll: { padding: spacing.lg, paddingBottom: spacing.xxl },
-
-  bigToggle: { flexDirection: 'row', marginBottom: spacing.md },
-  bigToggleBtn: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: spacing.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-    marginHorizontal: 4,
-    borderRadius: radius.md,
-  },
-  bigToggleBtnBuy: { backgroundColor: colors.success, borderColor: colors.success },
-  bigToggleBtnSell: { backgroundColor: colors.danger, borderColor: colors.danger },
-  bigToggleText: { fontWeight: '700', marginLeft: 6, color: colors.text },
-
-  label: { fontSize: fontSize.body, color: colors.textSecondary, marginTop: spacing.md, marginBottom: 6, fontWeight: '600' },
-  input: {
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radius.md,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.md,
-    fontSize: fontSize.bodyLarge,
-    color: colors.text,
-  },
-
-  assetTypeRow: { flexDirection: 'row', flexWrap: 'wrap' },
-  assetTypeChip: {
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    borderRadius: radius.pill,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    marginRight: spacing.sm,
-    marginBottom: spacing.sm,
-  },
-  assetTypeChipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
-  assetTypeChipText: { color: colors.text, fontWeight: '600' },
-  assetTypeChipTextActive: { color: colors.textLight },
-
-  suggestionsBox: { marginTop: 4, backgroundColor: colors.surface, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, overflow: 'hidden' },
-  suggItem: { padding: spacing.md, borderBottomWidth: 1, borderColor: colors.divider },
-  suggSym: { fontSize: fontSize.bodyLarge, fontWeight: '700', color: colors.primary },
-  suggName: { fontSize: fontSize.small, color: colors.textSecondary, marginTop: 2 },
-
-  totalPreview: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: spacing.md, padding: spacing.md, backgroundColor: colors.surface, borderRadius: radius.md },
-  totalLabel: { fontSize: fontSize.body, color: colors.textSecondary },
-  totalValue: { fontSize: fontSize.title, fontWeight: 'bold', color: colors.text },
+  syncedLabel: { marginTop: 5, color: colors.success, fontSize: fontSize.tiny, fontWeight: '800', letterSpacing: 0.5 },
 });

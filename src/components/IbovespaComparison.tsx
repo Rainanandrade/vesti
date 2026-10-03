@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, fontSize, radius, spacing } from '../theme/colors';
 import { fetchChart } from '../api/chart';
@@ -19,6 +19,7 @@ function IbovespaComparisonInner({ portfolioReturnPct, daysOfHistory, snapshots 
   const [ibovChangePct, setIbovChangePct] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [range, setRange] = useState<'1mo' | '6mo' | '1y' | '5y'>('1y');
+  const [retryNonce, setRetryNonce] = useState(0);
 
   useEffect(() => {
     // Escolhe range que melhor se aproxima do histórico da carteira
@@ -31,14 +32,14 @@ function IbovespaComparisonInner({ portfolioReturnPct, daysOfHistory, snapshots 
 
     let cancelled = false;
     setLoading(true);
-    fetchChart('^BVSP', chosenRange)
+    fetchChart('^BVSP', chosenRange, { force: retryNonce > 0 })
       .then((d) => { if (!cancelled) setIbovChangePct(d?.changePct ?? null); })
       .catch(() => { if (!cancelled) setIbovChangePct(null); })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => {
       cancelled = true;
     };
-  }, [daysOfHistory]);
+  }, [daysOfHistory, retryNonce]);
 
   if (portfolioReturnPct == null) return null;
 
@@ -67,7 +68,12 @@ function IbovespaComparisonInner({ portfolioReturnPct, daysOfHistory, snapshots 
           <ActivityIndicator color={colors.primary} />
         </View>
       ) : ibovChangePct == null ? (
-        <Text style={styles.errorText}>Não consegui carregar o Ibovespa agora.</Text>
+        <View style={styles.errorBox}>
+          <Text style={styles.errorText}>Não consegui carregar o Ibovespa agora.</Text>
+          <TouchableOpacity style={styles.retryButton} onPress={() => setRetryNonce((value) => value + 1)} accessibilityRole="button">
+            <Text style={styles.retryText}>Tentar novamente</Text>
+          </TouchableOpacity>
+        </View>
       ) : (
         <>
           <View style={styles.row}>
@@ -173,6 +179,9 @@ const styles = StyleSheet.create({
   rangeLabel: { fontSize: fontSize.tiny, color: colors.textTertiary, textTransform: 'uppercase' },
   loadingBox: { padding: spacing.lg, alignItems: 'center' },
   errorText: { color: colors.textSecondary, fontSize: fontSize.body, textAlign: 'center', paddingVertical: spacing.md },
+  errorBox: { alignItems: 'center', paddingBottom: spacing.md },
+  retryButton: { paddingHorizontal: spacing.md, paddingVertical: spacing.sm, borderRadius: radius.pill, backgroundColor: colors.primary },
+  retryText: { color: colors.textLight, fontSize: fontSize.small, fontWeight: '800' },
 
   row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   rowLabel: { fontSize: fontSize.body, color: colors.textSecondary, fontWeight: '500' },

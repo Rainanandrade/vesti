@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Dimensions, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, LayoutChangeEvent, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import Svg, { Rect, Text as SvgText, Line } from 'react-native-svg';
 import { colors, fontSize, radius, spacing } from '../theme/colors';
 import { fetchDividendInfo, DividendInfo } from '../api/dividends';
@@ -16,16 +16,23 @@ type YearBucket = { year: number; perCota: number; total: number };
 export default function AssetProventosHistory({ symbol, quantity = 0, privacyMode }: Props) {
   const [info, setInfo] = useState<DividendInfo | null>(null);
   const [loading, setLoading] = useState(true);
+  const [width, setWidth] = useState(320);
+  const [retryNonce, setRetryNonce] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
-    fetchDividendInfo(symbol)
+    fetchDividendInfo(symbol, retryNonce > 0)
       .then((d) => { if (!cancelled) setInfo(d); })
       .catch(() => { if (!cancelled) setInfo(null); })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
-  }, [symbol]);
+  }, [symbol, retryNonce]);
+
+  const onLayout = (event: LayoutChangeEvent) => {
+    const nextWidth = Math.round(event.nativeEvent.layout.width);
+    if (nextWidth > 0 && Math.abs(nextWidth - width) > 2) setWidth(nextWidth);
+  };
 
   const byYear = useMemo<YearBucket[]>(() => {
     if (!info?.history) return [];
@@ -54,11 +61,14 @@ export default function AssetProventosHistory({ symbol, quantity = 0, privacyMod
       <View style={styles.card}>
         <Text style={styles.title}>💰 Histórico de proventos</Text>
         <Text style={styles.empty}>Sem histórico disponível pra esse ativo.</Text>
+        <TouchableOpacity accessibilityRole="button" style={styles.retryButton} onPress={() => setRetryNonce((value) => value + 1)}>
+          <Text style={styles.retryText}>Tentar novamente</Text>
+        </TouchableOpacity>
       </View>
     );
   }
 
-  const w = Dimensions.get('window').width - 64;
+  const w = Math.max(240, width - spacing.md * 2);
   const h = 200;
   const padX = 16;
   const padY = 30;
@@ -71,7 +81,7 @@ export default function AssetProventosHistory({ symbol, quantity = 0, privacyMod
   const avg = sum / byYear.length;
 
   return (
-    <View style={styles.card}>
+    <View style={styles.card} onLayout={onLayout}>
       <Text style={styles.title}>💰 Histórico de proventos (por cota)</Text>
       <Svg width={w} height={h}>
         {/* Grid */}
@@ -146,6 +156,8 @@ const styles = StyleSheet.create({
   title: { fontSize: fontSize.bodyLarge, fontWeight: '700', color: colors.text, marginBottom: spacing.sm },
   empty: { fontSize: fontSize.body, color: colors.textSecondary, fontStyle: 'italic', textAlign: 'center', padding: spacing.lg },
   loadingBox: { padding: spacing.lg, alignItems: 'center' },
+  retryButton: { alignSelf: 'center', paddingHorizontal: spacing.md, paddingVertical: spacing.sm, borderRadius: radius.pill, backgroundColor: colors.primary },
+  retryText: { color: colors.textLight, fontSize: fontSize.small, fontWeight: '800' },
   statsRow: { flexDirection: 'row', justifyContent: 'space-between', marginTop: spacing.md, paddingTop: spacing.sm, borderTopWidth: 1, borderColor: colors.divider },
   statLabel: { fontSize: fontSize.tiny, color: colors.textTertiary, textTransform: 'uppercase', fontWeight: '700' },
   statValue: { fontSize: fontSize.bodyLarge, fontWeight: '700', color: colors.text, marginTop: 2 },

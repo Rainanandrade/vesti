@@ -138,3 +138,45 @@ test('entry flows use the redesigned visual language', () => {
   assert.match(auth, /Organize hoje\. Decida melhor amanhã\./);
   assert.match(read('src/screens/PinScreen.tsx'), /maxWidth: 360/);
 });
+
+test('operation entry is unified and has a bounded saving state', () => {
+  const operations = read('src/screens/OperacoesScreen.tsx');
+  const modal = read('src/components/NewOperationModal.tsx');
+  assert.match(operations, /useOperationModal/);
+  assert.doesNotMatch(operations, /visible=\{addOpen\}/);
+  assert.match(modal, /submitOperationWithDeadline/);
+  assert.match(modal, /A venda excede sua posição atual/);
+  assert.match(modal, /finally\s*\(\)\s*=>|finally\s*\{/);
+});
+
+test('Orbit changes screen structure instead of only swapping colors', () => {
+  const shell = read('src/ui/editorial/EditorialScreen.tsx');
+  const dashboard = read('src/screens/DashboardScreen.tsx');
+  assert.match(shell, /orbitGlow|orbitRing/);
+  assert.match(dashboard, /quickActions|Aportar agora|Registrar operação/);
+});
+
+test('asset entry is a focused form and analysis stays in asset detail', () => {
+  const add = read('src/screens/AddAssetScreen.tsx');
+  const detail = read('src/screens/AssetDetailScreen.tsx');
+  assert.doesNotMatch(add, /<PriceChart|<AssetAnalysis/);
+  assert.match(detail, /<PriceChart/);
+  assert.match(detail, /<AssetAnalysis/);
+  assert.match(detail, /<AssetNewsFeed/);
+});
+
+test('operation dates use the Brazilian input format', () => {
+  const modal = read('src/components/NewOperationModal.tsx');
+  assert.match(modal, /DD\/MM\/AAAA/);
+  assert.match(modal, /brazilianDateToISO/);
+  assert.doesNotMatch(modal, /placeholder="AAAA-MM-DD"/);
+});
+
+test('market data surfaces expose working recovery controls', () => {
+  const chart = read('src/components/PriceChart.tsx');
+  const news = read('src/components/AssetNewsFeed.tsx');
+  assert.match(chart, /onLayout/);
+  assert.match(chart, /Tentar de novo/);
+  assert.match(news, /Tentar novamente/);
+  assert.match(news, /force: retryNonce > 0/);
+});
