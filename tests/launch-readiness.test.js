@@ -57,13 +57,17 @@ test('operation history exposes edit and delete with position reconciliation', (
   assert.match(read('supabase/migrations/008_atomic_operation_mutations.sql'), /for update/);
 });
 
-test('contribution action always runs the intelligent analysis with a local fallback', () => {
+test('contribution action builds a transparent local plan without AI', () => {
   const aporte = read('src/screens/AporteScreen.tsx');
   const allocation = read('src/utils/allocation.ts');
-  assert.match(aporte, /buildLocalAiSuggestion/);
-  assert.match(aporte, /handleIntelligentSuggestion/);
-  assert.match(aporte, /Análise personalizada/);
+  assert.doesNotMatch(aporte, /fetchAiSuggestion|\.\.\/api\/ai|AiSuggestion/);
+  assert.doesNotMatch(aporte, /handleIntelligentSuggestion|buildLocalAiSuggestion/);
+  assert.match(aporte, /Montar meu plano/);
+  assert.match(aporte, /Plano de Aporte Vesti/);
+  assert.match(aporte, /não constitui recomendação de compra/);
+  assert.match(aporte, /result\.suggestions\.length === 0/);
   assert.match(aporte, /recordOperationAndUpdatePosition/);
+  assert.match(allocation, /buildContributionPlan/);
   assert.match(allocation, /getProfileTarget/);
   assert.match(allocation, /targetAllocation/);
   assert.match(allocation, /allocations\[c\]\s*=\s*\(value \* gaps\[c\]\) \/ totalGap/);

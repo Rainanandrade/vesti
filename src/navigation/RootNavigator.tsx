@@ -18,6 +18,7 @@ import WatchlistScreen from '../screens/WatchlistScreen';
 import CompareAssetsScreen from '../screens/CompareAssetsScreen';
 import IRCalculatorScreen from '../screens/IRCalculatorScreen';
 import AporteCalculatorScreen from '../screens/AporteCalculatorScreen';
+import EmergencyReserveScreen from '../screens/EmergencyReserveScreen';
 import OperacoesScreen from '../screens/OperacoesScreen';
 import ProventosScreen from '../screens/ProventosScreen';
 import AIHubScreen from '../screens/AIHubScreen';
@@ -145,6 +146,8 @@ function MainStack() {
       <Stack.Screen name="Declaracao" component={DeclaracaoScreen} options={{ presentation: 'modal' }} />
       <Stack.Screen name="AIHub" component={AIHubScreen} options={{ presentation: 'modal' }} />
       <Stack.Screen name="DividendTarget" component={DividendTargetScreen} options={{ presentation: 'modal' }} />
+      <Stack.Screen name="FutureCalculator" component={AporteCalculatorScreen} options={{ presentation: 'modal' }} />
+      <Stack.Screen name="EmergencyReserve" component={EmergencyReserveScreen} options={{ presentation: 'modal' }} />
       <Stack.Screen name="ProSubscribe" component={ProSubscribeScreen} options={{ presentation: 'modal' }} />
       <Stack.Screen name="Relatorios" component={RelatoriosScreen} options={{ presentation: 'modal' }} />
       <Stack.Screen name="IRAutomatico" component={IRAutomaticoScreen} options={{ presentation: 'modal' }} />

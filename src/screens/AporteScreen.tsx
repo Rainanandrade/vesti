@@ -22,10 +22,8 @@ import { useApp } from '../context/AppContext';
 import { fetchQuotes } from '../api/brapi';
 import { fetchAssetDetails, AssetDetails } from '../api/yahooDetails';
 import { fmtBRL } from '../utils/format';
-import { computeAllocation, getProfileTarget, suggestAporte, Suggestion, Pick } from '../utils/allocation';
-import { UNIVERSE, getCandidatesForProfile } from '../data/universe';
-import { fetchAiSuggestion, AiSuggestion } from '../api/ai';
-import { getBrokerById, brokerLimitations } from '../data/brokers';
+import { buildContributionPlan, computeAllocation, getProfileTarget, Suggestion, Pick } from '../utils/allocation';
+import { getCandidatesForProfile } from '../data/universe';
 import { bestBrokerForAsset } from '../utils/brokerMatch';
 import Toast from '../components/Toast';
 import { formatCurrencyInput, parseFormattedNumber } from '../utils/numberFormat';
@@ -50,34 +48,6 @@ function createClientRequestId(): string {
   });
 }
 
-function buildLocalAiSuggestion(plan: ReturnType<typeof suggestAporte>, profile: NonNullable<ReturnType<typeof useApp>['profile']>): AiSuggestion {
-  const focus = PREFERENCE_INFO[profile.preference || 'sem_preferencia'].label.toLowerCase();
-  const picks = plan.suggestions.flatMap((section) => section.picks.map((pick) => ({
-    classKey: section.class,
-    classLabel: section.classLabel,
-    role: pick.roleLabel,
-    symbol: pick.symbol,
-    name: pick.name,
-    amount: Math.round(pick.amount * 100) / 100,
-    reasoning: `${pick.reason} A escolha também considera o desvio atual da carteira e o ${focus}.`,
-  })));
-  return {
-    summary: `Análise personalizada para o perfil ${profile.type}, com ${focus}: o aporte prioriza as classes mais abaixo da meta e evita reforçar posições fora do foco.`,
-    picks,
-  };
-}
-
-function mergeAiNarrative(local: AiSuggestion, online: AiSuggestion): AiSuggestion {
-  const onlineBySymbol = new Map(online.picks.map((pick) => [pick.symbol, pick]));
-  return {
-    summary: online.summary,
-    picks: local.picks.map((pick) => {
-      const enriched = onlineBySymbol.get(pick.symbol);
-      return enriched ? { ...pick, reasoning: enriched.reasoning, role: enriched.role || pick.role } : pick;
-    }),
-  };
-}
-
 export default function AporteScreen({ navigation }: any) {
   const { activeWallet, ensureActiveWallet, profile, privacyMode, addAsset, recordOperationAndUpdatePosition } = useApp();
   const [value, setValue] = useState('');
@@ -91,11 +61,7 @@ export default function AporteScreen({ navigation }: any) {
   const [buyRequestLocked, setBuyRequestLocked] = useState(false);
   const [buyError, setBuyError] = useState<string | null>(null);
 
-  // IA
-  const [aiResult, setAiResult] = useState<AiSuggestion | null>(null);
-  const [aiLoading, setAiLoading] = useState(false);
-  const [aiError, setAiError] = useState<string | null>(null);
-  const [analysisSource, setAnalysisSource] = useState<'local' | 'online'>('local');
+  const [refreshingQuotes, setRefreshingQuotes] = useState(false);
 
   // Comprados nesta sessão (pra esconder da lista de sugestões)
   const [bought, setBought] = useState<Set<string>>(new Set());
@@ -138,7 +104,7 @@ export default function AporteScreen({ navigation }: any) {
     if (!profile || !activeWallet || numeric < 1) return null;
     // Combina preços da carteira + preços do universo pra filtrar por orçamento
     const combinedPrices = { ...universePrices, ...prices };
-    return suggestAporte(numeric, activeWallet.assets, combinedPrices, profile);
+    return buildContributionPlan(numeric, activeWallet.assets, combinedPrices, profile);
   }, [numeric, activeWallet, prices, universePrices, profile]);
 
   const current = useMemo(
@@ -146,16 +112,13 @@ export default function AporteScreen({ navigation }: any) {
     [activeWallet, prices],
   );
 
-  const handleIntelligentSuggestion = async () => {
+  const handleBuildPlan = async () => {
     if (!profile || !activeWallet || numeric < 1) return;
     setShowSuggestions(true);
-    setAiResult(null);
-    setAiError(null);
     setBought(new Set());
-    setAiLoading(true);
+    setRefreshingQuotes(true);
 
     try {
-      let fetchedPriceMap: Record<string, number> = {};
       const candidates = new Set<string>();
       (['renda_variavel', 'internacional'] as const).forEach((cls) => {
         const top = getCandidatesForProfile(profile.type, cls, 0, profile.preference);
@@ -165,53 +128,21 @@ export default function AporteScreen({ navigation }: any) {
         (s) => !(s in prices) && !(s in universePrices),
       );
       if (symbols.length > 0) {
-        try {
-          const fetched = await fetchQuotes(symbols);
-          fetched.forEach((q) => (fetchedPriceMap[q.symbol] = q.regularMarketPrice));
-          setUniversePrices((prev) => ({ ...prev, ...fetchedPriceMap }));
-        } catch {
-          fetchedPriceMap = {};
-        }
+        const fetched = await fetchQuotes(symbols);
+        const fetchedPriceMap: Record<string, number> = {};
+        fetched.forEach((q) => (fetchedPriceMap[q.symbol] = q.regularMarketPrice));
+        setUniversePrices((prev) => ({ ...prev, ...fetchedPriceMap }));
       }
-      const localPlan = suggestAporte(numeric, activeWallet.assets, { ...universePrices, ...fetchedPriceMap, ...prices }, profile);
-      const localAnalysis = buildLocalAiSuggestion(localPlan, profile);
-      setAiResult(localAnalysis);
-      setAnalysisSource('local');
-
-      const brokers = userBrokerIds.map(getBrokerById).filter((b): b is any => !!b);
-      const online = await fetchAiSuggestion({
-        amount: numeric,
-        profile,
-        currentAssets: activeWallet.assets.map((a) => ({
-          symbol: a.symbol,
-          name: a.name,
-          quantity: a.quantity,
-          avgPrice: a.avgPrice,
-          type: a.type,
-        })),
-        brokers:
-          brokers.length > 0
-            ? brokers.map((b) => ({
-                id: b.id,
-                name: b.name,
-                limitations: brokerLimitations(b).join(', ') || 'sem limitações relevantes',
-              }))
-            : undefined,
-      });
-      setAiResult(mergeAiNarrative(localAnalysis, online));
-      setAnalysisSource('online');
-    } catch (e: any) {
-      setAiError('Análise segura concluída no aparelho. O aprofundamento online não respondeu desta vez.');
+    } catch {
+      // O plano local já foi exibido; cotações são apenas um enriquecimento opcional.
     } finally {
-      setAiLoading(false);
+      setRefreshingQuotes(false);
     }
   };
 
   const reset = () => {
     setValue('');
     setShowSuggestions(false);
-    setAiResult(null);
-    setAiError(null);
     setBought(new Set());
   };
 
@@ -333,7 +264,7 @@ export default function AporteScreen({ navigation }: any) {
         <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
           <Text style={styles.pageTitle}>💰 Novo aporte</Text>
           <Text style={styles.pageSub}>
-            Você diz quanto vai investir. A IA analisa seu perfil <Text style={styles.bold}>{profile.type}</Text>, a preferência <Text style={styles.bold}>{profile.preference || 'sem preferência'}</Text> e sua carteira atual — e recomenda como distribuir.
+            Você diz quanto vai investir. O Vesti cruza seu perfil <Text style={styles.bold}>{profile.type}</Text>, o foco <Text style={styles.bold}>{profile.preference || 'sem preferência'}</Text> e os desvios da carteira para montar um plano transparente.
           </Text>
           <View style={styles.focusBanner}><Ionicons name="options-outline" size={18} color={editorial.color.indigo} /><View style={{ flex: 1 }}><Text style={styles.focusTitle}>Sugestão baseada no seu perfil e foco</Text><Text style={styles.focusText}>{profile.type.charAt(0).toUpperCase() + profile.type.slice(1)} · {PREFERENCE_INFO[profile.preference || 'sem_preferencia'].label}. A distribuição também corrige os desvios da sua carteira atual.</Text></View></View>
 
@@ -348,7 +279,6 @@ export default function AporteScreen({ navigation }: any) {
                 onChangeText={(t) => {
                   setValue(formatCurrencyInput(t));
                   setShowSuggestions(false);
-                  setAiResult(null);
                 }}
                 keyboardType="decimal-pad"
                 placeholderTextColor={colors.textTertiary}
@@ -363,7 +293,6 @@ export default function AporteScreen({ navigation }: any) {
                     // Converte pra centavos pra reusar a função de formatação
                     setValue(formatCurrencyInput((v * 100).toString()));
                     setShowSuggestions(false);
-                    setAiResult(null);
                   }}
                 >
                   <Text style={styles.quickText}>R$ {v}</Text>
@@ -383,95 +312,26 @@ export default function AporteScreen({ navigation }: any) {
             )}
 
             <Button
-              title="Analisar e sugerir distribuição"
-              onPress={handleIntelligentSuggestion}
+              title="Montar meu plano"
+              onPress={handleBuildPlan}
               disabled={numeric < 1}
-              loading={aiLoading}
               style={{ marginTop: spacing.md }}
             />
-            <Text style={styles.analysisHint}>Incluída no plano gratuito · funciona mesmo se a IA online estiver indisponível.</Text>
+            <Text style={styles.analysisHint}>Cálculo local e gratuito · funciona mesmo sem internet.</Text>
           </Card>
 
-          {/* Resultado IA */}
-          {aiResult && (
+          {showSuggestions && result && (
             <>
-              <Text style={styles.sectionTitle}>✨ Análise personalizada</Text>
-              <Card style={styles.aiResultCard}>
-                <Text style={styles.aiSummary}>{aiResult.summary}</Text>
+              <Text style={styles.sectionTitle}>Plano de Aporte Vesti</Text>
+              <Card style={styles.planSummaryCard}>
+                <Text style={styles.planSummaryTitle}>Perfil {profile.type} · {PREFERENCE_INFO[profile.preference || 'sem_preferencia'].label}</Text>
+                <Text style={styles.planSummaryText}>O valor foi direcionado primeiro às classes mais abaixo da sua meta. Classes já acima do alvo não recebem aporte apenas para repetir uma porcentagem fixa.</Text>
+                {refreshingQuotes ? <View style={styles.quoteRefresh}><ActivityIndicator size="small" color={colors.primary} /><Text style={styles.quoteRefreshText}>Atualizando cotações sem interromper o plano…</Text></View> : null}
               </Card>
 
-              {/* Agrupa picks da IA por classe e renderiza com PickCard (análise completa) */}
-              {(['renda_fixa', 'renda_variavel', 'internacional'] as const).map((cls) => {
-                const classPicks = aiResult.picks.filter((p) => p.classKey === cls && !bought.has(p.symbol));
-                if (classPicks.length === 0) return null;
-                const total = classPicks.reduce((s, p) => s + p.amount, 0);
-                const classLabel = classPicks[0].classLabel;
-                const pillColor: any = {
-                  renda_fixa: { backgroundColor: colors.primaryLight, color: colors.primary },
-                  renda_variavel: { backgroundColor: colors.successLight, color: colors.success },
-                  internacional: { backgroundColor: colors.warningLight, color: colors.warning },
-                }[cls];
-
-                return (
-                  <View key={cls} style={{ marginBottom: spacing.lg }}>
-                    <View style={styles.sectionHeader}>
-                      <View style={[styles.classPill, { backgroundColor: pillColor.backgroundColor }]}>
-                        <Text style={[styles.classPillText, { color: pillColor.color }]}>{classLabel}</Text>
-                      </View>
-                      <Text style={styles.sectionHeaderAmount}>{fmtBRL(total, privacyMode)}</Text>
-                    </View>
-                    {classPicks.map((p, i) => {
-                      const isTradeable = !!TICKERS.find((t) => t.symbol === p.symbol);
-                      const pick: Pick = {
-                        symbol: p.symbol,
-                        name: p.name || p.symbol,
-                        amount: p.amount,
-                        reason: p.reasoning,
-                        roleLabel: p.role,
-                        isTradeable,
-                        isExisting: false,
-                      };
-                      return (
-                        <PickCard
-                          key={`${p.symbol}-${i}`}
-                          pick={pick}
-                          profile={profile}
-                          onBuy={(s, n, a) => openBuy(s, n, a, cls)}
-                          privacyMode={privacyMode}
-                          userBrokerIds={userBrokerIds}
-                          assetType={p.classKey === 'renda_fixa' ? 'tesouro' : undefined}
-                        />
-                      );
-                    })}
-                  </View>
-                );
-              })}
-
-              <View style={styles.aiFooter}>
-                <Ionicons name="sparkles" size={14} color={colors.primary} />
-                <Text style={styles.aiFooterText}>
-                  {analysisSource === 'online' ? 'Análise enriquecida online, com alocação protegida pelo seu perfil e foco.' : 'Análise feita no aparelho com seu perfil, foco, carteira atual e desvios da meta.'}
-                </Text>
-              </View>
-
-              <Button title="Nova simulação" variant="ghost" onPress={reset} style={{ marginTop: spacing.md }} />
-            </>
-          )}
-
-          {aiError && (
-            <View style={styles.aiErrorBox}>
-              <Ionicons name="alert-circle" size={18} color={colors.warning} />
-              <Text style={styles.aiErrorText}>{aiError}</Text>
-            </View>
-          )}
-
-          {/* Resultado heurístico */}
-          {showSuggestions && !aiResult && result && (
-            <>
-              <Text style={styles.sectionTitle}>Sugestão pra esse aporte</Text>
-              <Text style={styles.sectionSub}>
-                Distribuído entre as 3 classes conforme seu perfil {profile.type}, considerando o que você já tem.
-              </Text>
+              {result.suggestions.length === 0 ? (
+                <EditorialState kind="empty" title="Aporte pequeno para os ativos disponíveis" detail="Aumente o valor ou registre o aporte manualmente. O plano não vai inventar uma compra que não cabe no orçamento." />
+              ) : null}
 
               {result.suggestions.map((s) => {
                 const visiblePicks = s.picks.filter((p) => !bought.has(p.symbol));
@@ -488,7 +348,7 @@ export default function AporteScreen({ navigation }: any) {
                 );
               })}
 
-              {result.suggestions.every((s) => s.picks.every((p) => bought.has(p.symbol))) && (
+              {result.suggestions.length > 0 && result.suggestions.every((s) => s.picks.every((p) => bought.has(p.symbol))) && (
                 <View style={styles.allBoughtBox}>
                   <Text style={styles.allBoughtEmoji}>🎉</Text>
                   <Text style={styles.allBoughtText}>
@@ -509,7 +369,7 @@ export default function AporteScreen({ navigation }: any) {
               <View style={styles.disclaimer}>
                 <Ionicons name="information-circle-outline" size={16} color={colors.textSecondary} />
                 <Text style={styles.disclaimerText}>
-                  Sugestões educativas, baseadas no seu perfil e no que já está na carteira. Não são recomendações personalizadas de investimento.
+                  Este plano tem caráter educativo e não constitui recomendação de compra. Confira riscos, custos e adequação ao seu perfil antes de investir.
                 </Text>
               </View>
 
@@ -517,7 +377,7 @@ export default function AporteScreen({ navigation }: any) {
             </>
           )}
 
-          {!showSuggestions && !aiResult && current.total > 0 && (() => {
+          {!showSuggestions && current.total > 0 && (() => {
             const finalTarget = getProfileTarget(profile);
 
             return (
@@ -560,7 +420,7 @@ export default function AporteScreen({ navigation }: any) {
             );
           })()}
 
-          {!showSuggestions && !aiResult && current.total === 0 && (
+          {!showSuggestions && current.total === 0 && (
             <HowItWorksAporte />
           )}
         </ScrollView>
@@ -623,7 +483,7 @@ export default function AporteScreen({ navigation }: any) {
 }
 
 function AporteHeader({ navigation }: { navigation: any }) {
-  return <View style={styles.header}><TouchableOpacity accessibilityRole="button" accessibilityLabel="Voltar para Investir" onPress={() => safeBackToInvestir(navigation)} style={styles.backButton} hitSlop={10}><Ionicons name="arrow-back" size={22} color={editorial.color.ink} /></TouchableOpacity><View style={styles.headerCopy}><Text style={styles.headerKicker}>Investir</Text><Text style={styles.headerTitle}>Sugerir aporte</Text></View><View style={styles.headerSpacer} /></View>;
+  return <View style={styles.header}><TouchableOpacity accessibilityRole="button" accessibilityLabel="Voltar para Investir" onPress={() => safeBackToInvestir(navigation)} style={styles.backButton} hitSlop={10}><Ionicons name="arrow-back" size={22} color={editorial.color.ink} /></TouchableOpacity><View style={styles.headerCopy}><Text style={styles.headerKicker}>Investir</Text><Text style={styles.headerTitle}>Plano de aporte</Text></View><View style={styles.headerSpacer} /></View>;
 }
 
 // ===========================================
@@ -977,33 +837,11 @@ const styles = StyleSheet.create({
   },
   quickText: { fontSize: fontSize.body, color: colors.text, fontWeight: '500' },
 
-  aiBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: spacing.md,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: colors.primary,
-    marginTop: spacing.sm,
-  },
-  aiBtnIcon: { fontSize: 16, marginRight: 6 },
-  aiBtnText: { color: colors.primary, fontWeight: '700', fontSize: fontSize.body },
-
-  aiErrorBox: {
-    flexDirection: 'row',
-    backgroundColor: colors.warningLight,
-    padding: spacing.md,
-    borderRadius: radius.md,
-    marginTop: spacing.md,
-    alignItems: 'center',
-  },
-  aiErrorText: { flex: 1, fontSize: fontSize.body, color: colors.text, marginLeft: spacing.sm, lineHeight: 18 },
-
-  aiResultCard: { backgroundColor: colors.primaryLight, borderColor: colors.primary, marginBottom: spacing.md },
-  aiSummary: { fontSize: fontSize.bodyLarge, color: colors.text, lineHeight: 22, fontStyle: 'italic' },
-  aiFooter: { flexDirection: 'row', alignItems: 'center', marginTop: spacing.md, paddingHorizontal: spacing.sm },
-  aiFooterText: { flex: 1, fontSize: fontSize.tiny, color: colors.textTertiary, marginLeft: 4, lineHeight: 14 },
+  planSummaryCard: { backgroundColor: colors.primaryLight, borderColor: colors.primary, marginBottom: spacing.md },
+  planSummaryTitle: { fontSize: fontSize.bodyLarge, color: colors.text, fontWeight: '800' },
+  planSummaryText: { fontSize: fontSize.body, color: colors.textSecondary, lineHeight: 20, marginTop: spacing.xs },
+  quoteRefresh: { flexDirection: 'row', alignItems: 'center', marginTop: spacing.sm },
+  quoteRefreshText: { flex: 1, fontSize: fontSize.tiny, color: colors.textTertiary, marginLeft: spacing.xs },
 
   sectionTitle: {
     fontSize: fontSize.title,

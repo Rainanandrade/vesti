@@ -180,7 +180,7 @@ function generatePicksForClass(
   return picks;
 }
 
-export function suggestAporte(
+export function buildContributionPlan(
   value: number,
   assets: Asset[],
   prices: Record<string, number>,
@@ -248,3 +248,7 @@ export function suggestAporte(
 
   return { suggestions, targetPct: target, afterPct };
 }
+
+// Compatibilidade com chamadas antigas enquanto o produto adota o nome público
+// "Plano de Aporte Vesti".
+export const suggestAporte = buildContributionPlan;

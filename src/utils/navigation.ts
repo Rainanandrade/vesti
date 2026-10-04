@@ -21,3 +21,8 @@ export function safeBackToTabs(navigation: any) {
 export function safeBackToInvestir(navigation: any) {
   if (navigation?.navigate) navigation.navigate('Tabs', { screen: 'Investir', params: { screen: 'PortfolioMain' } });
 }
+
+// Ferramentas abertas pelo MainStack sempre retornam ao contexto Planejar.
+export function safeBackToPlanejar(navigation: any) {
+  if (navigation?.navigate) navigation.navigate('Tabs', { screen: 'Planejar' });
+}
