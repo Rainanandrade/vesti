@@ -51,6 +51,8 @@ test('operation history exposes edit and delete with position reconciliation', (
   assert.match(context, /updateOperationAndPosition/);
   assert.match(context, /removeOperationAndUpdatePosition/);
   assert.match(context, /mutate_operation_and_rebuild_position/);
+  assert.match(context, /rebuildPositionFromOperations/);
+  assert.match(context, /restaura o ledger anterior/);
   assert.match(read('supabase/migrations/008_atomic_operation_mutations.sql'), /order by date asc, created_at asc, id asc/);
   assert.match(read('supabase/migrations/008_atomic_operation_mutations.sql'), /for update/);
 });

@@ -7,6 +7,7 @@ import { isPinLocked, normalizePinLockout, registerPinFailure } from '../utils/p
 // CommonJS keeps the timeout helper executable by the Node regression suite.
 const { withTimeout } = require('../utils/async');
 const { selectOwnedWallet, mapRecoveryWallet } = require('../utils/walletInvariant');
+const { rebuildPositionFromOperations } = require('../utils/operationPosition');
 
 type PinLockoutState = { attempts: number; lockedUntil: number | null };
 type PinVerification = PinLockoutState & { ok: boolean };
@@ -1207,12 +1208,73 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }), 15000, action === 'delete' ? 'Excluir o movimento' : 'Editar o movimento');
     if (error) {
       const missingRpc = error.code === 'PGRST202' || /schema cache|mutate_operation_and_rebuild_position/i.test(error.message || '');
-      if (missingRpc) throw new Error('A atualização segura do banco ainda não foi aplicada. Atualize o Supabase antes de editar movimentos.');
-      throw new Error(translateDbError(error.message));
+      if (!missingRpc) throw new Error(translateDbError(error.message));
+
+      // Compatibilidade durante a propagação da migração 008. A reconstrução é
+      // cronológica e qualquer falha na posição restaura o ledger anterior.
+      const symbol = previous.symbol.toUpperCase();
+      const related = operations.filter((operation) =>
+        operation.assetType !== 'daytrade'
+        && operation.symbol.toUpperCase() === symbol
+        && (operation.walletId === wallet.id || !operation.walletId),
+      );
+      const desired = action === 'delete'
+        ? related.filter((operation) => operation.id !== previous.id)
+        : related.map((operation) => operation.id === previous.id ? (next as Operation) : operation);
+      const current = wallet.assets.find((asset) => asset.symbol.toUpperCase() === symbol);
+      const target = previous.assetType === 'daytrade'
+        ? null
+        : rebuildPositionFromOperations(
+            current ? { quantity: current.quantity, avgPrice: current.avgPrice } : { quantity: 0, avgPrice: 0 },
+            related,
+            desired,
+          );
+      const dbPatch = next ? {
+        wallet_id: wallet.id,
+        quantity: next.quantity,
+        price: next.price,
+        fees: next.fees || 0,
+        withholding_tax: next.withholdingTax || 0,
+        date: next.date,
+      } : null;
+      const ledgerMutation = action === 'delete'
+        ? supabase.from('operations').delete().eq('id', previous.id).eq('user_id', userId)
+        : supabase.from('operations').update(dbPatch!).eq('id', previous.id).eq('user_id', userId);
+      const ledgerResult = await withTimeout(ledgerMutation, 15000, action === 'delete' ? 'Excluir o movimento' : 'Editar o movimento');
+      if (ledgerResult.error) throw new Error(translateDbError(ledgerResult.error.message));
+      try {
+        if (target) {
+          if (target.quantity <= 0 && current) await removeAsset(wallet.id, current.symbol);
+          else if (target.quantity > 0 && current) await updateAsset(wallet.id, current.symbol, { quantity: target.quantity, avgPrice: target.avgPrice });
+          else if (target.quantity > 0) await addAsset(wallet.id, {
+            symbol: previous.symbol,
+            name: previous.symbol,
+            type: previous.assetType === 'daytrade' ? 'acao' : previous.assetType,
+            quantity: target.quantity,
+            avgPrice: target.avgPrice,
+            addedAt: Date.now(),
+          });
+        }
+      } catch (positionError) {
+        if (action === 'delete') {
+          await supabase.from('operations').insert({
+            id: previous.id, user_id: userId, wallet_id: wallet.id, type: previous.type,
+            symbol: previous.symbol, asset_type: previous.assetType, quantity: previous.quantity,
+            price: previous.price, fees: previous.fees || 0, withholding_tax: previous.withholdingTax || 0,
+            date: previous.date, notes: previous.notes,
+          });
+        } else {
+          await supabase.from('operations').update({
+            wallet_id: previous.walletId || wallet.id, quantity: previous.quantity, price: previous.price,
+            fees: previous.fees || 0, withholding_tax: previous.withholdingTax || 0, date: previous.date,
+          }).eq('id', previous.id).eq('user_id', userId);
+        }
+        throw positionError;
+      }
     }
     const { data: { session } } = await supabase.auth.getSession();
     await loadUserData(userId, session?.user?.email || user?.email || '');
-  }, [loadUserData, resolveOperationWallet, user?.email, userId]);
+  }, [addAsset, loadUserData, operations, removeAsset, resolveOperationWallet, updateAsset, user?.email, userId]);
 
   const updateOperationAndPosition = useCallback(async (id: string, patch: Partial<Pick<Operation, 'quantity' | 'price' | 'fees' | 'withholdingTax' | 'date'>>) => {
     if (!userId) throw new Error('Não autenticado');
