@@ -1,5 +1,5 @@
 import { ReactNode } from 'react';
-import { ActivityIndicator, Pressable, StyleProp, StyleSheet, Text, ViewStyle } from 'react-native';
+import { ActivityIndicator, ColorValue, Pressable, StyleProp, StyleSheet, Text, ViewStyle } from 'react-native';
 import { editorial } from '../theme/editorial';
 import { haptics } from '../ui/haptics';
 
@@ -61,7 +61,7 @@ const styles = StyleSheet.create({
   pressed: { opacity: 0.68 },
 });
 
-const variants: Record<Variant, { container: ViewStyle; text: { color: string } }> = {
+const variants: Record<Variant, { container: ViewStyle; text: { color: ColorValue } }> = {
   primary: {
     container: { backgroundColor: editorial.color.indigo },
     text: { color: editorial.color.white },

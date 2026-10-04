@@ -34,7 +34,7 @@ function categoryGuess(symbol) {
 async function fromStatusInvest(symbol, category) {
   try {
     const url = `https://statusinvest.com.br/${category}/companytickerprovents?ticker=${symbol}&chartProventsType=2`;
-    const r = await fetchWithTimeout(url, { headers: SI_HEADERS });
+    const r = await fetchWithTimeout(url, { headers: SI_HEADERS }, 4500);
     if (!r || !r.ok) return { ok: false, reason: `si-${category}-${r?.status}` };
     const txt = await r.text();
     let json;
@@ -65,7 +65,7 @@ async function fromStatusInvestProxied(symbol, category) {
   try {
     const target = `https://statusinvest.com.br/${category}/companytickerprovents?ticker=${symbol}&chartProventsType=2`;
     const url = `https://corsproxy.io/?${encodeURIComponent(target)}`;
-    const r = await fetchWithTimeout(url, { headers: SI_HEADERS });
+    const r = await fetchWithTimeout(url, { headers: SI_HEADERS }, 4500);
     if (!r || !r.ok) return { ok: false, reason: `si-proxy-${category}-${r?.status}` };
     const txt = await r.text();
     let json;

@@ -3,11 +3,11 @@ import { editorial } from '../../theme/editorial';
 
 type Signal = { label: string; value: string; detail: string; tone: 'positive' | 'attention' | 'neutral'; onPress: () => void };
 
-export default function TodaySignals({ cashFlow, profitPct, healthScore, monthlyIncome, onOpenAporte, onOpenPortfolio, onOpenIncome, onOpenHealth }: { cashFlow: number; profitPct: number; healthScore: number; monthlyIncome: number; onOpenAporte: () => void; onOpenPortfolio: () => void; onOpenIncome: () => void; onOpenHealth: () => void }) {
+export default function TodaySignals({ monthlyBuys, profitPct, healthScore, monthlyIncome, onOpenAporte, onOpenPortfolio, onOpenIncome, onOpenHealth }: { monthlyBuys: number; profitPct: number; healthScore: number; monthlyIncome: number; onOpenAporte: () => void; onOpenPortfolio: () => void; onOpenIncome: () => void; onOpenHealth: () => void }) {
   const { width } = useWindowDimensions();
   const compact = width < 680;
   const signals: Signal[] = [
-    { label: 'Este mês', value: cashFlow >= 0 ? 'No azul' : 'Atenção', detail: cashFlow >= 0 ? 'Planeje o próximo aporte.' : 'Revise o ritmo dos aportes.', tone: cashFlow >= 0 ? 'positive' : 'attention', onPress: onOpenAporte },
+    { label: 'Aportes no mês', value: monthlyBuys > 0 ? `R$ ${monthlyBuys.toFixed(0)}` : 'Nenhum', detail: monthlyBuys > 0 ? 'Compras registradas neste mês.' : 'Planeje seu próximo aporte.', tone: monthlyBuys > 0 ? 'positive' : 'neutral', onPress: onOpenAporte },
     { label: 'Carteira', value: profitPct >= 0 ? 'Em evolução' : 'Em ajuste', detail: `${profitPct >= 0 ? '+' : ''}${profitPct.toFixed(1)}% acumulado.`, tone: profitPct >= 0 ? 'positive' : 'attention', onPress: onOpenPortfolio },
     { label: 'Proventos', value: monthlyIncome > 0 ? `R$ ${monthlyIncome.toFixed(0)}` : 'Começar', detail: 'Rendimentos recebidos no mês.', tone: monthlyIncome > 0 ? 'positive' : 'neutral', onPress: onOpenIncome },
     { label: 'Equilíbrio', value: `${healthScore.toFixed(1)}/10`, detail: 'Diversificação, perfil e concentração.', tone: 'neutral', onPress: onOpenHealth },

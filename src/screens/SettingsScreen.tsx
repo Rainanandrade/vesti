@@ -17,6 +17,7 @@ import { BROKERS, getBrokerById } from '../data/brokers';
 import { Modal, Pressable } from 'react-native';
 import { confirmAction } from '../utils/confirm';
 import PremiumLockModal from '../components/PremiumLockModal';
+import { ThemeMode, useAppTheme } from '../theme/ThemeContext';
 
 function ProToolRow({ icon, title, desc, navigation, route }: { icon: any; title: string; desc: string; navigation: any; route: string }) {
   return (
@@ -36,6 +37,7 @@ function ProToolRow({ icon, title, desc, navigation, route }: { icon: any; title
 }
 
 export default function SettingsScreen({ navigation }: any) {
+  const { mode: themeMode, setMode: setThemeMode } = useAppTheme();
   const {
     user,
     profile,
@@ -352,7 +354,7 @@ Pra detalhe operação a operação, posso exportar o JSON completo no Vesti.`;
                 <Text style={styles.proSub}>
                   {pro.isPaid
                     ? `Sua assinatura renova em ${new Date(pro.expiresAt!).toLocaleDateString('pt-BR')}`
-                    : 'Alertas, IR automático, IA consultora, sincronização com corretora'}
+                    : 'Alertas avançados, IR automático e sincronização com corretora'}
                 </Text>
               </View>
               <Ionicons name="chevron-forward" size={20} color={colors.textLight} />
@@ -360,9 +362,9 @@ Pra detalhe operação a operação, posso exportar o JSON completo no Vesti.`;
           </Card>
         </TouchableOpacity>
 
-        <Text style={styles.sectionTitle}>Ferramentas Pro</Text>
+        <Text style={styles.sectionTitle}>Ferramentas</Text>
         <ProToolRow icon="calculator-outline" title="IR & DARF automático" desc="Cálculo mensal do imposto e guia DARF" navigation={navigation} route="IRAutomatico" />
-        <ProToolRow icon="sparkles-outline" title="IA Consultora" desc="Análise personalizada da sua carteira" navigation={navigation} route="IAConsultor" />
+        <ProToolRow icon="sparkles-outline" title="IA Consultora" desc="Análise personalizada incluída gratuitamente" navigation={navigation} route="IAConsultor" />
         <ProToolRow icon="notifications-outline" title="Alertas inteligentes" desc="Preço alvo, data-com, concentração" navigation={navigation} route="Alerts" />
         <ProToolRow icon="analytics-outline" title="Simulador de aportes" desc="Monte Carlo pra planejar longo prazo" navigation={navigation} route="Backtest" />
         <ProToolRow icon="document-text-outline" title="Relatórios PDF" desc="Extrato mensal e informe anual IRPF" navigation={navigation} route="Relatorios" />
@@ -443,6 +445,33 @@ Pra detalhe operação a operação, posso exportar o JSON completo no Vesti.`;
             </View>
           </Card>
         </TouchableOpacity>
+
+        <Text style={styles.sectionTitle}>Aparência</Text>
+        <Card>
+          <Text style={styles.rowTitle}>Tema do aplicativo</Text>
+          <Text style={styles.rowSub}>Siga o aparelho ou escolha como o Vesti deve aparecer.</Text>
+          <View style={styles.themeRow}>
+            {([
+              ['system', 'Sistema', 'phone-portrait-outline'],
+              ['light', 'Claro', 'sunny-outline'],
+              ['dark', 'Escuro', 'moon-outline'],
+            ] as [ThemeMode, string, any][]).map(([value, label, icon]) => {
+              const selected = themeMode === value;
+              return (
+                <TouchableOpacity
+                  key={value}
+                  accessibilityRole="radio"
+                  accessibilityState={{ selected }}
+                  onPress={() => setThemeMode(value)}
+                  style={[styles.themeChoice, selected && styles.themeChoiceSelected]}
+                >
+                  <Ionicons name={icon} size={18} color={selected ? colors.textLight : colors.textSecondary} />
+                  <Text style={[styles.themeChoiceText, selected && styles.themeChoiceTextSelected]}>{label}</Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        </Card>
 
         <Text style={styles.sectionTitle}>Privacidade</Text>
         <Card>
@@ -735,6 +764,11 @@ const styles = StyleSheet.create({
   headerBarTitle: { fontSize: fontSize.title, fontWeight: '700', color: colors.text },
   scroll: { padding: spacing.md, paddingBottom: spacing.xxl },
   title: { fontSize: fontSize.heading, fontWeight: 'bold', color: colors.text },
+  themeRow: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.md },
+  themeChoice: { flex: 1, minHeight: 46, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 6 },
+  themeChoiceSelected: { backgroundColor: colors.primary, borderColor: colors.primary },
+  themeChoiceText: { color: colors.textSecondary, fontWeight: '700', fontSize: fontSize.small },
+  themeChoiceTextSelected: { color: colors.textLight },
   proDiamondBox: { width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.15)', alignItems: 'center', justifyContent: 'center' },
   proTitle: { fontSize: fontSize.bodyLarge, fontWeight: '800', color: colors.textLight },
   proSub: { fontSize: fontSize.small, color: 'rgba(255,255,255,0.9)', marginTop: 2 },

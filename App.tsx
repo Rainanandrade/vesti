@@ -12,6 +12,7 @@ import { colors } from './src/theme/colors';
 import ReleaseNotesModal from './src/components/ReleaseNotesModal';
 import { CURRENT_VERSION, getUnseenNotes } from './src/data/releaseNotes';
 import { navigate } from './src/navigation/RootNavigator';
+import { ThemeProvider } from './src/theme/ThemeContext';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
@@ -36,13 +37,15 @@ export default function App() {
 
   return (
     <SafeAreaProvider>
-      <AppProvider>
-        <OperationModalProvider>
-          <RootNavigator />
-          <ReleaseNotesGate />
-          <StatusBar style="auto" />
-        </OperationModalProvider>
-      </AppProvider>
+      <ThemeProvider>
+        <AppProvider>
+          <OperationModalProvider>
+            <RootNavigator />
+            <ReleaseNotesGate />
+            <StatusBar style="auto" />
+          </OperationModalProvider>
+        </AppProvider>
+      </ThemeProvider>
     </SafeAreaProvider>
   );
 }

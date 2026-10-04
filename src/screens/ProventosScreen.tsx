@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { editorial } from '../theme/editorial';
 import { EditorialState } from '../ui/editorial';
 import {
@@ -27,13 +27,19 @@ import {
 import { safeBackToCarteira } from '../utils/navigation';
 
 export default function ProventosScreen({ navigation }: any) {
-  const { activeWallet, privacyMode } = useApp();
+  const { activeWallet, privacyMode, proventos } = useApp();
   const [dividendInfoMap, setDividendInfoMap] = useState<Record<string, DividendInfo | null>>({});
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
 
-  // Puxa histórico de dividendos pra ativos elegíveis
-  useEffect(() => {
+  const symbolKey = (activeWallet?.assets || [])
+    .filter((asset) => ['acao', 'fii', 'etf'].includes(asset.type))
+    .map((asset) => asset.symbol.toUpperCase())
+    .sort()
+    .join(',');
+
+  const loadDividendInfo = useCallback(async (force = false) => {
     if (!activeWallet) {
       setLoading(false);
       return;
@@ -42,17 +48,43 @@ export default function ProventosScreen({ navigation }: any) {
       .filter((a) => a.type === 'acao' || a.type === 'fii' || a.type === 'etf')
       .map((a) => a.symbol);
     if (symbols.length === 0) {
+      setDividendInfoMap({});
+      setLoadError(null);
       setLoading(false);
       return;
     }
     setLoading(true);
-    fetchDividendInfoBatch(symbols).then(setDividendInfoMap).catch(() => setDividendInfoMap({})).finally(() => setLoading(false));
-  }, [activeWallet?.id, activeWallet?.assets.length]);
+    setLoadError(null);
+    try {
+      const next = await fetchDividendInfoBatch(symbols, force);
+      setDividendInfoMap(next);
+      if (Object.values(next).every((value) => value == null)) {
+        setLoadError('O histórico automático não respondeu. Seus lançamentos manuais continuam disponíveis.');
+      }
+    } catch {
+      setLoadError('Não foi possível atualizar o histórico automático agora.');
+    } finally {
+      setLoading(false);
+    }
+  }, [activeWallet?.id, symbolKey]);
 
-  const received = useMemo(
-    () => computeReceivedProventos(activeWallet?.assets || [], dividendInfoMap),
-    [activeWallet, dividendInfoMap],
-  );
+  useEffect(() => { loadDividendInfo(); }, [loadDividendInfo]);
+
+  const manualReceived = useMemo(() => proventos.map((item) => ({
+    symbol: item.symbol,
+    date: item.date,
+    perShare: item.perShare || item.amount,
+    amount: item.amount,
+    kind: item.kind,
+    isConfirmed: true,
+  })), [proventos]);
+  const received = useMemo(() => {
+    const automatic = computeReceivedProventos(activeWallet?.assets || [], dividendInfoMap);
+    const eventKey = (item: { symbol: string; date: string; kind: string }) => `${item.symbol.trim().toUpperCase()}:${item.date}:${item.kind}`;
+    const manualKeys = new Set(manualReceived.map(eventKey));
+    return [...manualReceived, ...automatic.filter((item) => !manualKeys.has(eventKey(item)))]
+      .sort((a, b) => b.date.localeCompare(a.date));
+  }, [activeWallet, dividendInfoMap, manualReceived]);
 
   const totalYear = useMemo(() => {
     const y = new Date().getFullYear();
@@ -96,8 +128,7 @@ export default function ProventosScreen({ navigation }: any) {
         </Card>
 
         <Text style={styles.autoNote}>
-          🤖 Calculado automaticamente do histórico de dividendos dos seus ativos.
-          Considera que você precisava ter o ativo na carteira pelo menos 5 dias antes do pagamento.
+          Une os rendimentos registrados por você com o histórico automático disponível para os ativos da carteira.
         </Text>
 
         {loading && (
@@ -105,6 +136,10 @@ export default function ProventosScreen({ navigation }: any) {
             <ActivityIndicator color={colors.primary} />
             <Text style={styles.loadingText}>Buscando histórico de dividendos...</Text>
           </View>
+        )}
+
+        {!loading && loadError && (
+          <EditorialState kind="error" title="Histórico automático indisponível" detail={loadError} action={{ label: 'Tentar novamente', onPress: () => loadDividendInfo(true) }} />
         )}
 
         {!loading && received.length === 0 && (

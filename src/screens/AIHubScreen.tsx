@@ -21,6 +21,7 @@ import { fetchAiDiagnostic } from '../api/ai';
 import Card from '../components/Card';
 import { fetchDividendInfoBatch } from '../api/dividends';
 import { computeReceivedProventos } from '../utils/receivedProventos';
+import { buildLocalDiagnostic } from '../utils/localDiagnostic';
 
 const SUGGESTIONS = [
   'Minha carteira tá bem diversificada?',
@@ -110,7 +111,7 @@ export default function AIHubScreen({ navigation }: any) {
       });
       setDiagnostic(text);
     } catch (e: any) {
-      Alert.alert('Ops', e?.message || 'Não foi possível analisar agora. Tente de novo.');
+      setDiagnostic(buildLocalDiagnostic(profile, activeWallet.assets, {}, extraQuestion?.trim() || question));
     } finally {
       setLoading(false);
     }

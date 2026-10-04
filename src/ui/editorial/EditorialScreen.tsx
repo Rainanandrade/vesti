@@ -10,9 +10,10 @@ type Props = {
   onRefresh?: () => void;
   contentStyle?: StyleProp<ViewStyle>;
   readingWidth?: boolean;
+  hideTopGlow?: boolean;
 };
 
-export default function EditorialScreen({ children, scroll = true, refreshing = false, onRefresh, contentStyle, readingWidth = false }: Props) {
+export default function EditorialScreen({ children, scroll = true, refreshing = false, onRefresh, contentStyle, readingWidth = false, hideTopGlow = false }: Props) {
   const { width } = useWindowDimensions();
   const wide = width >= editorial.layout.desktop;
   const content = (
@@ -23,7 +24,7 @@ export default function EditorialScreen({ children, scroll = true, refreshing = 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       <View pointerEvents="none" style={styles.orbitBackdrop}>
-        <View style={styles.orbitGlow} />
+        {!hideTopGlow ? <View style={styles.orbitGlow} /> : null}
         <View style={styles.orbitRing} />
         <View style={styles.orbitCore} />
       </View>

@@ -1,8 +1,12 @@
 import { useMemo, useState } from 'react';
 import {
+  Alert,
+  Modal,
+  Pressable,
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
@@ -17,11 +21,60 @@ import { safeBackToCarteira } from '../utils/navigation';
 import { useOperationModal } from '../context/OperationModalContext';
 import { editorial } from '../theme/editorial';
 import { EditorialState } from '../ui/editorial';
+import Button from '../components/Button';
+import { confirmAction } from '../utils/confirm';
+import { formatCurrencyInput, parseFormattedNumber } from '../utils/numberFormat';
+const { formatBrazilianDateInput, brazilianDateToISO } = require('../utils/dateInput');
 
 export default function OperacoesScreen({ navigation }: any) {
-  const { operations, privacyMode } = useApp();
+  const { operations, privacyMode, updateOperationAndPosition, removeOperationAndUpdatePosition } = useApp();
   const { open: openOperation } = useOperationModal();
   const [filterMonth, setFilterMonth] = useState(new Date().toISOString().slice(0, 7));
+  const [editing, setEditing] = useState<Operation | null>(null);
+  const [editQuantity, setEditQuantity] = useState('');
+  const [editPrice, setEditPrice] = useState('');
+  const [editFees, setEditFees] = useState('');
+  const [editDate, setEditDate] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  const openEdit = (operation: Operation) => {
+    setEditing(operation);
+    setEditQuantity(String(operation.quantity).replace('.', ','));
+    setEditPrice(formatCurrencyInput(String(Math.round(operation.price * 100))));
+    setEditFees(formatCurrencyInput(String(Math.round((operation.fees || 0) * 100))));
+    setEditDate(formatDateBR(operation.date));
+  };
+
+  const saveEdit = async () => {
+    if (!editing || saving) return;
+    const quantity = Number(editQuantity.replace(',', '.'));
+    const price = parseFormattedNumber(editPrice);
+    const fees = parseFormattedNumber(editFees);
+    const date = brazilianDateToISO(editDate);
+    if (!Number.isFinite(quantity) || quantity <= 0 || price <= 0 || !date) {
+      Alert.alert('Confira os dados', 'Use quantidade e preço válidos e data no formato DD/MM/AAAA.');
+      return;
+    }
+    setSaving(true);
+    try {
+      await updateOperationAndPosition(editing.id, { quantity, price, fees, date });
+      setEditing(null);
+    } catch (error: any) {
+      Alert.alert('Não foi possível editar', error?.message || 'Tente novamente.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const deleteOperation = (operation: Operation) => confirmAction(
+    'Excluir movimento',
+    `Excluir ${operation.type === 'buy' ? 'a compra' : 'a venda'} de ${operation.symbol}? A posição da carteira será recalculada.`,
+    async () => {
+      try { await removeOperationAndUpdatePosition(operation.id); }
+      catch (error: any) { Alert.alert('Não foi possível excluir', error?.message || 'Tente novamente.'); }
+    },
+    { confirmLabel: 'Excluir', destructive: true },
+  );
 
   // Agrupa operações por mês
   const monthsAvailable = useMemo(() => {
@@ -170,10 +223,32 @@ export default function OperacoesScreen({ navigation }: any) {
                   <Text style={styles.syncedLabel}>SINCRONIZADA</Text>
                 </View>
               </View>
+              <View style={styles.opActions}>
+                <TouchableOpacity accessibilityRole="button" accessibilityLabel="Editar movimento" onPress={() => openEdit(op)} style={styles.opAction}><Ionicons name="create-outline" size={17} color={colors.primary} /><Text style={styles.opActionText}>Editar</Text></TouchableOpacity>
+                <TouchableOpacity accessibilityRole="button" accessibilityLabel="Excluir movimento" onPress={() => deleteOperation(op)} style={styles.opAction}><Ionicons name="trash-outline" size={17} color={colors.danger} /><Text style={[styles.opActionText, { color: colors.danger }]}>Excluir</Text></TouchableOpacity>
+              </View>
             </Card>
           ))
         )}
       </ScrollView>
+
+      <Modal visible={editing !== null} transparent animationType="slide" onRequestClose={() => !saving && setEditing(null)}>
+        <Pressable style={styles.modalBackdrop} onPress={() => !saving && setEditing(null)}>
+          <Pressable style={styles.modalSheet} onPress={(event) => event.stopPropagation()}>
+            <Text style={styles.modalTitle}>Editar movimento</Text>
+            <Text style={styles.modalSub}>{editing?.symbol} · {editing?.type === 'buy' ? 'Compra' : 'Venda'}</Text>
+            <Text style={styles.inputLabel}>Quantidade</Text>
+            <TextInput style={styles.input} value={editQuantity} onChangeText={setEditQuantity} keyboardType="decimal-pad" editable={!saving} />
+            <Text style={styles.inputLabel}>Preço unitário</Text>
+            <TextInput style={styles.input} value={editPrice} onChangeText={(value) => setEditPrice(formatCurrencyInput(value))} keyboardType="decimal-pad" editable={!saving} />
+            <Text style={styles.inputLabel}>Custos e taxas</Text>
+            <TextInput style={styles.input} value={editFees} onChangeText={(value) => setEditFees(formatCurrencyInput(value))} keyboardType="decimal-pad" editable={!saving} />
+            <Text style={styles.inputLabel}>Data</Text>
+            <TextInput style={styles.input} value={editDate} onChangeText={(value) => setEditDate(formatBrazilianDateInput(value))} keyboardType="number-pad" placeholder="DD/MM/AAAA" editable={!saving} />
+            <View style={styles.modalActions}><Button title="Cancelar" variant="ghost" onPress={() => setEditing(null)} disabled={saving} style={{ flex: 1 }} /><Button title="Salvar alterações" onPress={saveEdit} loading={saving} style={{ flex: 1 }} /></View>
+          </Pressable>
+        </Pressable>
+      </Modal>
 
     </SafeAreaView>
   );
@@ -260,4 +335,14 @@ const styles = StyleSheet.create({
   opMeta: { fontSize: fontSize.small, color: colors.textSecondary, marginTop: 2 },
   opTotal: { fontSize: fontSize.bodyLarge, fontWeight: '700', color: colors.text },
   syncedLabel: { marginTop: 5, color: colors.success, fontSize: fontSize.tiny, fontWeight: '800', letterSpacing: 0.5 },
+  opActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: spacing.md, marginTop: spacing.md, paddingTop: spacing.sm, borderTopWidth: 1, borderColor: colors.divider },
+  opAction: { minHeight: 36, flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: spacing.sm },
+  opActionText: { color: colors.primary, fontSize: fontSize.small, fontWeight: '700' },
+  modalBackdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: editorial.color.scrim },
+  modalSheet: { backgroundColor: colors.surface, borderTopLeftRadius: radius.xl, borderTopRightRadius: radius.xl, padding: spacing.lg, paddingBottom: spacing.xxl, borderWidth: 1, borderColor: colors.border },
+  modalTitle: { color: colors.text, fontSize: fontSize.title, fontWeight: '800' },
+  modalSub: { color: colors.textSecondary, marginTop: 3, marginBottom: spacing.md },
+  inputLabel: { color: colors.textSecondary, fontSize: fontSize.small, fontWeight: '700', marginTop: spacing.sm, marginBottom: 5 },
+  input: { minHeight: 48, borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, backgroundColor: colors.background, color: colors.text, paddingHorizontal: spacing.md, fontSize: fontSize.body },
+  modalActions: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.lg },
 });

@@ -44,7 +44,7 @@ export default function OnboardingScreen() {
           <View style={styles.progress} accessibilityLabel={`Etapa ${page + 1} de ${slides.length}`}>
             {slides.map((_, index) => <View key={index} style={[styles.progressTrack, index === page && styles.progressActive]} />)}
           </View>
-          <Button title={isLast ? 'Começar agora' : 'Continuar'} onPress={() => isLast ? finishOnboarding() : setPage((current) => current + 1)} icon={<Ionicons name="arrow-forward" size={20} color={palette.canvasRaised} />} />
+          <Button title={isLast ? 'Começar agora' : 'Continuar'} onPress={() => isLast ? finishOnboarding() : setPage((current) => current + 1)} icon={<Ionicons name="arrow-forward" size={20} color={palette.onBrand} />} />
         </View>
       </View>
     </SafeAreaView>

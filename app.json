@@ -5,15 +5,15 @@
     "version": "4.7.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
+    "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "scheme": "vesti",
     "description": "Acompanhe sua carteira de ações, FIIs e ETFs da B3 em um só lugar. Calcule IR mensal, gere DARF, acompanhe dividendos, defina metas e receba análises personalizadas com IA. Não somos corretora — é uma ferramenta de organização e educação financeira.",
-    "primaryColor": "#0B5345",
+    "primaryColor": "#7C5CFF",
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#0B5345"
+      "backgroundColor": "#11131B"
     },
     "ios": {
       "supportsTablet": true,
@@ -37,7 +37,7 @@
       "versionCode": 1,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#0B5345"
+        "backgroundColor": "#11131B"
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
@@ -48,8 +48,8 @@
       "bundler": "metro",
       "name": "Vesti — Sua Carteira em Tempo Real",
       "shortName": "Vesti",
-      "themeColor": "#0B5345",
-      "backgroundColor": "#FFFFFF"
+      "themeColor": "#11131B",
+      "backgroundColor": "#11131B"
     },
     "plugins": [
       "expo-secure-store",

@@ -22,7 +22,7 @@ import { useApp } from '../context/AppContext';
 import { fetchQuotes } from '../api/brapi';
 import { fetchAssetDetails, AssetDetails } from '../api/yahooDetails';
 import { fmtBRL } from '../utils/format';
-import { computeAllocation, suggestAporte, Suggestion, Pick } from '../utils/allocation';
+import { computeAllocation, getProfileTarget, suggestAporte, Suggestion, Pick } from '../utils/allocation';
 import { UNIVERSE, getCandidatesForProfile } from '../data/universe';
 import { fetchAiSuggestion, AiSuggestion } from '../api/ai';
 import { getBrokerById, brokerLimitations } from '../data/brokers';
@@ -37,11 +37,49 @@ import AllocationDelta from '../components/AllocationDelta';
 import HowItWorksAporte from '../components/HowItWorksAporte';
 import { safeBackToInvestir } from '../utils/navigation';
 import { PREFERENCE_INFO } from '../data/profileQuiz';
+const { submitOperationWithDeadline } = require('../utils/operationSubmission');
 
 const QUICK = [100, 300, 500, 1000];
 
+function createClientRequestId(): string {
+  const cryptoApi = (globalThis as any).crypto;
+  if (cryptoApi?.randomUUID) return cryptoApi.randomUUID();
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (char) => {
+    const value = Math.floor(Math.random() * 16);
+    return (char === 'x' ? value : (value & 0x3) | 0x8).toString(16);
+  });
+}
+
+function buildLocalAiSuggestion(plan: ReturnType<typeof suggestAporte>, profile: NonNullable<ReturnType<typeof useApp>['profile']>): AiSuggestion {
+  const focus = PREFERENCE_INFO[profile.preference || 'sem_preferencia'].label.toLowerCase();
+  const picks = plan.suggestions.flatMap((section) => section.picks.map((pick) => ({
+    classKey: section.class,
+    classLabel: section.classLabel,
+    role: pick.roleLabel,
+    symbol: pick.symbol,
+    name: pick.name,
+    amount: Math.round(pick.amount * 100) / 100,
+    reasoning: `${pick.reason} A escolha também considera o desvio atual da carteira e o ${focus}.`,
+  })));
+  return {
+    summary: `Análise personalizada para o perfil ${profile.type}, com ${focus}: o aporte prioriza as classes mais abaixo da meta e evita reforçar posições fora do foco.`,
+    picks,
+  };
+}
+
+function mergeAiNarrative(local: AiSuggestion, online: AiSuggestion): AiSuggestion {
+  const onlineBySymbol = new Map(online.picks.map((pick) => [pick.symbol, pick]));
+  return {
+    summary: online.summary,
+    picks: local.picks.map((pick) => {
+      const enriched = onlineBySymbol.get(pick.symbol);
+      return enriched ? { ...pick, reasoning: enriched.reasoning, role: enriched.role || pick.role } : pick;
+    }),
+  };
+}
+
 export default function AporteScreen({ navigation }: any) {
-  const { activeWallet, ensureActiveWallet, profile, privacyMode, addAsset } = useApp();
+  const { activeWallet, ensureActiveWallet, profile, privacyMode, addAsset, recordOperationAndUpdatePosition } = useApp();
   const [value, setValue] = useState('');
   const [prices, setPrices] = useState<Record<string, number>>({});
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -49,11 +87,15 @@ export default function AporteScreen({ navigation }: any) {
   const [buyQty, setBuyQty] = useState('');
   const [buyPrice, setBuyPrice] = useState('');
   const [confirming, setConfirming] = useState(false);
+  const [buyRequestId, setBuyRequestId] = useState(() => createClientRequestId());
+  const [buyRequestLocked, setBuyRequestLocked] = useState(false);
+  const [buyError, setBuyError] = useState<string | null>(null);
 
   // IA
   const [aiResult, setAiResult] = useState<AiSuggestion | null>(null);
   const [aiLoading, setAiLoading] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
+  const [analysisSource, setAnalysisSource] = useState<'local' | 'online'>('local');
 
   // Comprados nesta sessão (pra esconder da lista de sugestões)
   const [bought, setBought] = useState<Set<string>>(new Set());
@@ -104,15 +146,16 @@ export default function AporteScreen({ navigation }: any) {
     [activeWallet, prices],
   );
 
-  const handleSimulate = async () => {
-    if (numeric < 1) return;
+  const handleIntelligentSuggestion = async () => {
+    if (!profile || !activeWallet || numeric < 1) return;
     setShowSuggestions(true);
     setAiResult(null);
     setAiError(null);
     setBought(new Set());
+    setAiLoading(true);
 
-    // Pré-busca preços dos top candidatos pra filtrar sugestões por orçamento
-    if (profile) {
+    try {
+      let fetchedPriceMap: Record<string, number> = {};
       const candidates = new Set<string>();
       (['renda_variavel', 'internacional'] as const).forEach((cls) => {
         const top = getCandidatesForProfile(profile.type, cls, 0, profile.preference);
@@ -124,23 +167,19 @@ export default function AporteScreen({ navigation }: any) {
       if (symbols.length > 0) {
         try {
           const fetched = await fetchQuotes(symbols);
-          const map: Record<string, number> = {};
-          fetched.forEach((q) => (map[q.symbol] = q.regularMarketPrice));
-          setUniversePrices((prev) => ({ ...prev, ...map }));
+          fetched.forEach((q) => (fetchedPriceMap[q.symbol] = q.regularMarketPrice));
+          setUniversePrices((prev) => ({ ...prev, ...fetchedPriceMap }));
         } catch {
-          setAiError('Algumas cotações estão indisponíveis. A sugestão local continua disponível.');
+          fetchedPriceMap = {};
         }
       }
-    }
-  };
+      const localPlan = suggestAporte(numeric, activeWallet.assets, { ...universePrices, ...fetchedPriceMap, ...prices }, profile);
+      const localAnalysis = buildLocalAiSuggestion(localPlan, profile);
+      setAiResult(localAnalysis);
+      setAnalysisSource('local');
 
-  const handleAi = async () => {
-    if (!profile || !activeWallet || numeric < 1) return;
-    setAiLoading(true);
-    setAiError(null);
-    try {
       const brokers = userBrokerIds.map(getBrokerById).filter((b): b is any => !!b);
-      const result = await fetchAiSuggestion({
+      const online = await fetchAiSuggestion({
         amount: numeric,
         profile,
         currentAssets: activeWallet.assets.map((a) => ({
@@ -159,9 +198,10 @@ export default function AporteScreen({ navigation }: any) {
               }))
             : undefined,
       });
-      setAiResult(result);
+      setAiResult(mergeAiNarrative(localAnalysis, online));
+      setAnalysisSource('online');
     } catch (e: any) {
-      setAiError(e?.message || 'Erro ao consultar IA');
+      setAiError('Análise segura concluída no aparelho. O aprofundamento online não respondeu desta vez.');
     } finally {
       setAiLoading(false);
     }
@@ -182,6 +222,9 @@ export default function AporteScreen({ navigation }: any) {
         ? 'tesouro'
         : tickerInfo?.type || 'outro';
     setBuying({ symbol, name, amount, type });
+    setBuyRequestId(createClientRequestId());
+    setBuyRequestLocked(false);
+    setBuyError(null);
     if (tickerInfo) {
       const q = await fetchQuotes([symbol]).catch(() => []);
       const price = q[0]?.regularMarketPrice;
@@ -211,16 +254,29 @@ export default function AporteScreen({ navigation }: any) {
       return;
     }
     setConfirming(true);
+    setBuyError(null);
+    let mutationStarted = false;
     try {
       const targetWallet = activeWallet && !activeWallet.readOnly ? activeWallet : await ensureActiveWallet();
-      await addAsset(targetWallet.id, {
-        symbol: buying.symbol,
-        name: buying.name,
-        type: buying.type,
-        quantity: qty,
-        avgPrice: pr,
-        addedAt: Date.now(),
-      });
+      if (['acao', 'fii', 'etf'].includes(buying.type)) {
+        const isoDate = new Date().toISOString().slice(0, 10);
+        const payloadHash = JSON.stringify({ walletId: targetWallet.id, side: 'buy', assetKind: buying.type, sym: buying.symbol, qty, pr, isoDate });
+        setBuyRequestLocked(true);
+        mutationStarted = true;
+        await submitOperationWithDeadline(() => recordOperationAndUpdatePosition({
+          clientRequestId: buyRequestId, payloadHash, walletId: targetWallet.id, type: 'buy', symbol: buying.symbol,
+          assetType: buying.type, quantity: qty, price: pr, date: isoDate, name: buying.name,
+        }));
+      } else {
+        await addAsset(targetWallet.id, {
+          symbol: buying.symbol,
+          name: buying.name,
+          type: buying.type,
+          quantity: qty,
+          avgPrice: pr,
+          addedAt: Date.now(),
+        });
+      }
       // Marca como comprado pra remover da lista de sugestões
       setBought((prev) => {
         const next = new Set(prev);
@@ -231,12 +287,25 @@ export default function AporteScreen({ navigation }: any) {
       setBuying(null);
       setBuyQty('');
       setBuyPrice('');
+      setBuyRequestLocked(false);
+      setBuyRequestId(createClientRequestId());
+      setBuyError(null);
       await loadPrices();
     } catch (e: any) {
-      Alert.alert('Erro', e?.message || 'Não foi possível adicionar.');
+      if (!mutationStarted) setBuyRequestLocked(false);
+      setBuyError(e?.message || 'Não foi possível adicionar. Tente novamente.');
     } finally {
       setConfirming(false);
     }
+  };
+
+  const closeBuy = () => {
+    if (buyRequestLocked) {
+      Alert.alert('Confirmação pendente', 'A tentativa já foi enviada. Toque em “Confirmar novamente” para consultar o mesmo registro sem duplicar a compra.');
+      return;
+    }
+    setBuying(null);
+    setBuyError(null);
   };
 
   if (!profile) {
@@ -314,31 +383,19 @@ export default function AporteScreen({ navigation }: any) {
             )}
 
             <Button
-              title="Sugerir distribuição"
-              onPress={handleSimulate}
+              title="Analisar e sugerir distribuição"
+              onPress={handleIntelligentSuggestion}
               disabled={numeric < 1}
+              loading={aiLoading}
               style={{ marginTop: spacing.md }}
             />
-            <TouchableOpacity
-              style={styles.aiBtn}
-              onPress={handleAi}
-              disabled={numeric < 1 || aiLoading}
-            >
-              {aiLoading ? (
-                <ActivityIndicator size="small" color={colors.primary} />
-              ) : (
-                <>
-                  <Text style={styles.aiBtnIcon}>✨</Text>
-                  <Text style={styles.aiBtnText}>Análise inteligente com IA</Text>
-                </>
-              )}
-            </TouchableOpacity>
+            <Text style={styles.analysisHint}>Incluída no plano gratuito · funciona mesmo se a IA online estiver indisponível.</Text>
           </Card>
 
           {/* Resultado IA */}
           {aiResult && (
             <>
-              <Text style={styles.sectionTitle}>✨ Análise da IA</Text>
+              <Text style={styles.sectionTitle}>✨ Análise personalizada</Text>
               <Card style={styles.aiResultCard}>
                 <Text style={styles.aiSummary}>{aiResult.summary}</Text>
               </Card>
@@ -393,7 +450,7 @@ export default function AporteScreen({ navigation }: any) {
               <View style={styles.aiFooter}>
                 <Ionicons name="sparkles" size={14} color={colors.primary} />
                 <Text style={styles.aiFooterText}>
-                  Análise gerada por IA (Llama 3.3 70B via Groq), baseada em cotações ao vivo e fundamentos atuais
+                  {analysisSource === 'online' ? 'Análise enriquecida online, com alocação protegida pelo seu perfil e foco.' : 'Análise feita no aparelho com seu perfil, foco, carteira atual e desvios da meta.'}
                 </Text>
               </View>
 
@@ -461,20 +518,7 @@ export default function AporteScreen({ navigation }: any) {
           )}
 
           {!showSuggestions && !aiResult && current.total > 0 && (() => {
-            const targetAlloc = profile?.targetAllocation || {};
-            const targetPct = {
-              renda_fixa: (targetAlloc.tesouro || 0) + (targetAlloc.cdb || 0),
-              renda_variavel: (targetAlloc.acao || 0) + (targetAlloc.fii || 0) + (targetAlloc.etf || 0),
-              internacional: (targetAlloc.internacional || 0),
-            };
-            // Se ninguém definiu, usa padrão baseado no tipo de perfil
-            const hasTarget = targetPct.renda_fixa + targetPct.renda_variavel + targetPct.internacional > 0;
-            const defaultsByType: Record<string, typeof targetPct> = {
-              conservador: { renda_fixa: 70, renda_variavel: 20, internacional: 10 },
-              moderado: { renda_fixa: 40, renda_variavel: 45, internacional: 15 },
-              agressivo: { renda_fixa: 20, renda_variavel: 60, internacional: 20 },
-            };
-            const finalTarget = hasTarget ? targetPct : (defaultsByType[profile.type] || defaultsByType.moderado);
+            const finalTarget = getProfileTarget(profile);
 
             return (
               <>
@@ -523,8 +567,8 @@ export default function AporteScreen({ navigation }: any) {
       </KeyboardAvoidingView>
 
       {/* Modal Comprei */}
-      <Modal visible={buying !== null} transparent animationType="slide" onRequestClose={() => setBuying(null)}>
-        <Pressable style={styles.backdrop} onPress={() => setBuying(null)}>
+      <Modal visible={buying !== null} transparent animationType="slide" onRequestClose={closeBuy}>
+        <Pressable style={styles.backdrop} onPress={closeBuy}>
           <Pressable style={styles.modal} onPress={(e) => e.stopPropagation()}>
             <Text style={styles.modalTitle}>Confirmar compra</Text>
             <Text style={styles.modalSub}>
@@ -539,6 +583,7 @@ export default function AporteScreen({ navigation }: any) {
               style={styles.modalInput}
               value={buyQty}
               onChangeText={setBuyQty}
+              editable={!buyRequestLocked}
               keyboardType="decimal-pad"
               placeholder="0"
             />
@@ -548,6 +593,7 @@ export default function AporteScreen({ navigation }: any) {
               style={styles.modalInput}
               value={buyPrice}
               onChangeText={(t) => setBuyPrice(formatCurrencyInput(t))}
+              editable={!buyRequestLocked}
               keyboardType="decimal-pad"
               placeholder="0,00"
             />
@@ -561,9 +607,11 @@ export default function AporteScreen({ navigation }: any) {
               </Text>
             </View>
 
+            {buyError ? <Text style={styles.buyError}>{buyError}</Text> : null}
+
             <View style={{ flexDirection: 'row', marginTop: spacing.md }}>
-              <Button title="Cancelar" variant="ghost" onPress={() => setBuying(null)} style={{ flex: 1 }} />
-              <Button title="Adicionar" onPress={confirmBuy} loading={confirming} style={{ flex: 1 }} />
+              <Button title="Cancelar" variant="ghost" onPress={closeBuy} disabled={buyRequestLocked} style={{ flex: 1 }} />
+              <Button title={buyRequestLocked ? 'Confirmar novamente' : 'Adicionar'} onPress={confirmBuy} loading={confirming} style={{ flex: 1 }} />
             </View>
           </Pressable>
         </Pressable>
@@ -895,6 +943,7 @@ function Legend({ color, label }: { color: string; label: string }) {
 }
 
 const styles = StyleSheet.create({
+  analysisHint: { color: colors.textTertiary, fontSize: fontSize.tiny, lineHeight: 17, textAlign: 'center', marginTop: spacing.sm },
   safe: { flex: 1, backgroundColor: editorial.color.canvas },
   header: { minHeight: 64, flexDirection: 'row', alignItems: 'center', paddingHorizontal: spacing.md, borderBottomWidth: 1, borderBottomColor: editorial.color.line },
   backButton: { width: 44, height: 44, borderRadius: 22, borderWidth: 1, borderColor: editorial.color.line, alignItems: 'center', justifyContent: 'center' },
@@ -1097,6 +1146,7 @@ const styles = StyleSheet.create({
     color: colors.text,
   },
   totalLine: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: spacing.md },
+  buyError: { color: colors.danger, fontSize: fontSize.small, lineHeight: 18, marginTop: spacing.md },
   totalLabel: { fontSize: fontSize.body, color: colors.textSecondary },
   totalValue: { fontSize: fontSize.title, fontWeight: 'bold', color: colors.text },
 

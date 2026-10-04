@@ -98,9 +98,9 @@ type AppContextType = {
   markVersionSeen: (version: string) => Promise<void>;
 
   operations: Operation[];
-  addOperation: (op: Omit<Operation, 'id' | 'createdAt'>) => Promise<void>;
   recordOperationAndUpdatePosition: (input: AtomicOperationInput) => Promise<void>;
-  removeOperation: (id: string) => Promise<void>;
+  updateOperationAndPosition: (id: string, patch: Partial<Pick<Operation, 'quantity' | 'price' | 'fees' | 'withholdingTax' | 'date'>>) => Promise<void>;
+  removeOperationAndUpdatePosition: (id: string) => Promise<void>;
 
   proventos: Provento[];
   addProvento: (p: Omit<Provento, 'id' | 'createdAt'>) => Promise<void>;
@@ -146,6 +146,7 @@ export type Operation = {
   date: string;          // YYYY-MM-DD
   notes?: string;
   createdAt: number;
+  walletId?: string;
 };
 
 export type AtomicOperationInput = {
@@ -337,11 +338,19 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
 
     // Operations (ledger pra IR)
-    const { data: ops } = await supabase
+    let { data: ops, error: operationsError } = await supabase
       .from('operations')
-      .select('id, type, symbol, asset_type, quantity, price, fees, withholding_tax, date, notes, created_at')
+      .select('id, wallet_id, type, symbol, asset_type, quantity, price, fees, withholding_tax, date, notes, created_at')
       .eq('user_id', uid)
       .order('date', { ascending: false });
+    if (operationsError) {
+      const fallback = await supabase
+        .from('operations')
+        .select('id, type, symbol, asset_type, quantity, price, fees, withholding_tax, date, notes, created_at')
+        .eq('user_id', uid)
+        .order('date', { ascending: false });
+      ops = fallback.data as any;
+    }
     if (ops) {
       setOperations(
         ops.map((o: any) => ({
@@ -356,6 +365,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
           date: o.date,
           notes: o.notes,
           createdAt: new Date(o.created_at).getTime(),
+          walletId: o.wallet_id || readOperationWalletId(o.notes),
         })),
       );
     }
@@ -1009,44 +1019,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
     [watchlist],
   );
 
-  const addOperation = useCallback(
-    async (op: Omit<Operation, 'id' | 'createdAt'>) => {
-      if (!userId) throw new Error('Não autenticado');
-      const { data, error } = await withTimeout(supabase
-        .from('operations')
-        .insert({
-          user_id: userId,
-          type: op.type,
-          symbol: op.symbol,
-          asset_type: op.assetType,
-          quantity: op.quantity,
-          price: op.price,
-          fees: op.fees || 0,
-          withholding_tax: op.withholdingTax || 0,
-          date: op.date,
-          notes: op.notes,
-        })
-        .select()
-        .single(), 15000, 'Salvar a operação');
-      if (error || !data) throw new Error(translateDbError(error?.message || 'Erro'));
-      const newOp: Operation = {
-        id: data.id,
-        type: data.type,
-        symbol: data.symbol,
-        assetType: data.asset_type,
-        quantity: Number(data.quantity),
-        price: Number(data.price),
-        fees: Number(data.fees || 0),
-        withholdingTax: Number(data.withholding_tax || 0),
-        date: data.date,
-        notes: data.notes,
-        createdAt: new Date(data.created_at).getTime(),
-      };
-      setOperations((prev) => [newOp, ...prev]);
-    },
-    [userId],
-  );
-
   const recordOperationAndUpdatePosition = useCallback(async (input: AtomicOperationInput) => {
     if (!userId) throw new Error('Você não está logado. Faça login novamente.');
     const wallet = walletsRef.current.find((item) => item.id === input.walletId);
@@ -1082,7 +1054,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       if (previousError) throw new Error(translateDbError(previousError.message));
 
       type TargetPosition = { quantity: number; avgPrice: number; name: string; type: Asset['type'] };
-      type StoredRequest = { fingerprint: string; target: TargetPosition | null };
+      type StoredRequest = { fingerprint: string; target: TargetPosition | null; walletId?: string };
       let stored: StoredRequest | null = null;
       if (previousRows?.[0]?.notes) {
         try {
@@ -1121,7 +1093,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
             type: (current?.type || input.assetType) as Asset['type'],
           };
         }
-        stored = { fingerprint: input.payloadHash, target };
+        stored = { fingerprint: input.payloadHash, target, walletId: input.walletId };
         const note = `${marker}${JSON.stringify(stored)}`;
         const { error: insertError } = await withTimeout(supabase.from('operations').upsert({
           id: input.clientRequestId,
@@ -1205,15 +1177,58 @@ export function AppProvider({ children }: { children: ReactNode }) {
     return () => { cancelled = true; };
   }, [recordOperationAndUpdatePosition, userId, wallets.length]);
 
-  const removeOperation = useCallback(
-    async (id: string) => {
-      if (userId) {
-        assertMutation(await supabase.from('operations').delete().eq('id', id));
-      }
-      setOperations((prev) => prev.filter((o) => o.id !== id));
-    },
-    [userId],
-  );
+  const resolveOperationWallet = useCallback((operation: Operation): Wallet => {
+    const editable = walletsRef.current.filter((wallet) => !wallet.readOnly && (!wallet.ownerId || wallet.ownerId === userId));
+    if (operation.walletId) {
+      const exact = editable.find((wallet) => wallet.id === operation.walletId);
+      if (!exact) throw new Error('A carteira deste movimento não está disponível para edição.');
+      return exact;
+    }
+    if (editable.length === 1) return editable[0];
+    throw new Error(`O movimento antigo de ${operation.symbol} não informa a carteira e há mais de uma possibilidade. Por segurança, ele não foi alterado.`);
+  }, [userId]);
+
+  const mutateOperationAndPosition = useCallback(async (
+    previous: Operation,
+    action: 'update' | 'delete',
+    next?: Operation,
+  ) => {
+    if (!userId) throw new Error('Não autenticado');
+    const wallet = resolveOperationWallet(previous);
+    const { error } = await withTimeout(supabase.rpc('mutate_operation_and_rebuild_position', {
+      p_operation_id: previous.id,
+      p_action: action,
+      p_wallet_id: wallet.id,
+      p_quantity: next?.quantity ?? null,
+      p_price: next?.price ?? null,
+      p_fees: next?.fees || 0,
+      p_withholding_tax: next?.withholdingTax || 0,
+      p_date: next?.date ?? null,
+    }), 15000, action === 'delete' ? 'Excluir o movimento' : 'Editar o movimento');
+    if (error) {
+      const missingRpc = error.code === 'PGRST202' || /schema cache|mutate_operation_and_rebuild_position/i.test(error.message || '');
+      if (missingRpc) throw new Error('A atualização segura do banco ainda não foi aplicada. Atualize o Supabase antes de editar movimentos.');
+      throw new Error(translateDbError(error.message));
+    }
+    const { data: { session } } = await supabase.auth.getSession();
+    await loadUserData(userId, session?.user?.email || user?.email || '');
+  }, [loadUserData, resolveOperationWallet, user?.email, userId]);
+
+  const updateOperationAndPosition = useCallback(async (id: string, patch: Partial<Pick<Operation, 'quantity' | 'price' | 'fees' | 'withholdingTax' | 'date'>>) => {
+    if (!userId) throw new Error('Não autenticado');
+    const previous = operations.find((operation) => operation.id === id);
+    if (!previous) throw new Error('Movimento não encontrado.');
+    const next = { ...previous, ...patch };
+    if (next.quantity <= 0 || next.price <= 0) throw new Error('Quantidade e preço precisam ser maiores que zero.');
+    await mutateOperationAndPosition(previous, 'update', next);
+  }, [mutateOperationAndPosition, operations, userId]);
+
+  const removeOperationAndUpdatePosition = useCallback(async (id: string) => {
+    if (!userId) throw new Error('Não autenticado');
+    const previous = operations.find((operation) => operation.id === id);
+    if (!previous) throw new Error('Movimento não encontrado.');
+    await mutateOperationAndPosition(previous, 'delete');
+  }, [mutateOperationAndPosition, operations, userId]);
 
   const addProvento = useCallback(
     async (p: Omit<Provento, 'id' | 'createdAt'>) => {
@@ -1446,9 +1461,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
         lastSeenVersion,
         markVersionSeen,
         operations,
-        addOperation,
         recordOperationAndUpdatePosition,
-        removeOperation,
+        updateOperationAndPosition,
+        removeOperationAndUpdatePosition,
         proventos,
         addProvento,
         removeProvento,
@@ -1475,6 +1490,16 @@ export function useApp() {
 function assertMutation(result: { error?: { message?: string } | null }): void {
   if (result.error) {
     throw new Error(translateDbError(result.error.message || 'Falha ao salvar alteração'));
+  }
+}
+
+function readOperationWalletId(notes?: string | null): string | undefined {
+  if (!notes?.startsWith('vesti-operation:')) return undefined;
+  try {
+    const value = JSON.parse(notes.slice('vesti-operation:'.length));
+    return typeof value?.walletId === 'string' ? value.walletId : undefined;
+  } catch {
+    return undefined;
   }
 }
 

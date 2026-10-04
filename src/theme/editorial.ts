@@ -1,5 +1,5 @@
 import { Platform } from 'react-native';
-import { palette } from './tokens';
+import { adaptivePalette as palette } from './tokens';
 
 export const editorial = {
   color: {
@@ -21,9 +21,9 @@ export const editorial = {
     warningSoft: palette.warningSoft,
     danger: palette.danger,
     dangerSoft: palette.dangerSoft,
-    inverse: palette.canvasRaised,
-    inverseMuted: palette.inkSecondary,
-    white: palette.ink,
+    inverse: palette.brandPressed,
+    inverseMuted: palette.onBrand,
+    white: palette.onBrand,
     scrim: palette.scrim,
   },
   space: { xs: 4, sm: 8, md: 12, lg: 16, xl: 24, xxl: 32, xxxl: 48 },

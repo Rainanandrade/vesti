@@ -76,6 +76,20 @@ function getMix(cls: Class, profile: Profile) {
   return INTL_MIX[profile.type];
 }
 
+export function getProfileTarget(profile: Profile): Record<Class, number> {
+  const custom = profile.targetAllocation;
+  if (custom) {
+    const target = {
+      renda_fixa: (custom.tesouro || 0) + (custom.cdb || 0),
+      renda_variavel: (custom.acao || 0) + (custom.fii || 0) + (custom.etf || 0) + (custom.outro || 0),
+      internacional: custom.internacional || 0,
+    };
+    const total = target.renda_fixa + target.renda_variavel + target.internacional;
+    if (Math.abs(total - 100) < 0.01) return target;
+  }
+  return { ...profile.strategy };
+}
+
 export function isAlignedWithPreference(asset: UniverseAsset, preference?: Profile['preference']): boolean {
   if (!preference || preference === 'sem_preferencia' || preference === 'equilibrado') return true;
   if (preference === 'dividendos') return asset.tags.some((tag) => ['dividends', 'paper_fii', 'brick_fii'].includes(tag));
@@ -99,7 +113,7 @@ function generatePicksForClass(
   const existing = (existingAssetsByClass.get(cls) || []).filter((asset) => {
     const universeAsset = UNIVERSE.find((candidate) => candidate.symbol === asset.symbol.toUpperCase());
     return universeAsset ? isAlignedWithPreference(universeAsset, profile.preference) : !profile.preference || ['sem_preferencia', 'equilibrado'].includes(profile.preference);
-  });
+  }).sort((a, b) => (a.quantity * (prices[a.symbol] || a.avgPrice)) - (b.quantity * (prices[b.symbol] || b.avgPrice)));
   let remaining = amount;
   if (existing.length > 0) {
     const reinforce = Math.min(amount * 0.35, amount);
@@ -161,6 +175,8 @@ function generatePicksForClass(
     }
   }
 
+  const allocated = picks.reduce((sum, pick) => sum + pick.amount, 0);
+  if (picks.length > 0 && allocated < amount) picks[0].amount += amount - allocated;
   return picks;
 }
 
@@ -171,11 +187,7 @@ export function suggestAporte(
   profile: Profile,
 ): { suggestions: Suggestion[]; targetPct: Record<Class, number>; afterPct: Record<Class, number> } {
   const breakdown = computeAllocation(assets, prices);
-  const target = {
-    renda_fixa: profile.strategy.renda_fixa,
-    renda_variavel: profile.strategy.renda_variavel,
-    internacional: profile.strategy.internacional,
-  };
+  const target = getProfileTarget(profile);
 
   const newTotal = breakdown.total + value;
   const idealAfter: Record<Class, number> = {
@@ -190,38 +202,18 @@ export function suggestAporte(
   };
   const totalGap = gaps.renda_fixa + gaps.renda_variavel + gaps.internacional;
 
-  // Mistura híbrida: 70% segue os gaps (rebalanceia) + 30% segue o target puro (mantém alinhado)
+  // O aporte inteiro corrige os desvios reais. Uma classe já acima da meta não
+  // recebe dinheiro só porque existe no alvo; isso evita "seguir a receita" às cegas.
   const allocations: Record<Class, number> = { renda_fixa: 0, renda_variavel: 0, internacional: 0 };
   if (totalGap === 0) {
     allocations.renda_fixa = (value * target.renda_fixa) / 100;
     allocations.renda_variavel = (value * target.renda_variavel) / 100;
     allocations.internacional = (value * target.internacional) / 100;
   } else {
-    const gapPortion = value * 0.7;
-    const targetPortion = value * 0.3;
     (['renda_fixa', 'renda_variavel', 'internacional'] as Class[]).forEach((c) => {
-      const gapPart = totalGap > 0 ? (gapPortion * gaps[c]) / totalGap : 0;
-      const targetPart = (targetPortion * target[c]) / 100;
-      allocations[c] = gapPart + targetPart;
+      allocations[c] = (value * gaps[c]) / totalGap;
     });
   }
-
-  // Garante valores mínimos pra que todas as 3 classes apareçam (se possível)
-  const MINIMUM_CLASS_AMOUNT = Math.min(50, value * 0.1);
-  (['renda_fixa', 'renda_variavel', 'internacional'] as Class[]).forEach((c) => {
-    if (allocations[c] < MINIMUM_CLASS_AMOUNT && target[c] > 0) {
-      // Toma dos outros proporcionalmente
-      const deficit = MINIMUM_CLASS_AMOUNT - allocations[c];
-      const others = (['renda_fixa', 'renda_variavel', 'internacional'] as Class[]).filter((x) => x !== c);
-      const othersTotal = others.reduce((s, x) => s + allocations[x], 0);
-      if (othersTotal > deficit) {
-        others.forEach((x) => {
-          allocations[x] -= (deficit * allocations[x]) / othersTotal;
-        });
-        allocations[c] = MINIMUM_CLASS_AMOUNT;
-      }
-    }
-  });
 
   const labels: Record<Class, string> = {
     renda_fixa: 'Renda Fixa',

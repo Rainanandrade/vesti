@@ -12,6 +12,7 @@ import { fetchQuotes, Quote } from '../api/brapi';
 import { fetchDividendInfoBatch, DividendInfo } from '../api/dividends';
 import { supabase } from '../services/supabase';
 import { requestWithTimeout } from '../api/request';
+import { buildLocalDiagnostic } from '../utils/localDiagnostic';
 
 const API_URL = 'https://vesti-nine.vercel.app/api/ai-consultor';
 
@@ -63,7 +64,12 @@ export default function IAConsultorScreen({ navigation }: any) {
       if (!r.ok) throw new Error(json.error || 'Falha na IA');
       setAnswer(json.answer);
     } catch (e: any) {
-      setError(e.message || 'Erro ao consultar IA');
+      if (profile) {
+        setAnswer(buildLocalDiagnostic(profile, activeWallet.assets, Object.fromEntries(Object.entries(quotes).map(([symbol, quote]) => [symbol, quote.regularMarketPrice])), customQuestion ?? question));
+        setError('A resposta online não chegou; análise segura concluída no aparelho.');
+      } else {
+        setError(e.message || 'Erro ao consultar IA');
+      }
     } finally {
       setLoading(false);
     }
